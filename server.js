@@ -1,16 +1,22 @@
 require('dotenv').config();
 const express = require('express');
+const cookieParser = require('cookie-parser');
 const path = require('path');
 
 const boardsApi = require('./api/boards');
 const postsApi  = require('./api/posts');
 const statsApi  = require('./api/stats');
+const authApi   = require('./api/auth');
+const adminApi  = require('./api/admin');
+const { attachUser } = require('./middleware/auth');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// JSON 바디 파싱
+// 미들웨어
 app.use(express.json({ limit: '256kb' }));
+app.use(cookieParser());
+app.use(attachUser);  // 모든 요청에 req.user 채워줌 (없으면 null)
 
 // 정적 파일
 app.use(express.static(__dirname, {
@@ -20,50 +26,32 @@ app.use(express.static(__dirname, {
 }));
 
 // API 라우트
+app.use('/api/auth',   authApi);
 app.use('/api/boards', boardsApi);
 app.use('/api/posts',  postsApi);
 app.use('/api/stats',  statsApi);
+app.use('/api/admin',  adminApi);
 
 // 헬스체크
 app.get('/healthz', (_req, res) => {
   res.status(200).json({ status: 'ok', service: 'marketalk' });
 });
 
-// 진단 — DB 연결 상태 + 환경 정보 (임시, 배포 후 제거 권장)
-app.get('/_diag', async (_req, res) => {
-  const env = process.env;
-  const out = {
-    deployed_commit: env.RAILWAY_GIT_COMMIT_SHA?.slice(0, 7) || 'unknown',
-    deployed_at: env.RAILWAY_DEPLOYMENT_ID ? 'railway' : 'local',
-    node_version: process.version,
-    has_DATABASE_URL: !!env.DATABASE_URL,
-    has_ANTHROPIC_API_KEY: !!env.ANTHROPIC_API_KEY,
-    has_PORT: !!env.PORT,
-    db_host: null,
-    db_ok: false,
-    db_error: null,
-    boards: null,
-    posts: null,
-    // 어떤 키들이 들어와 있는지 (값은 노출 X, 키 이름만)
-    env_keys_with_db_or_postgres: Object.keys(env).filter(k => /db|postgres|pg/i.test(k)).sort(),
-  };
-  if (env.DATABASE_URL) {
-    try {
-      const u = new URL(env.DATABASE_URL);
-      out.db_host = u.hostname + ':' + u.port;
-    } catch (e) { out.db_host = 'parse_error'; }
-  }
-  try {
-    const { query } = require('./db');
-    const r1 = await query('SELECT COUNT(*)::int AS c FROM boards');
-    const r2 = await query('SELECT COUNT(*)::int AS c FROM posts');
-    out.db_ok = true;
-    out.boards = r1.rows[0].c;
-    out.posts  = r2.rows[0].c;
-  } catch (err) {
-    out.db_error = err.message;
-  }
-  res.json(out);
+// ads.txt — AdSense 승인 후 채워질 자리 (env로 주입)
+app.get('/ads.txt', (_req, res) => {
+  res.type('text/plain').send(process.env.ADS_TXT || '# add your ads.txt content via ADS_TXT env var');
+});
+
+// 광고 코드 주입 — env에 있는 슬롯별 HTML을 프론트가 가져가서 렌더링
+app.get('/api/ads', (_req, res) => {
+  res.json({
+    top:     process.env.AD_SLOT_TOP     || null,
+    inline:  process.env.AD_SLOT_INLINE  || null,
+    bottom:  process.env.AD_SLOT_BOTTOM  || null,
+    side1:   process.env.AD_SLOT_SIDE1   || null,
+    side2:   process.env.AD_SLOT_SIDE2   || null,
+    head:    process.env.AD_HEAD_SCRIPT  || null,  // AdSense 페이지 헤드 스크립트
+  });
 });
 
 // SPA-ish 폴백 — API/healthz는 위에서 처리됨, 나머지는 index.html

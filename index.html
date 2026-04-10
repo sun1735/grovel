@@ -81,10 +81,10 @@
       <span class="flex items-center gap-1.5"><span class="live-dot"></span> 지금 <b class="text-emerald-300" id="stat-online">…</b> 접속 중</span>
       <span class="hidden md:inline text-white/60">오늘 게시글 <b class="text-white" id="stat-posts-today">…</b> · 오늘 댓글 <b class="text-white" id="stat-comments-today">…</b></span>
     </div>
-    <div class="flex items-center gap-3 text-white/70">
-      <a href="#" class="hover:text-white">로그인</a>
+    <div class="flex items-center gap-3 text-white/70" id="topbar-auth">
+      <a href="/login.html" class="hover:text-white">로그인</a>
       <span class="text-white/30">|</span>
-      <a href="#" class="hover:text-white">회원가입</a>
+      <a href="/login.html#register" class="hover:text-white">회원가입</a>
       <span class="text-white/30">|</span>
       <a href="#" class="hover:text-white">고객센터</a>
     </div>
@@ -118,7 +118,7 @@
       <a href="#" class="hover:text-black">뉴스</a>
     </nav>
 
-    <a href="#" class="inline-flex items-center gap-1.5 rounded-lg bg-brand-500 hover:bg-brand-600 text-white px-4 py-2 text-sm font-bold">
+    <a href="/compose.html" id="btn-write" class="inline-flex items-center gap-1.5 rounded-lg bg-brand-500 hover:bg-brand-600 text-white px-4 py-2 text-sm font-bold">
       <i data-lucide="pencil" class="w-4 h-4"></i> 글쓰기
     </a>
   </div>
@@ -134,7 +134,7 @@
 
 <!-- ============== TOP BANNER AD ============== -->
 <div class="container-x mt-4">
-  <div class="ad-slot h-[90px] md:h-[110px]">728 × 90  ·  TOP BANNER AD</div>
+  <div class="ad-slot h-[90px] md:h-[110px]" data-ad-slot="top">728 × 90  ·  TOP BANNER AD</div>
 </div>
 
 <!-- ============== MAIN ============== -->
@@ -180,7 +180,7 @@
     </div>
 
     <!-- INLINE BANNER AD -->
-    <div class="ad-slot h-[110px]">728 × 90  ·  INLINE BANNER AD</div>
+    <div class="ad-slot h-[110px]" data-ad-slot="inline">728 × 90  ·  INLINE BANNER AD</div>
 
     <!-- CATEGORIES GRID -->
     <div class="card p-5">
@@ -204,18 +204,43 @@
   <!-- RIGHT SIDEBAR -->
   <aside class="lg:col-span-4 space-y-5">
 
-    <div class="card p-5">
-      <div class="text-sm font-bold mb-3">로그인</div>
-      <input type="text" placeholder="아이디" class="w-full h-9 px-3 rounded-md bg-paper border border-black/5 text-sm mb-2 focus:outline-none focus:ring-2 focus:ring-brand-500/30" />
-      <input type="password" placeholder="비밀번호" class="w-full h-9 px-3 rounded-md bg-paper border border-black/5 text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-brand-500/30" />
-      <button class="w-full h-9 bg-ink text-white rounded-md text-sm font-bold hover:bg-black/85">로그인</button>
-      <div class="flex items-center justify-between mt-3 text-[11px] text-black/50">
-        <a href="#" class="hover:text-black">회원가입</a>
-        <a href="#" class="hover:text-black">아이디/PW 찾기</a>
+    <div id="sidebar-auth" class="card p-5">
+      <!-- 비로그인 상태 -->
+      <div id="auth-anon">
+        <div class="text-sm font-bold mb-3">로그인</div>
+        <form id="sidebar-login-form">
+          <input type="email" name="email" placeholder="이메일" required
+                 class="w-full h-9 px-3 rounded-md bg-paper border border-black/5 text-sm mb-2" />
+          <input type="password" name="password" placeholder="비밀번호" required
+                 class="w-full h-9 px-3 rounded-md bg-paper border border-black/5 text-sm mb-3" />
+          <button type="submit" class="w-full h-9 bg-ink text-white rounded-md text-sm font-bold hover:bg-black/85">로그인</button>
+        </form>
+        <div id="sidebar-login-err" class="text-[11px] text-rose-600 mt-2 hidden"></div>
+        <div class="flex items-center justify-between mt-3 text-[11px] text-black/50">
+          <a href="/login.html#register" class="hover:text-black">회원가입</a>
+          <a href="#" class="hover:text-black">아이디/PW 찾기</a>
+        </div>
+      </div>
+      <!-- 로그인 상태 -->
+      <div id="auth-user" class="hidden">
+        <div class="flex items-center gap-3 mb-3">
+          <div id="me-avatar" class="av av-1" style="width:42px;height:42px;font-size:16px;">·</div>
+          <div class="flex-1 min-w-0">
+            <div class="text-[11px] text-black/45" id="me-role">멤버</div>
+            <div class="font-extrabold truncate" id="me-nickname">…</div>
+          </div>
+        </div>
+        <a href="/compose.html" class="block w-full text-center h-9 leading-9 bg-brand-500 hover:bg-brand-600 text-white rounded-md text-sm font-bold mb-1.5">
+          글쓰기
+        </a>
+        <a id="me-admin-link" href="/admin.html" class="hidden text-center h-9 leading-9 bg-paper hover:bg-black/5 text-ink rounded-md text-sm font-bold mb-1.5 w-full">
+          관리자
+        </a>
+        <button id="btn-logout" class="w-full h-9 text-[12px] text-black/55 hover:text-black">로그아웃</button>
       </div>
     </div>
 
-    <div class="ad-slot h-[260px]">300 × 250  ·  SIDEBAR AD</div>
+    <div class="ad-slot h-[260px]" data-ad-slot="side1">300 × 250  ·  SIDEBAR AD</div>
 
     <div class="card p-5">
       <div class="text-sm font-bold mb-4 flex items-center gap-2">
@@ -244,7 +269,7 @@
       </ol>
     </div>
 
-    <div class="ad-slot h-[260px]">300 × 250  ·  SIDEBAR AD</div>
+    <div class="ad-slot h-[260px]" data-ad-slot="side2">300 × 250  ·  SIDEBAR AD</div>
 
     <div class="card p-5 bg-gradient-to-br from-brand-500 to-brand-700 text-white border-0">
       <div class="font-bold text-lg">우리 디스코드도 있어요</div>
@@ -258,7 +283,7 @@
 </main>
 
 <div class="container-x mt-8">
-  <div class="ad-slot h-[110px]">728 × 90  ·  BOTTOM BANNER AD</div>
+  <div class="ad-slot h-[110px]" data-ad-slot="bottom">728 × 90  ·  BOTTOM BANNER AD</div>
 </div>
 
 <footer class="mt-10 bg-white border-t border-black/5">
@@ -517,11 +542,106 @@
     } catch (e) { console.warn(e); }
   }
 
+  // ============== AUTH ==============
+  async function loadAuth() {
+    try {
+      const r = await fetch('/api/auth/me', { credentials:'same-origin' });
+      const { user } = await r.json();
+      if (user) renderLoggedIn(user); else renderAnon();
+    } catch { renderAnon(); }
+  }
+
+  function renderLoggedIn(user) {
+    $('#auth-anon').classList.add('hidden');
+    $('#auth-user').classList.remove('hidden');
+    $('#me-nickname').textContent = user.nickname;
+    $('#me-role').textContent = user.role === 'admin' ? '관리자' : '멤버';
+    const av = $('#me-avatar');
+    av.className = 'av ' + avatarClass(user.nickname);
+    av.style.width = '42px'; av.style.height = '42px'; av.style.fontSize = '16px';
+    av.textContent = user.nickname[0];
+    if (user.role === 'admin') $('#me-admin-link').classList.remove('hidden');
+
+    // 상단바도 갱신
+    const tb = $('#topbar-auth');
+    tb.innerHTML = `
+      <span class="text-white/80">${user.nickname}님</span>
+      <span class="text-white/30">|</span>
+      ${user.role === 'admin' ? '<a href="/admin.html" class="text-emerald-300 hover:text-emerald-200">관리자</a><span class="text-white/30">|</span>' : ''}
+      <button id="topbar-logout" class="hover:text-white">로그아웃</button>
+    `;
+    document.getElementById('topbar-logout').addEventListener('click', logout);
+  }
+
+  function renderAnon() {
+    $('#auth-anon').classList.remove('hidden');
+    $('#auth-user').classList.add('hidden');
+  }
+
+  async function logout() {
+    await fetch('/api/auth/logout', { method:'POST', credentials:'same-origin' });
+    location.reload();
+  }
+
+  // 사이드바 로그인 폼
+  $('#sidebar-login-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const data = Object.fromEntries(new FormData(e.target));
+    const r = await fetch('/api/auth/login', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      credentials:'same-origin',
+      body: JSON.stringify(data),
+    });
+    if (r.ok) location.reload();
+    else {
+      const j = await r.json();
+      const err = $('#sidebar-login-err');
+      err.textContent = j.message || '이메일/비밀번호 확인';
+      err.classList.remove('hidden');
+    }
+  });
+
+  $('#btn-logout').addEventListener('click', logout);
+
+  // 글쓰기 버튼은 비로그인이면 로그인 페이지로
+  $('#btn-write').addEventListener('click', async (e) => {
+    e.preventDefault();
+    const r = await fetch('/api/auth/me', { credentials:'same-origin' });
+    const { user } = await r.json();
+    location.href = user ? '/compose.html' : '/login.html?next=/compose.html';
+  });
+
+  // ============== ADS ==============
+  async function loadAds() {
+    try {
+      const r = await fetch('/api/ads');
+      const ads = await r.json();
+      // 헤드 스크립트 (AdSense 등) 한 번만
+      if (ads.head && !document.getElementById('ad-head')) {
+        const s = document.createElement('div');
+        s.id = 'ad-head';
+        s.innerHTML = ads.head;
+        document.head.appendChild(s);
+      }
+      // 슬롯별 주입
+      document.querySelectorAll('[data-ad-slot]').forEach(el => {
+        const key = el.dataset.adSlot;
+        if (ads[key]) {
+          el.innerHTML = ads[key];
+          el.classList.remove('ad-slot');  // 점선 박스 제거
+        }
+      });
+    } catch (e) { /* 광고 미설정은 정상 */ }
+  }
+
   // ============== INIT ==============
   lucide.createIcons();
+  loadAuth();
   loadStats();
   loadBoards().then(() => loadLatestPosts());
   loadHotPosts();
+  loadAds();
 
   // 30초마다 통계 갱신 (살아있는 느낌)
   setInterval(loadStats, 30000);

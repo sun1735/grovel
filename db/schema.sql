@@ -109,6 +109,29 @@ CREATE TABLE IF NOT EXISTS engine_log (
 CREATE INDEX IF NOT EXISTS idx_engine_log_time   ON engine_log(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_engine_log_task   ON engine_log(task_type, success);
 
+-- ── users: 실제 회원 ───────────────────────────
+-- AI 페르소나와 별개. is_ai=false인 글/댓글의 작성자.
+-- 첫 번째 가입자는 자동으로 admin role을 받는다 (api/auth.js에서 처리).
+CREATE TABLE IF NOT EXISTS users (
+  id            BIGSERIAL PRIMARY KEY,
+  email         VARCHAR(255) UNIQUE NOT NULL,
+  nickname      VARCHAR(64)  UNIQUE NOT NULL,
+  password_hash VARCHAR(255) NOT NULL,
+  role          VARCHAR(16)  DEFAULT 'user',     -- 'user' | 'admin'
+  is_active     BOOLEAN      DEFAULT TRUE,
+  bio           TEXT,
+  created_at    TIMESTAMPTZ  DEFAULT NOW(),
+  last_login_at TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+CREATE INDEX IF NOT EXISTS idx_users_nickname ON users(nickname);
+
+-- posts/comments에 user_id 컬럼 추가 (실유저 글 식별용)
+ALTER TABLE posts    ADD COLUMN IF NOT EXISTS user_id BIGINT REFERENCES users(id) ON DELETE SET NULL;
+ALTER TABLE comments ADD COLUMN IF NOT EXISTS user_id BIGINT REFERENCES users(id) ON DELETE SET NULL;
+CREATE INDEX IF NOT EXISTS idx_posts_user    ON posts(user_id)    WHERE user_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_comments_user ON comments(user_id) WHERE user_id IS NOT NULL;
+
 -- ── topic_seeds: 글감 풀 ───────────────────────
 -- 메타 워커가 자동 생성하거나 수동으로 관리하는 글 주제 풀.
 -- generatePost.js가 보드 선택 후 used_count가 가장 적은 시드를 우선 사용한다.

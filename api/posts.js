@@ -1,5 +1,6 @@
 const express = require('express');
 const { query } = require('../db');
+const { requireAuth } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -132,6 +133,96 @@ router.post('/:id/view', async (req, res) => {
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: 'failed' });
+  }
+});
+
+// ─────────────────────────────────────────────
+// POST /api/posts — 유저가 글 작성 (인증 필수)
+// body: { board_slug, title, body }
+// ─────────────────────────────────────────────
+router.post('/', requireAuth, async (req, res) => {
+  const { board_slug, title, body } = req.body || {};
+  if (!board_slug || !title || !body) {
+    return res.status(400).json({ error: 'missing_fields' });
+  }
+  if (title.length < 4 || title.length > 200) {
+    return res.status(400).json({ error: 'invalid_title' });
+  }
+  if (body.length < 5 || body.length > 8000) {
+    return res.status(400).json({ error: 'invalid_body' });
+  }
+
+  try {
+    const { rows: boardRows } = await query('SELECT id FROM boards WHERE slug = $1', [board_slug]);
+    if (boardRows.length === 0) return res.status(400).json({ error: 'invalid_board' });
+
+    // 도배 방지: 같은 유저가 최근 60초 안에 작성한 글이 있으면 거부
+    const { rows: recent } = await query(
+      `SELECT id FROM posts
+       WHERE user_id = $1 AND published_at > NOW() - INTERVAL '60 seconds'
+       LIMIT 1`,
+      [req.user.id]
+    );
+    if (recent.length > 0) {
+      return res.status(429).json({ error: 'too_fast', message: '잠시 후 다시 시도해 주세요.' });
+    }
+
+    const { rows } = await query(
+      `INSERT INTO posts
+        (board_id, user_id, author_nickname, title, body, view_count, is_ai)
+       VALUES ($1,$2,$3,$4,$5,$6,FALSE)
+       RETURNING id, published_at`,
+      [boardRows[0].id, req.user.id, req.user.nickname, title.trim(), body.trim(), 0]
+    );
+    res.status(201).json({ post: rows[0] });
+  } catch (err) {
+    console.error('[posts/create]', err);
+    res.status(500).json({ error: 'server_error' });
+  }
+});
+
+// ─────────────────────────────────────────────
+// POST /api/posts/:id/comments — 유저가 댓글 작성 (인증 필수)
+// body: { body, parent_id? }
+// ─────────────────────────────────────────────
+router.post('/:id/comments', requireAuth, async (req, res) => {
+  const postId = parseInt(req.params.id);
+  if (!postId) return res.status(400).json({ error: 'invalid_id' });
+
+  const { body, parent_id } = req.body || {};
+  if (!body || body.trim().length < 2 || body.length > 1000) {
+    return res.status(400).json({ error: 'invalid_body' });
+  }
+
+  try {
+    // 글 존재 확인
+    const { rows: postRows } = await query('SELECT id FROM posts WHERE id = $1', [postId]);
+    if (postRows.length === 0) return res.status(404).json({ error: 'post_not_found' });
+
+    // 도배 방지: 같은 유저가 최근 15초 안에 댓글 작성한 적 있으면 거부
+    const { rows: recent } = await query(
+      `SELECT id FROM comments
+       WHERE user_id = $1 AND created_at > NOW() - INTERVAL '15 seconds'
+       LIMIT 1`,
+      [req.user.id]
+    );
+    if (recent.length > 0) {
+      return res.status(429).json({ error: 'too_fast' });
+    }
+
+    const { rows } = await query(
+      `INSERT INTO comments (post_id, parent_id, user_id, author_nickname, body, is_ai)
+       VALUES ($1,$2,$3,$4,$5,FALSE)
+       RETURNING id, created_at`,
+      [postId, parent_id || null, req.user.id, req.user.nickname, body.trim()]
+    );
+
+    await query('UPDATE posts SET comment_count = comment_count + 1 WHERE id = $1', [postId]);
+
+    res.status(201).json({ comment: rows[0] });
+  } catch (err) {
+    console.error('[comments/create]', err);
+    res.status(500).json({ error: 'server_error' });
   }
 });
 

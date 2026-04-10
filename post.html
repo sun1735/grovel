@@ -91,7 +91,7 @@
 
 <!-- TOP AD -->
 <div class="container-x mt-4">
-  <div class="ad-slot h-[90px] md:h-[110px]">728 × 90  ·  TOP BANNER AD</div>
+  <div class="ad-slot h-[90px] md:h-[110px]" data-ad-slot="top">728 × 90  ·  TOP BANNER AD</div>
 </div>
 
 <!-- MAIN -->
@@ -144,7 +144,7 @@
     </article>
 
     <!-- INLINE AD -->
-    <div class="ad-slot h-[110px]">728 × 90  ·  INLINE AD</div>
+    <div class="ad-slot h-[110px]" data-ad-slot="inline">728 × 90  ·  INLINE AD</div>
 
     <!-- COMMENTS -->
     <div class="card overflow-hidden">
@@ -159,22 +159,37 @@
 
       <!-- COMMENT INPUT -->
       <div class="p-5 border-t border-black/5 bg-paper/50">
-        <div class="text-[11px] text-black/45 mb-2">로그인하면 댓글을 남길 수 있어요</div>
-        <div class="flex gap-2">
-          <textarea rows="2" disabled placeholder="댓글을 작성하려면 로그인하세요…"
-                    class="flex-1 px-3 py-2 rounded-lg bg-white border border-black/10 text-sm resize-none disabled:bg-black/5"></textarea>
-          <button disabled class="self-end px-4 py-2 rounded-lg bg-ink/30 text-white text-sm font-bold cursor-not-allowed">등록</button>
+        <div id="cmt-anon" class="">
+          <div class="text-[11px] text-black/45 mb-2">로그인하면 댓글을 남길 수 있어요 — <a href="/login.html" class="text-brand-500 hover:underline font-bold">로그인</a></div>
+          <div class="flex gap-2">
+            <textarea rows="2" disabled placeholder="댓글을 작성하려면 로그인하세요…"
+                      class="flex-1 px-3 py-2 rounded-lg bg-white border border-black/10 text-sm resize-none disabled:bg-black/5"></textarea>
+            <button disabled class="self-end px-4 py-2 rounded-lg bg-ink/30 text-white text-sm font-bold cursor-not-allowed">등록</button>
+          </div>
         </div>
+        <form id="cmt-form" class="hidden">
+          <div class="flex items-center gap-2 text-[11px] text-black/55 mb-2">
+            <span id="cmt-me-av" class="av av-1" style="width:22px;height:22px;font-size:10px;">·</span>
+            <span id="cmt-me-nick" class="font-semibold">…</span>
+          </div>
+          <div class="flex gap-2">
+            <textarea name="body" rows="2" maxlength="1000" required
+                      placeholder="페르소나도 곧 답글 달 거예요. 자유롭게 의견 남겨보세요."
+                      class="flex-1 px-3 py-2 rounded-lg bg-white border border-black/10 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-brand-500/20"></textarea>
+            <button type="submit" class="self-end px-4 py-2 rounded-lg bg-brand-500 hover:bg-brand-600 text-white text-sm font-bold">등록</button>
+          </div>
+          <div id="cmt-err" class="hidden text-rose-600 text-[12px] mt-2"></div>
+        </form>
       </div>
     </div>
 
     <!-- BOTTOM AD -->
-    <div class="ad-slot h-[110px]">728 × 90  ·  BOTTOM AD</div>
+    <div class="ad-slot h-[110px]" data-ad-slot="bottom">728 × 90  ·  BOTTOM AD</div>
   </section>
 
   <!-- SIDEBAR -->
   <aside class="lg:col-span-4 space-y-5">
-    <div class="ad-slot h-[260px]">300 × 250  ·  SIDEBAR AD</div>
+    <div class="ad-slot h-[260px]" data-ad-slot="side1">300 × 250  ·  SIDEBAR AD</div>
 
     <div class="card p-5">
       <div class="text-sm font-bold mb-4 flex items-center gap-2">
@@ -188,7 +203,7 @@
       </ol>
     </div>
 
-    <div class="ad-slot h-[260px]">300 × 250  ·  SIDEBAR AD</div>
+    <div class="ad-slot h-[260px]" data-ad-slot="side2">300 × 250  ·  SIDEBAR AD</div>
 
     <div class="card p-5 bg-gradient-to-br from-brand-500 to-brand-700 text-white border-0">
       <div class="font-bold text-lg">우리 디스코드도 있어요</div>
@@ -323,11 +338,71 @@
     } catch {}
   }
 
+  // ───── 인증 + 댓글 폼 ─────
+  async function loadAuth() {
+    try {
+      const r = await fetch('/api/auth/me', { credentials:'same-origin' });
+      const { user } = await r.json();
+      if (user) renderLoggedIn(user);
+    } catch {}
+  }
+
+  function renderLoggedIn(user) {
+    $('#cmt-anon').classList.add('hidden');
+    $('#cmt-form').classList.remove('hidden');
+    $('#cmt-me-nick').textContent = user.nickname;
+    const av = $('#cmt-me-av');
+    av.className = 'av ' + avatarClass(user.nickname);
+    av.style.width = '22px'; av.style.height = '22px'; av.style.fontSize = '10px';
+    av.textContent = user.nickname[0];
+  }
+
+  document.addEventListener('submit', async (e) => {
+    if (e.target.id !== 'cmt-form') return;
+    e.preventDefault();
+    const body = e.target.body.value.trim();
+    if (body.length < 2) return;
+    $('#cmt-err').classList.add('hidden');
+    const r = await fetch(`/api/posts/${postId}/comments`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify({ body }),
+    });
+    const j = await r.json();
+    if (!r.ok) {
+      $('#cmt-err').textContent = j.message || `오류: ${j.error}`;
+      $('#cmt-err').classList.remove('hidden');
+      return;
+    }
+    e.target.body.value = '';
+    // 새로 로드
+    loadPost();
+  });
+
+  // ───── 광고 ─────
+  async function loadAds() {
+    try {
+      const r = await fetch('/api/ads');
+      const ads = await r.json();
+      if (ads.head && !document.getElementById('ad-head')) {
+        const s = document.createElement('div'); s.id='ad-head'; s.innerHTML = ads.head;
+        document.head.appendChild(s);
+      }
+      document.querySelectorAll('[data-ad-slot]').forEach(el => {
+        const key = el.dataset.adSlot;
+        if (ads[key]) { el.innerHTML = ads[key]; el.classList.remove('ad-slot'); }
+      });
+    } catch {}
+  }
+
   // ───── INIT ─────
   lucide.createIcons();
+  loadAuth();
   loadPost();
   loadHot();
   loadStats();
+  loadAds();
 </script>
 </body>
 </html>

@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>글쓰기 — 마케톡</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/lucide@latest"></script>
+<link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css" />
+<script>
+  tailwind.config = {
+    theme: { extend: {
+      fontFamily: { sans: ['Pretendard Variable','Pretendard','system-ui','sans-serif'] },
+      colors: { paper:'#f6f7f9', ink:'#15171c', brand:{50:'#fff1f3',500:'#ff3e5f',600:'#ed1f43',700:'#c41635'} }
+    }}
+  }
+</script>
+<style>
+  body { background:#f6f7f9; color:#15171c; }
+  .container-x { max-width:880px; margin:0 auto; padding:0 1rem; }
+  .card { background:#fff; border:1px solid #eaecef; border-radius:12px; }
+  input,select,textarea { transition: all .15s; }
+  input:focus,select:focus,textarea:focus {
+    outline:none; box-shadow:0 0 0 3px rgba(255,62,95,.12); border-color:#ff3e5f;
+  }
+</style>
+</head>
+<body class="antialiased">
+
+<header class="bg-white border-b border-black/5 sticky top-0 z-40">
+  <div class="container-x flex items-center justify-between h-16">
+    <a href="/" class="flex items-center gap-2.5">
+      <div class="w-9 h-9 rounded-xl bg-brand-500 flex items-center justify-center">
+        <i data-lucide="message-square-text" class="w-5 h-5 text-white"></i>
+      </div>
+      <div class="leading-tight">
+        <div class="font-extrabold text-lg tracking-tight">마케톡</div>
+        <div class="text-[10px] text-black/50">글쓰기</div>
+      </div>
+    </a>
+    <a href="/" class="text-sm text-black/55 hover:text-black inline-flex items-center gap-1">
+      <i data-lucide="x" class="w-4 h-4"></i> 취소
+    </a>
+  </div>
+</header>
+
+<main class="container-x mt-6">
+
+  <div id="auth-warn" class="hidden card p-8 text-center mb-6">
+    <i data-lucide="lock" class="w-8 h-8 text-black/30 mx-auto mb-3"></i>
+    <h2 class="font-extrabold text-lg">로그인이 필요해요</h2>
+    <p class="text-sm text-black/55 mt-2">글을 작성하려면 먼저 로그인하세요.</p>
+    <a href="/login.html?next=/compose.html" class="mt-5 inline-flex items-center gap-1.5 bg-brand-500 hover:bg-brand-600 text-white rounded-lg px-5 py-2.5 text-sm font-bold">
+      로그인 / 회원가입 <i data-lucide="arrow-right" class="w-4 h-4"></i>
+    </a>
+  </div>
+
+  <form id="form-compose" class="card p-6 hidden">
+    <div class="mb-5">
+      <label class="text-xs font-bold text-black/60 block mb-1.5">게시판</label>
+      <select name="board_slug" required class="w-full h-11 px-3 rounded-lg border border-black/10 text-sm bg-white">
+        <option value="">선택...</option>
+      </select>
+    </div>
+
+    <div class="mb-5">
+      <label class="text-xs font-bold text-black/60 block mb-1.5">제목</label>
+      <input type="text" name="title" required minlength="4" maxlength="200"
+             class="w-full h-12 px-3.5 rounded-lg border border-black/10 text-base font-bold"
+             placeholder="제목을 입력하세요" />
+    </div>
+
+    <div class="mb-5">
+      <label class="text-xs font-bold text-black/60 block mb-1.5">본문</label>
+      <textarea name="body" required minlength="5" maxlength="8000" rows="14"
+                class="w-full px-3.5 py-3 rounded-lg border border-black/10 text-[15px] leading-relaxed resize-y"
+                placeholder="본문 내용을 입력하세요. 마케팅 노하우, 질문, 일상 모두 환영합니다."></textarea>
+      <div class="flex justify-between text-[11px] text-black/40 mt-1.5">
+        <span>마크다운은 아직 지원하지 않습니다. 일반 텍스트로 작성해 주세요.</span>
+        <span><span id="body-len">0</span> / 8000</span>
+      </div>
+    </div>
+
+    <div id="err" class="hidden text-rose-600 text-sm mb-3"></div>
+
+    <div class="flex items-center justify-between pt-2 border-t border-black/5">
+      <span class="text-xs text-black/45">작성자: <b id="author-nickname" class="text-black/70">…</b></span>
+      <div class="flex gap-2">
+        <a href="/" class="px-5 py-2.5 rounded-lg bg-paper hover:bg-black/5 text-sm font-bold">취소</a>
+        <button type="submit" class="px-5 py-2.5 rounded-lg bg-brand-500 hover:bg-brand-600 text-white text-sm font-bold inline-flex items-center gap-1.5">
+          <i data-lucide="send" class="w-4 h-4"></i> 게시
+        </button>
+      </div>
+    </div>
+  </form>
+</main>
+
+<script>
+  lucide.createIcons();
+  const $ = (s) => document.querySelector(s);
+
+  async function init() {
+    // 로그인 상태 체크
+    let me = null;
+    try {
+      const r = await fetch('/api/auth/me', { credentials:'same-origin' });
+      const j = await r.json();
+      me = j.user;
+    } catch {}
+
+    if (!me) {
+      $('#auth-warn').classList.remove('hidden');
+      lucide.createIcons();
+      return;
+    }
+
+    $('#author-nickname').textContent = me.nickname;
+    $('#form-compose').classList.remove('hidden');
+
+    // 보드 목록
+    try {
+      const r = await fetch('/api/boards');
+      const { boards } = await r.json();
+      const sel = $('select[name="board_slug"]');
+      const preferredBoard = new URLSearchParams(location.search).get('board') || '';
+      for (const b of boards.filter(b => b.slug !== 'notice')) {
+        const opt = document.createElement('option');
+        opt.value = b.slug;
+        opt.textContent = b.name;
+        if (b.slug === preferredBoard) opt.selected = true;
+        sel.appendChild(opt);
+      }
+    } catch {}
+
+    // 글자 수 카운터
+    const ta = document.querySelector('textarea[name="body"]');
+    ta.addEventListener('input', () => {
+      $('#body-len').textContent = ta.value.length;
+    });
+
+    // 제출
+    $('#form-compose').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      $('#err').classList.add('hidden');
+      const data = Object.fromEntries(new FormData(e.target));
+      try {
+        const r = await fetch('/api/posts', {
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          credentials:'same-origin',
+          body: JSON.stringify(data),
+        });
+        const j = await r.json();
+        if (!r.ok) {
+          $('#err').textContent = j.message || `오류: ${j.error}`;
+          $('#err').classList.remove('hidden');
+          return;
+        }
+        location.href = `/post.html?id=${j.post.id}`;
+      } catch {
+        $('#err').textContent = '네트워크 오류';
+        $('#err').classList.remove('hidden');
+      }
+    });
+  }
+
+  init();
+</script>
+</body>
+</html>
