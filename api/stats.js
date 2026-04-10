@@ -54,4 +54,49 @@ router.get('/engine', async (_req, res) => {
   }
 });
 
+// GET /api/stats/activity — 최근 24시간 시간대별 활동 (cron 동작 검증용)
+router.get('/activity', async (_req, res) => {
+  try {
+    const { rows } = await query(`
+      SELECT
+        DATE_TRUNC('hour', published_at) AS hour,
+        COUNT(*)::int AS posts
+      FROM posts
+      WHERE published_at > NOW() - INTERVAL '24 hours'
+      GROUP BY 1 ORDER BY 1
+    `);
+    const { rows: cmt } = await query(`
+      SELECT
+        DATE_TRUNC('hour', created_at) AS hour,
+        COUNT(*)::int AS comments
+      FROM comments
+      WHERE created_at > NOW() - INTERVAL '24 hours'
+      GROUP BY 1 ORDER BY 1
+    `);
+    res.json({ posts_by_hour: rows, comments_by_hour: cmt });
+  } catch (err) {
+    res.status(500).json({ error: 'failed' });
+  }
+});
+
+// GET /api/stats/topics — 토픽 시드 풀 상태
+router.get('/topics', async (_req, res) => {
+  try {
+    const { rows } = await query(`
+      SELECT
+        board_slug,
+        COUNT(*)::int AS total,
+        SUM(CASE WHEN used_count = 0 THEN 1 ELSE 0 END)::int AS unused,
+        AVG(used_count)::numeric(10,2) AS avg_used,
+        MAX(used_count)::int AS max_used
+      FROM topic_seeds
+      GROUP BY board_slug
+      ORDER BY board_slug
+    `);
+    res.json({ boards: rows });
+  } catch (err) {
+    res.status(500).json({ error: 'failed' });
+  }
+});
+
 module.exports = router;

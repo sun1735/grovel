@@ -285,7 +285,20 @@ async function main() {
   await pool.end();
 }
 
-main().catch((err) => {
-  console.error('💥 워커 충돌:', err);
-  pool.end().then(() => process.exit(1));
-});
+// 모듈로 import될 땐 자동 실행 X. CLI로 직접 실행한 경우만 main() 호출.
+if (require.main === module) {
+  main().catch((err) => {
+    console.error('💥 워커 충돌:', err);
+    pool.end().then(() => process.exit(1));
+  });
+}
+
+module.exports = {
+  generateOnePost,
+  savePost,
+  markSeedUsed,
+  pickBoard,
+  pickTopicForBoard,
+  recentTitlesForBoard,
+  validateOutput,
+};

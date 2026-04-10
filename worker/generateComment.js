@@ -227,7 +227,17 @@ async function main() {
   await pool.end();
 }
 
-main().catch((err) => {
-  console.error('💥 워커 충돌:', err);
-  pool.end().then(() => process.exit(1));
-});
+if (require.main === module) {
+  main().catch((err) => {
+    console.error('💥 워커 충돌:', err);
+    pool.end().then(() => process.exit(1));
+  });
+}
+
+module.exports = {
+  generateOneComment,
+  saveComment,
+  pickTargetPost,
+  pickCommenter,
+  validateComment,
+};

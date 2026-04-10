@@ -8,7 +8,9 @@
     "db:migrate": "node db/migrate.js",
     "db:seed": "node db/seed.js",
     "worker:post": "node worker/generatePost.js",
-    "worker:comment": "node worker/generateComment.js"
+    "worker:comment": "node worker/generateComment.js",
+    "worker:topics": "node worker/generateTopics.js",
+    "worker:scheduler": "node worker/scheduler.js"
   },
   "engines": {
     "node": ">=18"
