@@ -109,6 +109,26 @@ CREATE TABLE IF NOT EXISTS engine_log (
 CREATE INDEX IF NOT EXISTS idx_engine_log_time   ON engine_log(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_engine_log_task   ON engine_log(task_type, success);
 
+-- ── topic_seeds: 글감 풀 ───────────────────────
+-- 메타 워커가 자동 생성하거나 수동으로 관리하는 글 주제 풀.
+-- generatePost.js가 보드 선택 후 used_count가 가장 적은 시드를 우선 사용한다.
+CREATE TABLE IF NOT EXISTS topic_seeds (
+  id           BIGSERIAL PRIMARY KEY,
+  board_slug   VARCHAR(32) NOT NULL,
+  topic        TEXT NOT NULL,                       -- 글의 주제 한 줄
+  angle        TEXT,                                -- 어떤 관점/스토리로 풀지 (선택)
+  keywords     VARCHAR(255),                        -- 콤마 구분 핵심 키워드
+  platform     VARCHAR(32),                         -- naver|kakao|meta|google|youtube|tiktok|coupang|smartstore|none
+  used_count   INTEGER DEFAULT 0,
+  last_used_at TIMESTAMPTZ,
+  source       VARCHAR(32) DEFAULT 'manual',        -- 'manual' | 'meta_worker'
+  created_at   TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_topic_seeds_board
+  ON topic_seeds(board_slug, used_count, last_used_at NULLS FIRST);
+CREATE INDEX IF NOT EXISTS idx_topic_seeds_platform
+  ON topic_seeds(platform);
+
 -- ── stats_view: 사이드바 통계용 뷰 ─────────────
 CREATE OR REPLACE VIEW stats_view AS
 SELECT

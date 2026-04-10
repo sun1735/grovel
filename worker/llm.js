@@ -31,15 +31,16 @@ const client = new Anthropic({
  * @param {object} [opts.logCtx]          engine_log에 같이 저장할 컨텍스트
  * @returns {Promise<{text: string, model: string, usage: object}>}
  */
-async function complete({ system, user, model = PRIMARY_MODEL, logCtx = {} }) {
+async function complete({ system, user, model = PRIMARY_MODEL, maxTokens, logCtx = {} }) {
   const start = Date.now();
   let usedModel = model;
+  const tokens = maxTokens || MAX_TOKENS;
   let result, error;
 
   try {
     result = await client.messages.create({
       model: usedModel,
-      max_tokens: MAX_TOKENS,
+      max_tokens: tokens,
       system,
       messages: [{ role: 'user', content: user }],
     });
@@ -50,7 +51,7 @@ async function complete({ system, user, model = PRIMARY_MODEL, logCtx = {} }) {
     try {
       result = await client.messages.create({
         model: usedModel,
-        max_tokens: MAX_TOKENS,
+        max_tokens: tokens,
         system,
         messages: [{ role: 'user', content: user }],
       });

@@ -14,6 +14,7 @@ require('dotenv').config();
 const { pool, query, withTransaction } = require('./index');
 const { PERSONA_LIST } = require('../ai/personas');
 const { pickNickname } = require('../ai/protocols');
+const { flatten: flattenSeeds } = require('../ai/topicSeeds');
 
 // ─────────────────────────────────────────────
 // 1. Boards
@@ -192,6 +193,30 @@ async function seedPosts() {
   console.log(`   ✓ ${cmtCount}개 댓글`);
 }
 
+// ─────────────────────────────────────────────
+// 4. 토픽 시드 (글감 풀)
+// ─────────────────────────────────────────────
+async function seedTopics() {
+  console.log('💡 topic_seeds 시드...');
+  const seeds = flattenSeeds();
+  let inserted = 0;
+  for (const s of seeds) {
+    // 중복 방지: 같은 board+topic이 이미 있으면 건너뜀
+    const { rows } = await query(
+      'SELECT id FROM topic_seeds WHERE board_slug=$1 AND topic=$2 LIMIT 1',
+      [s.board_slug, s.topic]
+    );
+    if (rows.length > 0) continue;
+    await query(
+      `INSERT INTO topic_seeds (board_slug, topic, angle, keywords, platform, source)
+       VALUES ($1,$2,$3,$4,$5,$6)`,
+      [s.board_slug, s.topic, s.angle, s.keywords, s.platform, s.source]
+    );
+    inserted++;
+  }
+  console.log(`   ✓ ${inserted}개 토픽 추가 (총 ${seeds.length}개 중)`);
+}
+
 async function run() {
   try {
     await withTransaction(async () => {
@@ -199,6 +224,7 @@ async function run() {
       await seedPersonas();
     });
     await seedPosts();
+    await seedTopics();
     console.log('\n✅ 시드 완료\n');
   } catch (err) {
     console.error('❌ 시드 실패:', err);

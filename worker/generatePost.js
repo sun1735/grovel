@@ -123,6 +123,44 @@ function naturalInitialViewCount() {
 }
 
 // ─────────────────────────────────────────────
+// 토픽 시드 선택 — 사용 횟수 적은 것 우선
+// ─────────────────────────────────────────────
+async function pickTopicForBoard(boardSlug) {
+  // 가장 덜 사용된 시드 상위 5개 중 무작위 (완전 결정적이면 패턴됨)
+  const { rows } = await query(`
+    SELECT id, topic, angle, keywords, platform
+    FROM topic_seeds
+    WHERE board_slug = $1
+    ORDER BY used_count ASC, last_used_at NULLS FIRST, RANDOM()
+    LIMIT 5
+  `, [boardSlug]);
+  if (rows.length === 0) return null;
+  return rows[Math.floor(Math.random() * rows.length)];
+}
+
+// 최근 같은 보드에 올라온 글 제목 가져오기 (회피용)
+async function recentTitlesForBoard(boardSlug, limit = 30) {
+  const { rows } = await query(`
+    SELECT p.title
+    FROM posts p JOIN boards b ON b.id = p.board_id
+    WHERE b.slug = $1
+    ORDER BY p.published_at DESC
+    LIMIT $2
+  `, [boardSlug, limit]);
+  return rows.map(r => r.title);
+}
+
+// 시드 사용 기록
+async function markSeedUsed(seedId) {
+  await query(
+    `UPDATE topic_seeds
+     SET used_count = used_count + 1, last_used_at = NOW()
+     WHERE id = $1`,
+    [seedId]
+  );
+}
+
+// ─────────────────────────────────────────────
 // 메인
 // ─────────────────────────────────────────────
 async function generateOnePost(forcedBoardSlug) {
@@ -138,17 +176,41 @@ async function generateOnePost(forcedBoardSlug) {
 
   const nickname = await pickFreshNickname(chosenPersona);
 
-  console.log(`\n📝 [${board.name}] ${chosenPersona.archetype} (${nickname}) — 글 생성 중...`);
+  // 토픽 시드 선택 + 회피 목록
+  const seed = await pickTopicForBoard(board.slug);
+  const recentTitles = await recentTitlesForBoard(board.slug, 30);
 
-  const { system, user } = buildSystemPrompt(chosenPersona, {
+  console.log(`\n📝 [${board.name}] ${chosenPersona.archetype} (${nickname}) — 글 생성 중...`);
+  if (seed) {
+    console.log(`   📌 토픽: ${seed.topic}${seed.platform && seed.platform !== 'none' ? ` [${seed.platform}]` : ''}`);
+  } else {
+    console.log(`   ⚠️ 이 보드 토픽 시드 없음 — LLM이 자유 선택`);
+  }
+
+  const { system, user: baseUser } = buildSystemPrompt(chosenPersona, {
     task: 'post',
     board: board.slug,
     nickname,
   });
 
+  // 토픽 + 회피 목록을 user 프롬프트에 추가 주입
+  const topicBlock = seed ? `
+
+# 이번 글의 주제 (이걸 본인의 시각·말투로 풀어내세요)
+- 주제: ${seed.topic}${seed.platform && seed.platform !== 'none' ? `\n- 플랫폼: ${seed.platform}` : ''}${seed.keywords ? `\n- 핵심 키워드: ${seed.keywords}` : ''}${seed.angle ? `\n- 풀어가는 각도: ${seed.angle}` : ''}
+` : '';
+
+  const avoidBlock = recentTitles.length > 0 ? `
+
+# 최근 이 보드에 올라온 글 제목 (이것들과 의미가 겹치는 글은 절대 쓰지 마세요)
+${recentTitles.slice(0, 30).map(t => `- ${t}`).join('\n')}
+` : '';
+
+  const finalUser = baseUser + topicBlock + avoidBlock;
+
   const result = await completeJson({
     system,
-    user,
+    user: finalUser,
     logCtx: { task_type: 'post', persona_id: chosenPersona.id, board_slug: board.slug },
   });
 
@@ -163,7 +225,7 @@ async function generateOnePost(forcedBoardSlug) {
     : result.body;
 
   return {
-    board, persona: chosenPersona, nickname,
+    board, persona: chosenPersona, nickname, seed,
     title: result.title.trim(),
     body: finalBody.trim(),
     meta: result._meta,
@@ -202,6 +264,7 @@ async function main() {
 
       if (!args.dryRun) {
         const saved = await savePost(post);
+        if (post.seed) await markSeedUsed(post.seed.id);
         console.log(`   └── ✅ 저장됨 (id=${saved.id})`);
       } else {
         console.log(`   └── 🧪 DRY-RUN (저장 안 함)`);
