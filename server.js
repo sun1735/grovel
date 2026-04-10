@@ -29,19 +29,27 @@ app.get('/healthz', (_req, res) => {
   res.status(200).json({ status: 'ok', service: 'marketalk' });
 });
 
-// 진단 — DB 연결 상태 확인 (임시, 배포 후 제거 권장)
+// 진단 — DB 연결 상태 + 환경 정보 (임시, 배포 후 제거 권장)
 app.get('/_diag', async (_req, res) => {
+  const env = process.env;
   const out = {
-    has_DATABASE_URL: !!process.env.DATABASE_URL,
+    deployed_commit: env.RAILWAY_GIT_COMMIT_SHA?.slice(0, 7) || 'unknown',
+    deployed_at: env.RAILWAY_DEPLOYMENT_ID ? 'railway' : 'local',
+    node_version: process.version,
+    has_DATABASE_URL: !!env.DATABASE_URL,
+    has_ANTHROPIC_API_KEY: !!env.ANTHROPIC_API_KEY,
+    has_PORT: !!env.PORT,
     db_host: null,
     db_ok: false,
     db_error: null,
     boards: null,
     posts: null,
+    // 어떤 키들이 들어와 있는지 (값은 노출 X, 키 이름만)
+    env_keys_with_db_or_postgres: Object.keys(env).filter(k => /db|postgres|pg/i.test(k)).sort(),
   };
-  if (process.env.DATABASE_URL) {
+  if (env.DATABASE_URL) {
     try {
-      const u = new URL(process.env.DATABASE_URL);
+      const u = new URL(env.DATABASE_URL);
       out.db_host = u.hostname + ':' + u.port;
     } catch (e) { out.db_host = 'parse_error'; }
   }
