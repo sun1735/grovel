@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>검색 — 마케톡</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/lucide@latest"></script>
+<link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css" />
+<script>
+  tailwind.config = { theme: { extend: {
+    fontFamily: { sans: ['Pretendard Variable','Pretendard','system-ui','sans-serif'] },
+    colors: { paper:'#f6f7f9', ink:'#15171c', brand:{50:'#fff1f3',500:'#ff3e5f',600:'#ed1f43'} }
+  }}}
+</script>
+<style>
+  body { background:#f6f7f9; color:#15171c; }
+  .container-x { max-width:980px; margin:0 auto; padding:0 1rem; }
+  .card { background:#fff; border:1px solid #eaecef; border-radius:12px; }
+  .row-hover:hover { background:#fafbfc; }
+  .badge-cat { display:inline-flex; align-items:center; gap:.35rem; padding:.15rem .5rem; border-radius:6px; font-size:11px; font-weight:600; }
+  .b-free{background:#eef2ff;color:#4338ca} .b-ad{background:#fef3c7;color:#b45309}
+  .b-seo{background:#d1fae5;color:#047857} .b-sns{background:#fce7f3;color:#be185d}
+  .b-side{background:#dbeafe;color:#1d4ed8} .b-tool{background:#e0e7ff;color:#3730a3}
+  .b-qna{background:#f3e8ff;color:#7e22ce} .b-job{background:#ffe4e6;color:#be123c}
+  .b-event{background:#ccfbf1;color:#0f766e}
+  mark { background:#fef08a; color:inherit; padding:0 1px; border-radius:2px; }
+  .av { width:24px; height:24px; border-radius:999px; display:inline-flex; align-items:center; justify-content:center; color:white; font-weight:700; font-size:10px; flex-shrink:0; }
+  .av-1{background:linear-gradient(135deg,#ff6b9d,#c44569)} .av-2{background:linear-gradient(135deg,#4facfe,#00f2fe)}
+  .av-3{background:linear-gradient(135deg,#43e97b,#38f9d7)} .av-4{background:linear-gradient(135deg,#fa709a,#fee140)}
+  .av-5{background:linear-gradient(135deg,#a18cd1,#fbc2eb)} .av-6{background:linear-gradient(135deg,#ffecd2,#fcb69f);color:#7a4d2c}
+  .av-7{background:linear-gradient(135deg,#84fab0,#8fd3f4);color:#0a4f3e} .av-8{background:linear-gradient(135deg,#667eea,#764ba2)}
+  .av-9{background:linear-gradient(135deg,#ee9ca7,#ffdde1);color:#7a2d36} .av-10{background:linear-gradient(135deg,#2af598,#009efd)}
+</style>
+</head>
+<body class="antialiased">
+
+<header class="bg-white border-b border-black/5">
+  <div class="container-x flex items-center gap-4 h-16">
+    <a href="/" class="flex items-center gap-2.5">
+      <div class="w-9 h-9 rounded-xl bg-brand-500 flex items-center justify-center">
+        <i data-lucide="message-square-text" class="w-5 h-5 text-white"></i>
+      </div>
+      <span class="font-extrabold text-lg tracking-tight">마케톡</span>
+    </a>
+
+    <form id="hdr-search" class="flex-1 max-w-2xl">
+      <div class="relative">
+        <input id="hdr-q" type="text" placeholder="검색어를 입력하세요"
+               class="w-full h-11 pl-11 pr-4 rounded-xl bg-paper border border-black/5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:bg-white" />
+        <i data-lucide="search" class="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-black/40"></i>
+      </div>
+    </form>
+  </div>
+</header>
+
+<main class="container-x my-6">
+
+  <div class="mb-4">
+    <div class="text-[11px] tracking-widest text-black/45 font-bold uppercase">SEARCH</div>
+    <h1 class="text-2xl font-extrabold tracking-tight mt-1" id="title">검색</h1>
+    <div class="text-sm text-black/55 mt-1" id="meta"></div>
+  </div>
+
+  <div id="results" class="card divide-y divide-black/5"></div>
+
+  <div id="pagination" class="flex items-center justify-center gap-1 mt-6 text-sm"></div>
+</main>
+
+<footer class="border-t border-black/5 bg-white py-8 mt-10">
+  <div class="container-x text-center text-xs text-black/45">
+    <a href="/" class="hover:text-black">© 2026 마케톡</a>
+  </div>
+</footer>
+
+<script>
+  lucide.createIcons();
+  const $ = (s) => document.querySelector(s);
+  const fmt = new Intl.NumberFormat('ko-KR');
+  const escapeHtml = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+  function timeAgo(iso) {
+    const d = (Date.now() - new Date(iso).getTime())/1000;
+    if (d<60) return '방금';
+    if (d<3600) return Math.floor(d/60)+'분 전';
+    if (d<86400) return Math.floor(d/3600)+'시간 전';
+    if (d<86400*7) return Math.floor(d/86400)+'일 전';
+    return new Date(iso).toLocaleDateString('ko-KR');
+  }
+  function avatarClass(nick) {
+    let h = 0;
+    for (const c of nick) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+    return 'av-' + ((h % 10) + 1);
+  }
+
+  // 검색어 하이라이트
+  function highlight(text, q) {
+    if (!text || !q) return escapeHtml(text || '');
+    const escaped = escapeHtml(text);
+    const re = new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+    return escaped.replace(re, m => `<mark>${m}</mark>`);
+  }
+
+  const params = new URLSearchParams(location.search);
+  const q = params.get('q') || '';
+  const page = parseInt(params.get('page')) || 1;
+
+  $('#hdr-q').value = q;
+
+  $('#hdr-search').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const v = $('#hdr-q').value.trim();
+    if (!v) return;
+    location.href = '/search.html?q=' + encodeURIComponent(v);
+  });
+
+  async function loadResults() {
+    if (!q) {
+      $('#title').textContent = '검색어를 입력해 주세요';
+      $('#results').innerHTML = '<div class="px-6 py-16 text-center text-sm text-black/45">상단 검색창에 키워드를 입력하세요.</div>';
+      return;
+    }
+    document.title = `'${q}' 검색 결과 — 마케톡`;
+    $('#title').innerHTML = `'<span class="text-brand-500">${escapeHtml(q)}</span>' 검색 결과`;
+    $('#results').innerHTML = '<div class="px-6 py-12 text-center text-sm text-black/40">검색 중...</div>';
+
+    try {
+      const r = await fetch(`/api/search?q=${encodeURIComponent(q)}&page=${page}&limit=20`);
+      const data = await r.json();
+
+      $('#meta').textContent = data.message || `총 ${fmt.format(data.total)}개 게시글`;
+
+      if (!data.posts || data.posts.length === 0) {
+        $('#results').innerHTML = `<div class="px-6 py-16 text-center text-sm text-black/45">
+          <i data-lucide="search-x" class="w-8 h-8 mx-auto text-black/20 mb-3"></i>
+          <p>검색 결과가 없습니다.</p>
+          <p class="text-[11px] mt-1 text-black/35">다른 키워드로 시도해 보세요.</p>
+        </div>`;
+        lucide.createIcons();
+        $('#pagination').innerHTML = '';
+        return;
+      }
+
+      $('#results').innerHTML = data.posts.map(p => `
+        <a href="/post.html?id=${p.id}" class="row-hover block px-5 py-4">
+          <div class="flex items-center gap-2 mb-1.5">
+            <span class="badge-cat ${escapeHtml(p.badge_class || 'b-free')}">${escapeHtml(p.board_name)}</span>
+            <span class="text-[11px] text-black/45">${timeAgo(p.published_at)}</span>
+            <span class="text-[11px] text-black/35">·</span>
+            <span class="text-[11px] text-black/45">조회 ${fmt.format(p.view_count)}</span>
+            ${p.comment_count > 0 ? `<span class="text-[11px] text-black/35">·</span><span class="text-[11px] text-brand-500 font-bold">댓글 ${p.comment_count}</span>` : ''}
+          </div>
+          <div class="font-bold text-[15px] leading-tight">${highlight(p.title, q)}</div>
+          <div class="text-sm text-black/55 mt-1.5 line-clamp-2">${highlight(p.excerpt || '', q)}</div>
+          <div class="flex items-center gap-2 mt-2.5 text-[11px] text-black/45">
+            <div class="av ${avatarClass(p.author_nickname)}">${escapeHtml(p.author_nickname[0])}</div>
+            <span>${escapeHtml(p.author_nickname)}</span>
+          </div>
+        </a>
+      `).join('');
+
+      // pagination
+      const totalPages = Math.max(1, Math.ceil(data.total / data.limit));
+      const pag = $('#pagination');
+      let html = '';
+      const prev = page > 1 ? page - 1 : null;
+      const next = page < totalPages ? page + 1 : null;
+      const mkUrl = (p) => `/search.html?q=${encodeURIComponent(q)}&page=${p}`;
+      html += prev ? `<a href="${mkUrl(prev)}" class="w-8 h-8 leading-8 text-center rounded-md hover:bg-paper">‹</a>` : `<span class="w-8 h-8 leading-8 text-center text-black/20">‹</span>`;
+      const start = Math.max(1, page - 2);
+      const end = Math.min(totalPages, start + 4);
+      for (let i = start; i <= end; i++) {
+        html += i === page
+          ? `<span class="w-8 h-8 leading-8 text-center rounded-md bg-ink text-white font-bold">${i}</span>`
+          : `<a href="${mkUrl(i)}" class="w-8 h-8 leading-8 text-center rounded-md hover:bg-paper">${i}</a>`;
+      }
+      html += next ? `<a href="${mkUrl(next)}" class="w-8 h-8 leading-8 text-center rounded-md hover:bg-paper">›</a>` : `<span class="w-8 h-8 leading-8 text-center text-black/20">›</span>`;
+      pag.innerHTML = html;
+    } catch (err) {
+      $('#results').innerHTML = '<div class="px-6 py-12 text-center text-sm text-rose-500">검색 중 오류가 발생했습니다.</div>';
+    }
+  }
+
+  loadResults();
+</script>
+</body>
+</html>

@@ -104,13 +104,13 @@
       </div>
     </a>
 
-    <div class="flex-1 max-w-xl hidden md:block">
+    <form id="hdr-search" class="flex-1 max-w-xl hidden md:block">
       <div class="relative">
-        <input type="text" placeholder="검색어를 입력하세요. 예) 인스타 광고 단가, 부업 추천"
+        <input id="hdr-q" type="text" placeholder="검색어를 입력하세요. 예) 인스타 광고 단가, 부업 추천"
                class="w-full h-10 pl-10 pr-4 rounded-xl bg-paper border border-black/5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:bg-white" />
         <i data-lucide="search" class="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-black/40"></i>
       </div>
-    </div>
+    </form>
 
     <nav class="hidden lg:flex items-center gap-5 text-sm text-black/70">
       <a href="#" class="hover:text-black">실시간 인기</a>
@@ -317,8 +317,8 @@
       <div>
         <div class="text-[11px] font-bold text-black/40 tracking-wider uppercase mb-3">법적 고지</div>
         <ul class="space-y-1.5 text-black/65">
-          <li><a href="#" class="hover:text-black">이용약관</a></li>
-          <li><a href="#" class="hover:text-black">개인정보처리방침</a></li>
+          <li><a href="/terms.html" class="hover:text-black">이용약관</a></li>
+          <li><a href="/privacy.html" class="hover:text-black">개인정보처리방침</a></li>
         </ul>
       </div>
     </div>
@@ -610,6 +610,13 @@
     const r = await fetch('/api/auth/me', { credentials:'same-origin' });
     const { user } = await r.json();
     location.href = user ? '/compose.html' : '/login.html?next=/compose.html';
+  });
+
+  // ============== SEARCH ==============
+  document.getElementById('hdr-search')?.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const v = document.getElementById('hdr-q').value.trim();
+    if (v.length >= 2) location.href = '/search.html?q=' + encodeURIComponent(v);
   });
 
   // ============== ADS ==============

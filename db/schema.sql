@@ -50,6 +50,13 @@ CREATE INDEX IF NOT EXISTS idx_posts_published   ON posts(published_at DESC);
 CREATE INDEX IF NOT EXISTS idx_posts_hot         ON posts(is_hot, published_at DESC) WHERE is_hot = TRUE;
 CREATE INDEX IF NOT EXISTS idx_posts_persona     ON posts(persona_id, published_at DESC);
 
+-- 검색 성능: pg_trgm 확장이 가능하면 GIN 인덱스 추가 (실패해도 무방)
+DO $$ BEGIN
+  CREATE EXTENSION IF NOT EXISTS pg_trgm;
+EXCEPTION WHEN insufficient_privilege THEN NULL; END $$;
+
+CREATE INDEX IF NOT EXISTS idx_posts_title_trgm ON posts USING gin (title gin_trgm_ops);
+
 -- ── comments: 댓글 (대댓글 가능) ────────────────
 CREATE TABLE IF NOT EXISTS comments (
   id              BIGSERIAL PRIMARY KEY,

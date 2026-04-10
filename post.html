@@ -76,13 +76,13 @@
         <div class="text-[10px] text-black/50">MarkeTalk Community</div>
       </div>
     </a>
-    <div class="flex-1 max-w-xl hidden md:block">
+    <form id="hdr-search" class="flex-1 max-w-xl hidden md:block">
       <div class="relative">
-        <input type="text" placeholder="검색어를 입력하세요"
+        <input id="hdr-q" type="text" placeholder="검색어를 입력하세요"
                class="w-full h-10 pl-10 pr-4 rounded-xl bg-paper border border-black/5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:bg-white" />
         <i data-lucide="search" class="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-black/40"></i>
       </div>
-    </div>
+    </form>
     <a href="/" class="inline-flex items-center gap-1.5 rounded-lg bg-paper hover:bg-black/5 text-ink px-4 py-2 text-sm font-bold">
       <i data-lucide="arrow-left" class="w-4 h-4"></i> 목록으로
     </a>
@@ -378,6 +378,13 @@
     e.target.body.value = '';
     // 새로 로드
     loadPost();
+  });
+
+  // ───── 검색 ─────
+  document.getElementById('hdr-search')?.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const v = document.getElementById('hdr-q').value.trim();
+    if (v.length >= 2) location.href = '/search.html?q=' + encodeURIComponent(v);
   });
 
   // ───── 광고 ─────
