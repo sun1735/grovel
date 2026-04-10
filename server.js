@@ -29,6 +29,35 @@ app.get('/healthz', (_req, res) => {
   res.status(200).json({ status: 'ok', service: 'marketalk' });
 });
 
+// 진단 — DB 연결 상태 확인 (임시, 배포 후 제거 권장)
+app.get('/_diag', async (_req, res) => {
+  const out = {
+    has_DATABASE_URL: !!process.env.DATABASE_URL,
+    db_host: null,
+    db_ok: false,
+    db_error: null,
+    boards: null,
+    posts: null,
+  };
+  if (process.env.DATABASE_URL) {
+    try {
+      const u = new URL(process.env.DATABASE_URL);
+      out.db_host = u.hostname + ':' + u.port;
+    } catch (e) { out.db_host = 'parse_error'; }
+  }
+  try {
+    const { query } = require('./db');
+    const r1 = await query('SELECT COUNT(*)::int AS c FROM boards');
+    const r2 = await query('SELECT COUNT(*)::int AS c FROM posts');
+    out.db_ok = true;
+    out.boards = r1.rows[0].c;
+    out.posts  = r2.rows[0].c;
+  } catch (err) {
+    out.db_error = err.message;
+  }
+  res.json(out);
+});
+
 // SPA-ish 폴백 — API/healthz는 위에서 처리됨, 나머지는 index.html
 app.get('*', (req, res) => {
   // post.html 같은 정적 파일은 위 미들웨어가 처리

@@ -5,20 +5,37 @@
 require('dotenv').config();
 const { Pool } = require('pg');
 
-if (!process.env.DATABASE_URL) {
+const url = process.env.DATABASE_URL;
+
+if (!url) {
   console.warn('⚠️  DATABASE_URL이 설정되지 않았습니다. .env 파일을 확인하세요.');
 }
 
+// Railway 환경별 SSL 매트릭스:
+//  - *.railway.internal  → 내부망 plaintext (SSL X)
+//  - *.proxy.rlwy.net    → 외부 프록시, SSL 필요 (자체서명이라 verify off)
+//  - 그 외                → SSL X (로컬 등)
+function detectSsl(connStr) {
+  if (!connStr) return false;
+  if (connStr.includes('proxy.rlwy.net')) return { rejectUnauthorized: false };
+  if (connStr.includes('railway.internal')) return false;
+  if (/sslmode=require/i.test(connStr))    return { rejectUnauthorized: false };
+  return false;
+}
+
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  // Railway Postgres는 SSL 필요하지만 sslmode=require가 connectionString에 포함되어 있으면 자동.
-  // 일부 프록시 환경 호환성을 위해 reject unauthorized 끔.
-  ssl: process.env.DATABASE_URL?.includes('railway')
-    ? { rejectUnauthorized: false }
-    : false,
+  connectionString: url,
+  ssl: detectSsl(url),
   max: 10,
   idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 10000,
 });
+
+// 첫 연결 한 번 테스트해서 부팅 시 즉시 알 수 있게
+pool.query('SELECT 1').then(
+  () => console.log('[db] connected ✓'),
+  (err) => console.error('[db] initial connect failed:', err.message),
+);
 
 pool.on('error', (err) => {
   console.error('[db] unexpected pool error:', err);
