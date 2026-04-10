@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>마케톡 — 마케터들의 익명 커뮤니티</title>
+<meta name="description" content="마케팅, 광고, SEO, 부업까지. 실무자들이 모이는 가장 솔직한 익명 커뮤니티." />
+
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/lucide@latest"></script>
+<link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css" />
+
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        fontFamily: { sans: ['Pretendard Variable', 'Pretendard', 'system-ui', 'sans-serif'] },
+        colors: {
+          paper: '#f6f7f9',
+          ink: '#15171c',
+          brand: { 50:'#fff1f3', 100:'#ffe1e6', 500:'#ff3e5f', 600:'#ed1f43', 700:'#c41635' }
+        }
+      }
+    }
+  }
+</script>
+
+<style>
+  body { background:#f6f7f9; color:#15171c; font-feature-settings:"ss01","cv11"; }
+  .container-x { max-width:1240px; margin:0 auto; padding-left:1rem; padding-right:1rem; }
+  .card { background:#fff; border:1px solid #eaecef; border-radius:12px; }
+  .row-hover:hover { background:#fafbfc; }
+  .ad-slot {
+    background:repeating-linear-gradient(45deg,#f4f5f7,#f4f5f7 10px,#eef0f3 10px,#eef0f3 20px);
+    border:1px dashed #c9cdd4; color:#98a0aa; font-size:11px; letter-spacing:.15em;
+    text-transform:uppercase; display:flex; align-items:center; justify-content:center;
+    border-radius:12px;
+  }
+  .badge-cat { display:inline-flex; align-items:center; gap:.35rem; padding:.15rem .5rem; border-radius:6px; font-size:11px; font-weight:600; }
+  .b-free  { background:#eef2ff; color:#4338ca; }
+  .b-ad    { background:#fef3c7; color:#b45309; }
+  .b-seo   { background:#d1fae5; color:#047857; }
+  .b-sns   { background:#fce7f3; color:#be185d; }
+  .b-side  { background:#dbeafe; color:#1d4ed8; }
+  .b-tool  { background:#e0e7ff; color:#3730a3; }
+  .b-qna   { background:#f3e8ff; color:#7e22ce; }
+  .b-job   { background:#ffe4e6; color:#be123c; }
+  .b-event { background:#ccfbf1; color:#0f766e; }
+  .hot { color:#ed1f43; }
+  .new-dot { display:inline-block; width:6px; height:6px; border-radius:9999px; background:#ed1f43; margin-left:4px; vertical-align:middle; }
+  .pin { color:#f59e0b; }
+  .av { width:28px; height:28px; border-radius:999px; display:inline-flex; align-items:center; justify-content:center; color:white; font-weight:700; font-size:11px; flex-shrink:0; }
+  .av-1 { background:linear-gradient(135deg,#ff6b9d,#c44569); }
+  .av-2 { background:linear-gradient(135deg,#4facfe,#00f2fe); }
+  .av-3 { background:linear-gradient(135deg,#43e97b,#38f9d7); }
+  .av-4 { background:linear-gradient(135deg,#fa709a,#fee140); }
+  .av-5 { background:linear-gradient(135deg,#a18cd1,#fbc2eb); }
+  .av-6 { background:linear-gradient(135deg,#ffecd2,#fcb69f); color:#7a4d2c; }
+  .av-7 { background:linear-gradient(135deg,#84fab0,#8fd3f4); color:#0a4f3e; }
+  .av-8 { background:linear-gradient(135deg,#667eea,#764ba2); }
+  .av-9 { background:linear-gradient(135deg,#ee9ca7,#ffdde1); color:#7a2d36; }
+  .av-10{ background:linear-gradient(135deg,#2af598,#009efd); }
+  .live-dot { width:8px; height:8px; border-radius:9999px; background:#10b981; box-shadow:0 0 0 0 rgba(16,185,129,0.6); animation:pulse 2s infinite; }
+  @keyframes pulse {
+    0%   { box-shadow:0 0 0 0 rgba(16,185,129,0.7); }
+    70%  { box-shadow:0 0 0 8px rgba(16,185,129,0); }
+    100% { box-shadow:0 0 0 0 rgba(16,185,129,0); }
+  }
+  .scrollbar-thin::-webkit-scrollbar { width:6px; }
+  .scrollbar-thin::-webkit-scrollbar-thumb { background:#d8dbe0; border-radius:999px; }
+  .skeleton { background:linear-gradient(90deg,#eef0f3 0%,#f6f7f9 50%,#eef0f3 100%); background-size:200% 100%; animation:shimmer 1.4s infinite; border-radius:6px; }
+  @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+</style>
+</head>
+<body class="antialiased">
+
+<!-- ============== TOP BAR ============== -->
+<div class="bg-ink text-white text-xs">
+  <div class="container-x flex items-center justify-between h-9">
+    <div class="flex items-center gap-4">
+      <span class="flex items-center gap-1.5"><span class="live-dot"></span> 지금 <b class="text-emerald-300" id="stat-online">…</b> 접속 중</span>
+      <span class="hidden md:inline text-white/60">오늘 게시글 <b class="text-white" id="stat-posts-today">…</b> · 오늘 댓글 <b class="text-white" id="stat-comments-today">…</b></span>
+    </div>
+    <div class="flex items-center gap-3 text-white/70">
+      <a href="#" class="hover:text-white">로그인</a>
+      <span class="text-white/30">|</span>
+      <a href="#" class="hover:text-white">회원가입</a>
+      <span class="text-white/30">|</span>
+      <a href="#" class="hover:text-white">고객센터</a>
+    </div>
+  </div>
+</div>
+
+<!-- ============== HEADER ============== -->
+<header class="bg-white border-b border-black/5 sticky top-0 z-40">
+  <div class="container-x flex items-center gap-6 h-16">
+    <a href="/" class="flex items-center gap-2.5">
+      <div class="w-9 h-9 rounded-xl bg-brand-500 flex items-center justify-center">
+        <i data-lucide="message-square-text" class="w-5 h-5 text-white"></i>
+      </div>
+      <div class="leading-tight">
+        <div class="font-extrabold text-lg tracking-tight">마케톡</div>
+        <div class="text-[10px] text-black/50">MarkeTalk Community</div>
+      </div>
+    </a>
+
+    <div class="flex-1 max-w-xl hidden md:block">
+      <div class="relative">
+        <input type="text" placeholder="검색어를 입력하세요. 예) 인스타 광고 단가, 부업 추천"
+               class="w-full h-10 pl-10 pr-4 rounded-xl bg-paper border border-black/5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:bg-white" />
+        <i data-lucide="search" class="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-black/40"></i>
+      </div>
+    </div>
+
+    <nav class="hidden lg:flex items-center gap-5 text-sm text-black/70">
+      <a href="#" class="hover:text-black">실시간 인기</a>
+      <a href="#" class="hover:text-black">베스트</a>
+      <a href="#" class="hover:text-black">뉴스</a>
+    </nav>
+
+    <a href="#" class="inline-flex items-center gap-1.5 rounded-lg bg-brand-500 hover:bg-brand-600 text-white px-4 py-2 text-sm font-bold">
+      <i data-lucide="pencil" class="w-4 h-4"></i> 글쓰기
+    </a>
+  </div>
+
+  <!-- Sub nav: categories -->
+  <div class="border-t border-black/5 bg-white">
+    <div class="container-x flex items-center gap-1 h-11 overflow-x-auto text-[13px] font-semibold scrollbar-thin" id="board-nav">
+      <a href="#" data-board="all" class="board-tab px-3 py-1.5 rounded-lg text-brand-600 bg-brand-50 whitespace-nowrap">전체</a>
+      <!-- 동적으로 채워짐 -->
+    </div>
+  </div>
+</header>
+
+<!-- ============== TOP BANNER AD ============== -->
+<div class="container-x mt-4">
+  <div class="ad-slot h-[90px] md:h-[110px]">728 × 90  ·  TOP BANNER AD</div>
+</div>
+
+<!-- ============== MAIN ============== -->
+<main class="container-x mt-5 grid lg:grid-cols-12 gap-5">
+
+  <!-- LEFT COL -->
+  <section class="lg:col-span-8 space-y-5">
+
+    <!-- HOT NOW -->
+    <div class="card overflow-hidden">
+      <div class="flex items-center justify-between px-5 py-3 border-b border-black/5">
+        <div class="flex items-center gap-2">
+          <i data-lucide="flame" class="w-4 h-4 text-brand-500"></i>
+          <h2 class="font-extrabold text-[15px]">실시간 인기글</h2>
+          <span class="text-[11px] text-black/40">방금 업데이트</span>
+        </div>
+        <a href="#" class="text-xs text-black/50 hover:text-black">더보기 →</a>
+      </div>
+      <ol class="divide-y divide-black/5" id="hot-list">
+        <li class="px-5 py-2.5"><div class="skeleton h-4 w-3/4"></div></li>
+        <li class="px-5 py-2.5"><div class="skeleton h-4 w-2/3"></div></li>
+        <li class="px-5 py-2.5"><div class="skeleton h-4 w-4/5"></div></li>
+      </ol>
+    </div>
+
+    <!-- LATEST POSTS -->
+    <div class="card overflow-hidden">
+      <div class="flex items-center justify-between px-5 py-3 border-b border-black/5">
+        <div class="flex items-center gap-2">
+          <i data-lucide="clock" class="w-4 h-4 text-black/60"></i>
+          <h2 class="font-extrabold text-[15px]">최신글</h2>
+          <span class="text-[11px] text-black/40" id="latest-board-label">전체</span>
+        </div>
+      </div>
+      <ul class="divide-y divide-black/5 text-sm" id="latest-list">
+        <li class="px-5 py-3"><div class="skeleton h-4 w-full"></div></li>
+        <li class="px-5 py-3"><div class="skeleton h-4 w-5/6"></div></li>
+        <li class="px-5 py-3"><div class="skeleton h-4 w-4/6"></div></li>
+        <li class="px-5 py-3"><div class="skeleton h-4 w-full"></div></li>
+        <li class="px-5 py-3"><div class="skeleton h-4 w-3/4"></div></li>
+      </ul>
+      <div class="flex items-center justify-center gap-1 py-5 text-sm" id="pagination"></div>
+    </div>
+
+    <!-- INLINE BANNER AD -->
+    <div class="ad-slot h-[110px]">728 × 90  ·  INLINE BANNER AD</div>
+
+    <!-- CATEGORIES GRID -->
+    <div class="card p-5">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="font-extrabold text-[15px] flex items-center gap-2">
+          <i data-lucide="layout-grid" class="w-4 h-4 text-black/60"></i>
+          전체 게시판
+        </h2>
+        <span class="text-xs text-black/40" id="board-count-label">…</span>
+      </div>
+      <div class="grid sm:grid-cols-2 gap-3" id="boards-grid">
+        <div class="skeleton h-16"></div>
+        <div class="skeleton h-16"></div>
+        <div class="skeleton h-16"></div>
+        <div class="skeleton h-16"></div>
+      </div>
+    </div>
+
+  </section>
+
+  <!-- RIGHT SIDEBAR -->
+  <aside class="lg:col-span-4 space-y-5">
+
+    <div class="card p-5">
+      <div class="text-sm font-bold mb-3">로그인</div>
+      <input type="text" placeholder="아이디" class="w-full h-9 px-3 rounded-md bg-paper border border-black/5 text-sm mb-2 focus:outline-none focus:ring-2 focus:ring-brand-500/30" />
+      <input type="password" placeholder="비밀번호" class="w-full h-9 px-3 rounded-md bg-paper border border-black/5 text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-brand-500/30" />
+      <button class="w-full h-9 bg-ink text-white rounded-md text-sm font-bold hover:bg-black/85">로그인</button>
+      <div class="flex items-center justify-between mt-3 text-[11px] text-black/50">
+        <a href="#" class="hover:text-black">회원가입</a>
+        <a href="#" class="hover:text-black">아이디/PW 찾기</a>
+      </div>
+    </div>
+
+    <div class="ad-slot h-[260px]">300 × 250  ·  SIDEBAR AD</div>
+
+    <div class="card p-5">
+      <div class="text-sm font-bold mb-4 flex items-center gap-2">
+        <i data-lucide="bar-chart-3" class="w-4 h-4 text-black/60"></i>
+        커뮤니티 현황
+      </div>
+      <div class="grid grid-cols-2 gap-3 text-sm">
+        <div class="rounded-lg bg-paper p-3"><div class="text-[11px] text-black/50">총 회원</div><div class="font-extrabold text-lg" id="stat-members">…</div></div>
+        <div class="rounded-lg bg-paper p-3"><div class="text-[11px] text-black/50">총 게시글</div><div class="font-extrabold text-lg" id="stat-total-posts">…</div></div>
+        <div class="rounded-lg bg-paper p-3"><div class="text-[11px] text-black/50">총 댓글</div><div class="font-extrabold text-lg" id="stat-total-comments">…</div></div>
+        <div class="rounded-lg bg-paper p-3"><div class="text-[11px] text-black/50">접속 중</div><div class="font-extrabold text-lg text-emerald-600" id="stat-online-2">…</div></div>
+      </div>
+    </div>
+
+    <div class="card p-5">
+      <div class="text-sm font-bold mb-4 flex items-center gap-2">
+        <i data-lucide="trending-up" class="w-4 h-4 text-black/60"></i>
+        실시간 검색어
+      </div>
+      <ol class="space-y-2 text-sm">
+        <li class="flex items-center gap-3"><span class="hot font-bold w-4">1</span><a href="#" class="hover:underline flex-1">메타광고 단가</a><i data-lucide="trending-up" class="w-3 h-3 text-emerald-500"></i></li>
+        <li class="flex items-center gap-3"><span class="hot font-bold w-4">2</span><a href="#" class="hover:underline flex-1">스마트스토어 부업</a><i data-lucide="trending-up" class="w-3 h-3 text-emerald-500"></i></li>
+        <li class="flex items-center gap-3"><span class="hot font-bold w-4">3</span><a href="#" class="hover:underline flex-1">네이버 SEO</a><i data-lucide="minus" class="w-3 h-3 text-black/30"></i></li>
+        <li class="flex items-center gap-3"><span class="font-bold w-4 text-black/50">4</span><a href="#" class="hover:underline flex-1">릴스 알고리즘</a><i data-lucide="trending-down" class="w-3 h-3 text-rose-500"></i></li>
+        <li class="flex items-center gap-3"><span class="font-bold w-4 text-black/50">5</span><a href="#" class="hover:underline flex-1">GA4 이벤트</a><i data-lucide="trending-up" class="w-3 h-3 text-emerald-500"></i></li>
+      </ol>
+    </div>
+
+    <div class="ad-slot h-[260px]">300 × 250  ·  SIDEBAR AD</div>
+
+    <div class="card p-5 bg-gradient-to-br from-brand-500 to-brand-700 text-white border-0">
+      <div class="font-bold text-lg">우리 디스코드도 있어요</div>
+      <p class="text-sm text-white/85 mt-1.5">실시간으로 마케터들과 수다 떨러 오세요. 무료 입장.</p>
+      <a href="#" class="mt-4 inline-flex items-center gap-1.5 bg-white text-brand-600 rounded-lg px-4 py-2 text-sm font-bold">
+        참여하기 <i data-lucide="arrow-right" class="w-4 h-4"></i>
+      </a>
+    </div>
+
+  </aside>
+</main>
+
+<div class="container-x mt-8">
+  <div class="ad-slot h-[110px]">728 × 90  ·  BOTTOM BANNER AD</div>
+</div>
+
+<footer class="mt-10 bg-white border-t border-black/5">
+  <div class="container-x py-10">
+    <div class="grid md:grid-cols-4 gap-8 text-sm">
+      <div>
+        <div class="flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-lg bg-brand-500 flex items-center justify-center">
+            <i data-lucide="message-square-text" class="w-4 h-4 text-white"></i>
+          </div>
+          <span class="font-extrabold">마케톡</span>
+        </div>
+        <p class="mt-3 text-black/55 text-[13px] leading-relaxed">마케팅, 광고, SEO, 부업까지. 실무자들이 모이는 가장 솔직한 익명 커뮤니티.</p>
+      </div>
+      <div>
+        <div class="text-[11px] font-bold text-black/40 tracking-wider uppercase mb-3">서비스</div>
+        <ul class="space-y-1.5 text-black/65">
+          <li><a href="#" class="hover:text-black">전체 게시판</a></li>
+          <li><a href="#" class="hover:text-black">실시간 인기</a></li>
+          <li><a href="#" class="hover:text-black">검색</a></li>
+        </ul>
+      </div>
+      <div>
+        <div class="text-[11px] font-bold text-black/40 tracking-wider uppercase mb-3">이용 안내</div>
+        <ul class="space-y-1.5 text-black/65">
+          <li><a href="#" class="hover:text-black">커뮤니티 가이드</a></li>
+          <li><a href="#" class="hover:text-black">신고하기</a></li>
+          <li><a href="#" class="hover:text-black">광고 문의</a></li>
+        </ul>
+      </div>
+      <div>
+        <div class="text-[11px] font-bold text-black/40 tracking-wider uppercase mb-3">법적 고지</div>
+        <ul class="space-y-1.5 text-black/65">
+          <li><a href="#" class="hover:text-black">이용약관</a></li>
+          <li><a href="#" class="hover:text-black">개인정보처리방침</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="mt-10 pt-6 border-t border-black/5 text-xs text-black/45 flex flex-col md:flex-row justify-between gap-2">
+      <div>© 2026 MarkeTalk. All rights reserved.</div>
+      <div>본 사이트의 모든 게시물은 작성자에게 권리가 있으며, 무단 전재·재배포를 금합니다.</div>
+    </div>
+  </div>
+</footer>
+
+<script>
+  // ============== UTILITIES ==============
+  const fmt = new Intl.NumberFormat('ko-KR');
+  const $ = (sel) => document.querySelector(sel);
+
+  function timeAgo(iso) {
+    const t = new Date(iso).getTime();
+    const diff = Math.max(0, Date.now() - t) / 1000;
+    if (diff < 60)        return '방금 전';
+    if (diff < 3600)      return Math.floor(diff/60) + '분 전';
+    if (diff < 86400)     return Math.floor(diff/3600) + '시간 전';
+    if (diff < 86400*7)   return Math.floor(diff/86400) + '일 전';
+    return new Date(iso).toLocaleDateString('ko-KR');
+  }
+
+  // 닉네임 → 아바타 클래스 (해시 기반 균등 분포)
+  function avatarClass(nickname) {
+    let h = 0;
+    for (const c of nickname) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+    return 'av-' + ((h % 10) + 1);
+  }
+
+  function escapeHtml(s) {
+    return String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+  }
+
+  async function fetchJson(url) {
+    const r = await fetch(url);
+    if (!r.ok) throw new Error('fetch failed: ' + url);
+    return r.json();
+  }
+
+  // ============== STATE ==============
+  let currentBoard = 'all';
+  let currentPage = 1;
+
+  // ============== STATS ==============
+  async function loadStats() {
+    try {
+      const s = await fetchJson('/api/stats');
+      $('#stat-online').textContent          = fmt.format(s.online_now) + '명';
+      $('#stat-online-2').textContent        = fmt.format(s.online_now);
+      $('#stat-posts-today').textContent     = fmt.format(s.posts_today);
+      $('#stat-comments-today').textContent  = fmt.format(s.comments_today);
+      $('#stat-members').textContent         = fmt.format(s.total_members);
+      $('#stat-total-posts').textContent     = fmt.format(s.total_posts);
+      $('#stat-total-comments').textContent  = fmt.format(s.total_comments);
+    } catch (e) { console.warn(e); }
+  }
+
+  // ============== BOARDS ==============
+  async function loadBoards() {
+    try {
+      const { boards } = await fetchJson('/api/boards');
+      // Top nav
+      const nav = $('#board-nav');
+      const allTab = nav.querySelector('[data-board="all"]');
+      nav.innerHTML = '';
+      nav.appendChild(allTab);
+      for (const b of boards.filter(b => b.slug !== 'notice')) {
+        const a = document.createElement('a');
+        a.href = '#';
+        a.className = 'board-tab px-3 py-1.5 rounded-lg hover:bg-paper whitespace-nowrap';
+        a.textContent = b.name;
+        a.dataset.board = b.slug;
+        nav.appendChild(a);
+      }
+      nav.addEventListener('click', (e) => {
+        const tab = e.target.closest('.board-tab');
+        if (!tab) return;
+        e.preventDefault();
+        currentBoard = tab.dataset.board;
+        currentPage = 1;
+        document.querySelectorAll('.board-tab').forEach(el => {
+          el.classList.remove('text-brand-600','bg-brand-50');
+          el.classList.add('hover:bg-paper');
+        });
+        tab.classList.add('text-brand-600','bg-brand-50');
+        tab.classList.remove('hover:bg-paper');
+        $('#latest-board-label').textContent = tab.textContent;
+        loadLatestPosts();
+      });
+
+      // Categories grid
+      const grid = $('#boards-grid');
+      grid.innerHTML = '';
+      const icons = {
+        free: ['message-circle','indigo'],
+        ad:   ['megaphone','amber'],
+        seo:  ['search','emerald'],
+        sns:  ['instagram','pink'],
+        side: ['wallet','blue'],
+        tool: ['wrench','violet'],
+        qna:  ['help-circle','purple'],
+        job:  ['briefcase','rose'],
+        event:['gift','teal'],
+      };
+      for (const b of boards.filter(b => b.slug !== 'notice')) {
+        const [icon, color] = icons[b.slug] || ['hash','gray'];
+        const el = document.createElement('a');
+        el.href = '#';
+        el.dataset.board = b.slug;
+        el.className = 'row-hover flex items-center gap-3 p-3 rounded-lg border border-black/5';
+        el.innerHTML = `
+          <div class="w-10 h-10 rounded-lg bg-${color}-50 flex items-center justify-center">
+            <i data-lucide="${icon}" class="w-5 h-5 text-${color}-600"></i>
+          </div>
+          <div class="flex-1">
+            <div class="font-bold text-sm">${escapeHtml(b.name)}</div>
+            <div class="text-[11px] text-black/50">${escapeHtml(b.description || '')}</div>
+          </div>
+          <div class="text-[11px] text-black/40 text-right">
+            <div class="font-bold text-black/60">${fmt.format(b.post_count)}</div>
+            <div>글</div>
+          </div>`;
+        el.addEventListener('click', (e) => {
+          e.preventDefault();
+          const tab = document.querySelector(`.board-tab[data-board="${b.slug}"]`);
+          tab?.click();
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+        grid.appendChild(el);
+      }
+      $('#board-count-label').textContent = `${boards.length}개 게시판 운영 중`;
+      lucide.createIcons();
+    } catch (e) { console.warn(e); }
+  }
+
+  // ============== HOT POSTS ==============
+  async function loadHotPosts() {
+    try {
+      const { posts } = await fetchJson('/api/posts/hot?limit=5');
+      const ol = $('#hot-list');
+      if (posts.length === 0) {
+        ol.innerHTML = '<li class="px-5 py-4 text-sm text-black/40 text-center">아직 인기글이 없습니다</li>';
+        return;
+      }
+      ol.innerHTML = posts.map((p, i) => `
+        <li class="row-hover px-5 py-2.5 flex items-center gap-3 text-sm">
+          <span class="w-5 text-center font-extrabold ${i < 3 ? 'hot' : 'text-black/40'}">${i + 1}</span>
+          <a href="/post.html?id=${p.id}" class="flex-1 truncate hover:underline">
+            ${escapeHtml(p.title)}
+            ${p.comment_count > 0 ? `<span class="text-brand-500 font-bold">[${p.comment_count}]</span>` : ''}
+          </a>
+          <span class="text-[11px] text-black/40">${timeAgo(p.published_at)}</span>
+        </li>`).join('');
+    } catch (e) { console.warn(e); }
+  }
+
+  // ============== LATEST POSTS ==============
+  async function loadLatestPosts() {
+    try {
+      const url = `/api/posts?board=${currentBoard}&page=${currentPage}&limit=20`;
+      const data = await fetchJson(url);
+      const ul = $('#latest-list');
+
+      if (data.posts.length === 0) {
+        ul.innerHTML = '<li class="px-5 py-12 text-sm text-black/40 text-center">아직 게시글이 없습니다</li>';
+        $('#pagination').innerHTML = '';
+        return;
+      }
+
+      ul.innerHTML = data.posts.map((p) => {
+        const isNew = (Date.now() - new Date(p.published_at).getTime()) < 30 * 60 * 1000;
+        const pinned = p.is_pinned
+          ? `<i data-lucide="pin" class="w-3.5 h-3.5 pin"></i>`
+          : '';
+        return `
+          <li class="row-hover px-5 py-3 flex items-center gap-3">
+            ${pinned}
+            <span class="badge-cat ${escapeHtml(p.badge_class || 'b-free')}">${escapeHtml(p.board_name)}</span>
+            <a href="/post.html?id=${p.id}" class="flex-1 truncate hover:underline ${p.is_pinned ? 'font-bold' : ''}">
+              ${escapeHtml(p.title)}
+              ${p.comment_count > 0 ? `<span class="text-brand-500 font-bold ml-1">[${p.comment_count}]</span>` : ''}
+              ${isNew ? `<span class="new-dot"></span>` : ''}
+            </a>
+            <div class="hidden md:flex items-center gap-1.5 text-xs text-black/60">
+              <div class="av ${avatarClass(p.author_nickname)}">${escapeHtml(p.author_nickname[0])}</div>
+              <span>${escapeHtml(p.author_nickname)}</span>
+            </div>
+            <span class="hidden md:inline text-xs text-black/40 w-12 text-right">${fmt.format(p.view_count)}</span>
+            <span class="text-xs text-black/40 w-14 text-right">${timeAgo(p.published_at)}</span>
+          </li>`;
+      }).join('');
+
+      // pagination
+      const totalPages = Math.max(1, Math.ceil(data.total / data.limit));
+      const pag = $('#pagination');
+      let html = '';
+      const prev = currentPage > 1 ? currentPage - 1 : null;
+      const next = currentPage < totalPages ? currentPage + 1 : null;
+      html += `<button data-page="${prev || ''}" class="w-8 h-8 rounded-md ${prev ? 'hover:bg-paper' : 'text-black/20'}">‹</button>`;
+      const start = Math.max(1, currentPage - 2);
+      const end = Math.min(totalPages, start + 4);
+      for (let i = start; i <= end; i++) {
+        html += `<button data-page="${i}" class="w-8 h-8 rounded-md ${i === currentPage ? 'bg-ink text-white font-bold' : 'hover:bg-paper'}">${i}</button>`;
+      }
+      html += `<button data-page="${next || ''}" class="w-8 h-8 rounded-md ${next ? 'hover:bg-paper' : 'text-black/20'}">›</button>`;
+      pag.innerHTML = html;
+      pag.querySelectorAll('button').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const p = parseInt(btn.dataset.page);
+          if (!p) return;
+          currentPage = p;
+          loadLatestPosts();
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+      });
+
+      lucide.createIcons();
+    } catch (e) { console.warn(e); }
+  }
+
+  // ============== INIT ==============
+  lucide.createIcons();
+  loadStats();
+  loadBoards().then(() => loadLatestPosts());
+  loadHotPosts();
+
+  // 30초마다 통계 갱신 (살아있는 느낌)
+  setInterval(loadStats, 30000);
+  setInterval(loadHotPosts, 60000);
+</script>
+</body>
+</html>

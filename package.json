@@ -1,0 +1,22 @@
+{
+  "name": "marketalk",
+  "version": "1.0.0",
+  "description": "마케톡 — 마케터 익명 커뮤니티",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "db:migrate": "node db/migrate.js",
+    "db:seed": "node db/seed.js",
+    "worker:post": "node worker/generatePost.js",
+    "worker:comment": "node worker/generateComment.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.27.0",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "pg": "^8.12.0"
+  }
+}

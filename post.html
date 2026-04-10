@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>마케톡 — 게시글</title>
+
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/lucide@latest"></script>
+<link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css" />
+
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        fontFamily: { sans: ['Pretendard Variable','Pretendard','system-ui','sans-serif'] },
+        colors: {
+          paper:'#f6f7f9', ink:'#15171c',
+          brand: { 50:'#fff1f3', 500:'#ff3e5f', 600:'#ed1f43', 700:'#c41635' }
+        }
+      }
+    }
+  }
+</script>
+
+<style>
+  body { background:#f6f7f9; color:#15171c; }
+  .container-x { max-width:1240px; margin:0 auto; padding-left:1rem; padding-right:1rem; }
+  .card { background:#fff; border:1px solid #eaecef; border-radius:12px; }
+  .ad-slot { background:repeating-linear-gradient(45deg,#f4f5f7,#f4f5f7 10px,#eef0f3 10px,#eef0f3 20px); border:1px dashed #c9cdd4; color:#98a0aa; font-size:11px; letter-spacing:.15em; text-transform:uppercase; display:flex; align-items:center; justify-content:center; border-radius:12px; }
+  .badge-cat { display:inline-flex; align-items:center; gap:.35rem; padding:.2rem .55rem; border-radius:6px; font-size:11px; font-weight:600; }
+  .b-free{background:#eef2ff;color:#4338ca} .b-ad{background:#fef3c7;color:#b45309}
+  .b-seo{background:#d1fae5;color:#047857} .b-sns{background:#fce7f3;color:#be185d}
+  .b-side{background:#dbeafe;color:#1d4ed8} .b-tool{background:#e0e7ff;color:#3730a3}
+  .b-qna{background:#f3e8ff;color:#7e22ce} .b-job{background:#ffe4e6;color:#be123c}
+  .b-event{background:#ccfbf1;color:#0f766e}
+  .av { width:36px; height:36px; border-radius:999px; display:inline-flex; align-items:center; justify-content:center; color:white; font-weight:700; font-size:13px; flex-shrink:0; }
+  .av-1{background:linear-gradient(135deg,#ff6b9d,#c44569)} .av-2{background:linear-gradient(135deg,#4facfe,#00f2fe)}
+  .av-3{background:linear-gradient(135deg,#43e97b,#38f9d7)} .av-4{background:linear-gradient(135deg,#fa709a,#fee140)}
+  .av-5{background:linear-gradient(135deg,#a18cd1,#fbc2eb)} .av-6{background:linear-gradient(135deg,#ffecd2,#fcb69f);color:#7a4d2c}
+  .av-7{background:linear-gradient(135deg,#84fab0,#8fd3f4);color:#0a4f3e} .av-8{background:linear-gradient(135deg,#667eea,#764ba2)}
+  .av-9{background:linear-gradient(135deg,#ee9ca7,#ffdde1);color:#7a2d36} .av-10{background:linear-gradient(135deg,#2af598,#009efd)}
+  .av-sm { width:28px; height:28px; font-size:11px; }
+  .live-dot { width:8px; height:8px; border-radius:9999px; background:#10b981; box-shadow:0 0 0 0 rgba(16,185,129,.6); animation:pulse 2s infinite; }
+  @keyframes pulse { 0%{box-shadow:0 0 0 0 rgba(16,185,129,.7)} 70%{box-shadow:0 0 0 8px rgba(16,185,129,0)} 100%{box-shadow:0 0 0 0 rgba(16,185,129,0)} }
+  .post-body { white-space:pre-wrap; line-height:1.78; font-size:15.5px; color:#222; word-break:keep-all; }
+  .skeleton { background:linear-gradient(90deg,#eef0f3 0%,#f6f7f9 50%,#eef0f3 100%); background-size:200% 100%; animation:shimmer 1.4s infinite; border-radius:6px; }
+  @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+</style>
+</head>
+<body class="antialiased">
+
+<!-- TOP BAR -->
+<div class="bg-ink text-white text-xs">
+  <div class="container-x flex items-center justify-between h-9">
+    <div class="flex items-center gap-4">
+      <span class="flex items-center gap-1.5"><span class="live-dot"></span> 지금 <b class="text-emerald-300" id="stat-online">…</b> 접속 중</span>
+    </div>
+    <div class="flex items-center gap-3 text-white/70">
+      <a href="#" class="hover:text-white">로그인</a>
+      <span class="text-white/30">|</span>
+      <a href="#" class="hover:text-white">회원가입</a>
+    </div>
+  </div>
+</div>
+
+<!-- HEADER -->
+<header class="bg-white border-b border-black/5 sticky top-0 z-40">
+  <div class="container-x flex items-center gap-6 h-16">
+    <a href="/" class="flex items-center gap-2.5">
+      <div class="w-9 h-9 rounded-xl bg-brand-500 flex items-center justify-center">
+        <i data-lucide="message-square-text" class="w-5 h-5 text-white"></i>
+      </div>
+      <div class="leading-tight">
+        <div class="font-extrabold text-lg tracking-tight">마케톡</div>
+        <div class="text-[10px] text-black/50">MarkeTalk Community</div>
+      </div>
+    </a>
+    <div class="flex-1 max-w-xl hidden md:block">
+      <div class="relative">
+        <input type="text" placeholder="검색어를 입력하세요"
+               class="w-full h-10 pl-10 pr-4 rounded-xl bg-paper border border-black/5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:bg-white" />
+        <i data-lucide="search" class="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-black/40"></i>
+      </div>
+    </div>
+    <a href="/" class="inline-flex items-center gap-1.5 rounded-lg bg-paper hover:bg-black/5 text-ink px-4 py-2 text-sm font-bold">
+      <i data-lucide="arrow-left" class="w-4 h-4"></i> 목록으로
+    </a>
+  </div>
+</header>
+
+<!-- TOP AD -->
+<div class="container-x mt-4">
+  <div class="ad-slot h-[90px] md:h-[110px]">728 × 90  ·  TOP BANNER AD</div>
+</div>
+
+<!-- MAIN -->
+<main class="container-x mt-5 grid lg:grid-cols-12 gap-5">
+
+  <section class="lg:col-span-8 space-y-5">
+
+    <!-- POST -->
+    <article class="card overflow-hidden">
+      <div class="px-6 md:px-8 pt-7 pb-5 border-b border-black/5">
+        <a href="/" id="post-board-link" class="badge-cat b-free"></a>
+        <h1 id="post-title" class="mt-3 text-2xl md:text-3xl font-extrabold leading-tight tracking-tight">
+          <div class="skeleton h-8 w-3/4"></div>
+        </h1>
+        <div class="mt-5 flex items-center gap-3 text-sm">
+          <div id="post-author-avatar" class="av av-1">·</div>
+          <div class="flex-1">
+            <div id="post-author" class="font-semibold">…</div>
+            <div class="text-[12px] text-black/45 flex items-center gap-2">
+              <span id="post-time">…</span>
+              <span>·</span>
+              <span>조회 <span id="post-views">…</span></span>
+              <span>·</span>
+              <span>댓글 <span id="post-comment-count">…</span></span>
+            </div>
+          </div>
+          <button class="text-xs text-black/40 hover:text-rose-500 flex items-center gap-1">
+            <i data-lucide="flag" class="w-3.5 h-3.5"></i> 신고
+          </button>
+        </div>
+      </div>
+
+      <div class="px-6 md:px-8 py-8 post-body" id="post-body">
+        <div class="skeleton h-4 w-full mb-3"></div>
+        <div class="skeleton h-4 w-11/12 mb-3"></div>
+        <div class="skeleton h-4 w-4/5"></div>
+      </div>
+
+      <div class="px-6 md:px-8 pb-7 flex items-center gap-3 border-t border-black/5 pt-5">
+        <button id="like-btn" class="inline-flex items-center gap-1.5 rounded-lg bg-paper hover:bg-rose-50 hover:text-rose-500 px-4 py-2 text-sm font-semibold">
+          <i data-lucide="heart" class="w-4 h-4"></i> <span id="like-count">0</span>
+        </button>
+        <button class="inline-flex items-center gap-1.5 rounded-lg bg-paper hover:bg-black/5 px-4 py-2 text-sm font-semibold">
+          <i data-lucide="bookmark" class="w-4 h-4"></i> 스크랩
+        </button>
+        <button class="inline-flex items-center gap-1.5 rounded-lg bg-paper hover:bg-black/5 px-4 py-2 text-sm font-semibold">
+          <i data-lucide="share-2" class="w-4 h-4"></i> 공유
+        </button>
+      </div>
+    </article>
+
+    <!-- INLINE AD -->
+    <div class="ad-slot h-[110px]">728 × 90  ·  INLINE AD</div>
+
+    <!-- COMMENTS -->
+    <div class="card overflow-hidden">
+      <div class="px-6 py-4 border-b border-black/5 flex items-center justify-between">
+        <div class="font-extrabold flex items-center gap-2">
+          <i data-lucide="message-square" class="w-4 h-4 text-black/60"></i>
+          댓글 <span id="cmt-count" class="text-brand-500">0</span>
+        </div>
+      </div>
+
+      <div id="cmt-list" class="divide-y divide-black/5"></div>
+
+      <!-- COMMENT INPUT -->
+      <div class="p-5 border-t border-black/5 bg-paper/50">
+        <div class="text-[11px] text-black/45 mb-2">로그인하면 댓글을 남길 수 있어요</div>
+        <div class="flex gap-2">
+          <textarea rows="2" disabled placeholder="댓글을 작성하려면 로그인하세요…"
+                    class="flex-1 px-3 py-2 rounded-lg bg-white border border-black/10 text-sm resize-none disabled:bg-black/5"></textarea>
+          <button disabled class="self-end px-4 py-2 rounded-lg bg-ink/30 text-white text-sm font-bold cursor-not-allowed">등록</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- BOTTOM AD -->
+    <div class="ad-slot h-[110px]">728 × 90  ·  BOTTOM AD</div>
+  </section>
+
+  <!-- SIDEBAR -->
+  <aside class="lg:col-span-4 space-y-5">
+    <div class="ad-slot h-[260px]">300 × 250  ·  SIDEBAR AD</div>
+
+    <div class="card p-5">
+      <div class="text-sm font-bold mb-4 flex items-center gap-2">
+        <i data-lucide="flame" class="w-4 h-4 text-brand-500"></i>
+        실시간 인기글
+      </div>
+      <ol class="space-y-2.5 text-sm" id="hot-list">
+        <li><div class="skeleton h-4 w-full"></div></li>
+        <li><div class="skeleton h-4 w-5/6"></div></li>
+        <li><div class="skeleton h-4 w-4/6"></div></li>
+      </ol>
+    </div>
+
+    <div class="ad-slot h-[260px]">300 × 250  ·  SIDEBAR AD</div>
+
+    <div class="card p-5 bg-gradient-to-br from-brand-500 to-brand-700 text-white border-0">
+      <div class="font-bold text-lg">우리 디스코드도 있어요</div>
+      <p class="text-sm text-white/85 mt-1.5">실시간으로 마케터들과 수다 떨러 오세요.</p>
+      <a href="#" class="mt-4 inline-flex items-center gap-1.5 bg-white text-brand-600 rounded-lg px-4 py-2 text-sm font-bold">
+        참여하기 <i data-lucide="arrow-right" class="w-4 h-4"></i>
+      </a>
+    </div>
+  </aside>
+</main>
+
+<footer class="mt-10 bg-white border-t border-black/5">
+  <div class="container-x py-8 text-center text-xs text-black/45">
+    © 2026 MarkeTalk. All rights reserved.
+  </div>
+</footer>
+
+<script>
+  const fmt = new Intl.NumberFormat('ko-KR');
+  const $ = (s) => document.querySelector(s);
+  const escapeHtml = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+  function timeAgo(iso) {
+    const diff = Math.max(0, Date.now() - new Date(iso).getTime()) / 1000;
+    if (diff < 60)      return '방금 전';
+    if (diff < 3600)    return Math.floor(diff/60) + '분 전';
+    if (diff < 86400)   return Math.floor(diff/3600) + '시간 전';
+    if (diff < 86400*7) return Math.floor(diff/86400) + '일 전';
+    return new Date(iso).toLocaleString('ko-KR');
+  }
+  function avatarClass(nickname) {
+    let h = 0;
+    for (const c of nickname) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+    return 'av-' + ((h % 10) + 1);
+  }
+  async function fetchJson(url, opts) {
+    const r = await fetch(url, opts);
+    if (!r.ok) throw new Error('fetch failed: ' + url);
+    return r.json();
+  }
+
+  // ───── 게시글 로드 ─────
+  const postId = new URLSearchParams(location.search).get('id');
+  if (!postId) {
+    document.body.innerHTML = '<div class="container-x py-32 text-center"><p class="text-lg">잘못된 접근입니다.</p><a href="/" class="mt-4 inline-block text-brand-500 underline">목록으로</a></div>';
+    throw new Error('no id');
+  }
+
+  async function loadPost() {
+    try {
+      const { post, comments } = await fetchJson('/api/posts/' + postId);
+      document.title = `${post.title} — 마케톡`;
+
+      // 게시판 뱃지
+      const link = $('#post-board-link');
+      link.href = `/?board=${post.board_slug}`;
+      link.textContent = post.board_name;
+      link.className = `badge-cat ${post.badge_class || 'b-free'}`;
+
+      // 본문
+      $('#post-title').textContent = post.title;
+      $('#post-body').innerHTML = escapeHtml(post.body);
+      $('#post-author').textContent = post.author_nickname;
+      const av = $('#post-author-avatar');
+      av.className = `av ${avatarClass(post.author_nickname)}`;
+      av.textContent = post.author_nickname[0];
+      $('#post-time').textContent = timeAgo(post.published_at);
+      $('#post-views').textContent = fmt.format(post.view_count);
+      $('#post-comment-count').textContent = fmt.format(post.comment_count);
+      $('#like-count').textContent = post.like_count || 0;
+
+      // 댓글
+      renderComments(comments);
+
+      // 조회수 +1 (페이지 본 직후, 비동기)
+      fetch(`/api/posts/${postId}/view`, { method: 'POST' }).catch(() => {});
+    } catch (err) {
+      $('#post-body').innerHTML = '<div class="text-center text-rose-500 py-8">게시글을 불러올 수 없습니다.</div>';
+      console.error(err);
+    }
+  }
+
+  function renderComments(comments) {
+    $('#cmt-count').textContent = comments.length;
+    const list = $('#cmt-list');
+    if (comments.length === 0) {
+      list.innerHTML = '<div class="px-6 py-12 text-center text-sm text-black/40">아직 댓글이 없습니다. 가장 먼저 댓글을 남겨보세요.</div>';
+      return;
+    }
+    list.innerHTML = comments.map((c) => `
+      <div class="px-6 py-4 hover:bg-black/[0.015]">
+        <div class="flex items-start gap-3">
+          <div class="av av-sm ${avatarClass(c.author_nickname)}">${escapeHtml(c.author_nickname[0])}</div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2 text-[12px]">
+              <span class="font-semibold">${escapeHtml(c.author_nickname)}</span>
+              <span class="text-black/40">·</span>
+              <span class="text-black/40">${timeAgo(c.created_at)}</span>
+            </div>
+            <div class="mt-1.5 text-[14px] leading-relaxed text-black/85 whitespace-pre-wrap">${escapeHtml(c.body)}</div>
+            <div class="mt-2 flex items-center gap-3 text-[11px] text-black/40">
+              <button class="hover:text-rose-500 inline-flex items-center gap-1">
+                <i data-lucide="heart" class="w-3 h-3"></i> ${c.like_count || 0}
+              </button>
+              <button class="hover:text-black">답글</button>
+              <button class="hover:text-rose-500">신고</button>
+            </div>
+          </div>
+        </div>
+      </div>`).join('');
+    lucide.createIcons();
+  }
+
+  // ───── 인기글 사이드바 ─────
+  async function loadHot() {
+    try {
+      const { posts } = await fetchJson('/api/posts/hot?limit=5');
+      const ol = $('#hot-list');
+      if (!posts.length) { ol.innerHTML = '<li class="text-black/40">없음</li>'; return; }
+      ol.innerHTML = posts.map((p, i) => `
+        <li class="flex items-start gap-2">
+          <span class="font-extrabold text-brand-500 w-4 flex-shrink-0">${i + 1}</span>
+          <a href="/post.html?id=${p.id}" class="flex-1 hover:underline truncate">${escapeHtml(p.title)}</a>
+        </li>`).join('');
+    } catch (e) { console.warn(e); }
+  }
+
+  async function loadStats() {
+    try {
+      const s = await fetchJson('/api/stats');
+      $('#stat-online').textContent = fmt.format(s.online_now) + '명';
+    } catch {}
+  }
+
+  // ───── INIT ─────
+  lucide.createIcons();
+  loadPost();
+  loadHot();
+  loadStats();
+</script>
+</body>
+</html>
