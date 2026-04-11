@@ -143,53 +143,62 @@
   </div>
 </header>
 
-<!-- ============== PROFILE STRIP (헤더 아래 가로 바) ============== -->
-<div class="container-x mt-4">
-  <div id="profile-strip" class="card px-4 md:px-5 py-3 flex items-center gap-3 flex-wrap">
-    <!-- 비로그인 상태 -->
-    <div id="strip-anon" class="flex items-center gap-3 flex-1 min-w-0 flex-wrap">
-      <div class="hidden sm:flex items-center gap-2 text-sm text-black/55">
-        <i data-lucide="user-circle-2" class="w-5 h-5 text-black/30"></i>
-        <span class="hidden md:inline">마케톡에 처음이라면</span>
-      </div>
-      <form id="strip-login" class="flex items-center gap-2 flex-1 min-w-0">
-        <input type="email" name="email" placeholder="이메일" required
-               class="flex-1 min-w-0 max-w-[200px] h-9 px-3 rounded-md bg-paper border border-black/10 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/20" />
-        <input type="password" name="password" placeholder="비밀번호" required
-               class="flex-1 min-w-0 max-w-[180px] h-9 px-3 rounded-md bg-paper border border-black/10 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/20" />
-        <button type="submit" class="h-9 px-4 bg-ink text-white rounded-md text-sm font-bold hover:bg-black/85 whitespace-nowrap">로그인</button>
-      </form>
-      <a href="/login.html#register" class="text-sm font-semibold text-brand-500 hover:text-brand-600 whitespace-nowrap">회원가입 →</a>
-    </div>
+<!-- ============== TOP ROW: 배너 + 프로필 (2열, 메인 그리드에 정렬) ============== -->
+<div class="container-x mt-5 grid lg:grid-cols-12 gap-5">
 
-    <!-- 로그인 상태 -->
-    <div id="strip-user" class="hidden flex-1 min-w-0 items-center gap-3 flex-wrap">
-      <div class="flex items-center gap-2.5 min-w-0">
-        <div id="strip-avatar" class="av av-1" style="width:36px;height:36px;border-radius:10px;font-size:14px;">·</div>
-        <div class="min-w-0">
-          <div class="font-extrabold text-[14px] truncate" id="strip-nickname">…</div>
-          <div class="text-[10px] text-black/45" id="strip-role">멤버</div>
+  <!-- 좌측: 배너 (col-span-8) -->
+  <div class="lg:col-span-8">
+    <div class="ad-slot h-[150px]" data-ad-slot="top">728 × 150  ·  TOP BANNER AD</div>
+  </div>
+
+  <!-- 우측: 프로필 카드 (col-span-4) -->
+  <div class="lg:col-span-4">
+    <div id="profile-card" class="card h-[150px] p-4 flex flex-col">
+
+      <!-- 비로그인 -->
+      <div id="strip-anon" class="flex flex-col h-full justify-center">
+        <div class="flex items-center gap-2 mb-2.5">
+          <i data-lucide="user-circle-2" class="w-4 h-4 text-black/40"></i>
+          <span class="text-[12px] font-bold text-black/70">로그인하고 활동해 보세요</span>
+        </div>
+        <form id="strip-login" class="space-y-1.5">
+          <div class="flex gap-1.5">
+            <input type="email" name="email" placeholder="이메일" required
+                   class="flex-1 min-w-0 h-8 px-2.5 rounded-md bg-paper border border-black/10 text-[12px] focus:outline-none focus:ring-2 focus:ring-brand-500/20" />
+            <input type="password" name="password" placeholder="비밀번호" required
+                   class="flex-1 min-w-0 h-8 px-2.5 rounded-md bg-paper border border-black/10 text-[12px] focus:outline-none focus:ring-2 focus:ring-brand-500/20" />
+          </div>
+          <div class="flex gap-1.5">
+            <button type="submit" class="flex-1 h-8 bg-ink text-white rounded-md text-[12px] font-bold hover:bg-black/85">로그인</button>
+            <a href="/login.html#register" class="flex-1 h-8 leading-8 text-center bg-brand-50 text-brand-600 hover:bg-brand-100 rounded-md text-[12px] font-bold">회원가입</a>
+          </div>
+        </form>
+        <div id="strip-login-err" class="hidden text-[11px] text-rose-600 mt-1"></div>
+      </div>
+
+      <!-- 로그인 -->
+      <div id="strip-user" class="hidden flex-col h-full justify-between">
+        <div class="flex items-center gap-3 min-w-0">
+          <div id="strip-avatar" class="av av-1" style="width:48px;height:48px;border-radius:14px;font-size:18px;">·</div>
+          <div class="min-w-0 flex-1">
+            <div class="font-extrabold text-[15px] truncate" id="strip-nickname">…</div>
+            <div class="text-[11px] text-black/45" id="strip-role">멤버</div>
+          </div>
+        </div>
+        <div class="flex items-center gap-1.5">
+          <a href="/compose.html" class="flex-1 inline-flex items-center justify-center gap-1 h-9 bg-brand-500 hover:bg-brand-600 text-white rounded-md text-[12px] font-bold">
+            <i data-lucide="pencil" class="w-3.5 h-3.5"></i> 글쓰기
+          </a>
+          <a id="strip-admin-link" href="/admin.html" class="hidden inline-flex items-center justify-center gap-1 h-9 px-3 bg-ink/90 hover:bg-ink text-white rounded-md text-[12px] font-bold">
+            <i data-lucide="shield" class="w-3.5 h-3.5"></i> 관리자
+          </a>
+          <button id="strip-logout" class="h-9 px-3 bg-paper hover:bg-black/5 rounded-md text-[12px] font-semibold text-black/55 hover:text-black">로그아웃</button>
         </div>
       </div>
-      <div class="flex-1"></div>
-      <div class="flex items-center gap-1.5">
-        <a href="/compose.html" class="inline-flex items-center gap-1 h-9 px-3 bg-brand-500 hover:bg-brand-600 text-white rounded-md text-sm font-bold">
-          <i data-lucide="pencil" class="w-3.5 h-3.5"></i> 글쓰기
-        </a>
-        <a id="strip-admin-link" href="/admin.html" class="hidden inline-flex items-center gap-1 h-9 px-3 bg-paper hover:bg-black/5 rounded-md text-sm font-bold">
-          <i data-lucide="shield" class="w-3.5 h-3.5"></i> 관리자
-        </a>
-        <button id="strip-logout" class="h-9 px-3 text-sm text-black/55 hover:text-black">로그아웃</button>
-      </div>
+
     </div>
-
-    <div id="strip-login-err" class="hidden w-full text-[12px] text-rose-600"></div>
   </div>
-</div>
 
-<!-- ============== TOP BANNER AD (축소·중앙) ============== -->
-<div class="container-x mt-4">
-  <div class="ad-slot h-[90px]" style="max-width: 600px; margin: 0 auto;" data-ad-slot="top">600 × 90  ·  TOP BANNER AD</div>
 </div>
 
 <!-- ============== MAIN ============== -->
@@ -579,7 +588,7 @@
     $('#strip-role').textContent = user.role === 'admin' ? '관리자' : '멤버';
     const av = $('#strip-avatar');
     av.className = 'av ' + avatarClass(user.nickname);
-    av.style.width = '36px'; av.style.height = '36px'; av.style.borderRadius = '10px'; av.style.fontSize = '14px';
+    av.style.width = '48px'; av.style.height = '48px'; av.style.borderRadius = '14px'; av.style.fontSize = '18px';
     av.textContent = user.nickname[0];
     if (user.role === 'admin') $('#strip-admin-link').classList.remove('hidden');
 
@@ -596,6 +605,7 @@
 
   function renderAnon() {
     $('#strip-anon').classList.remove('hidden');
+    $('#strip-anon').classList.add('flex');
     const userBox = $('#strip-user');
     userBox.classList.add('hidden');
     userBox.classList.remove('flex');
