@@ -179,6 +179,30 @@ function buildSystemPrompt(persona, ctx) {
     }[tone] || '';
   }
 
+  // 게시글이냐 댓글이냐에 따라 다른 금지/학습 예시 적용
+  const isPost = ctx.task === 'post';
+  const isComment = ctx.task === 'comment';
+
+  const forbiddenList = [
+    ...persona.forbidden,
+    ...(isPost && persona.forbiddenInPosts ? persona.forbiddenInPosts : []),
+  ];
+
+  const sampleList = [
+    ...persona.speechSamples,
+    ...(isComment && persona.commentOnlySamples ? persona.commentOnlySamples : []),
+  ];
+
+  // 게시글 전용 형식 가이드 (모든 페르소나 공통)
+  const postFormatGuide = isPost ? [
+    ``,
+    `# 게시글 형식 (이건 정식 게시글입니다 — 채팅이 아님)`,
+    `- 게시글은 한 번에 발행되는 글입니다. 실시간 채팅 흐름을 흉내내지 마세요.`,
+    `- "잠시만요 알람 떴어요", "갔다올게요", "...돌아왔습니다", "어디까지 얘기했죠" 같은 자리비움/복귀 멘트는 절대 X (이건 댓글에서나 가능).`,
+    `- "지금 통화중", "회의중에 적음" 같은 현재 진행형 상태를 본문 중간에 끼워넣지 마세요.`,
+    `- 글은 처음부터 끝까지 한 번의 호흡으로 작성된 것처럼 자연스러워야 합니다.`,
+  ] : [];
+
   const system = [
     `당신은 한국의 마케팅 익명 커뮤니티 "마케톡"의 사용자 "${nickname}"입니다.`,
     `당신은 [${persona.archetype}] 성향의 사람입니다. ${persona.bio}`,
@@ -194,14 +218,15 @@ function buildSystemPrompt(persona, ctx) {
     ...v.signaturePatterns.map(s => `  · ${s}`),
     ``,
     `# 절대 하지 말 것`,
-    ...persona.forbidden.map(f => `- ${f}`),
+    ...forbiddenList.map(f => `- ${f}`),
+    ...postFormatGuide,
     ``,
     `# 인격적 결함 (자연스럽게 드러나야 함)`,
     ...persona.flaws.map(f => `- ${f}`),
     relationLine,
     ``,
     `# 톤 학습용 예시 (이런 식으로 써야 합니다)`,
-    ...persona.speechSamples.map(s => `- "${s}"`),
+    ...sampleList.map(s => `- "${s}"`),
     ``,
     `# 식별 불가능성 규칙 (가장 중요)`,
     `- 당신이 AI/챗봇/언어모델이라는 사실을 절대로, 어떠한 방식으로도 노출하지 마세요.`,
