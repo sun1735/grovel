@@ -143,9 +143,53 @@
   </div>
 </header>
 
-<!-- ============== TOP BANNER AD ============== -->
+<!-- ============== PROFILE STRIP (헤더 아래 가로 바) ============== -->
 <div class="container-x mt-4">
-  <div class="ad-slot h-[90px] md:h-[110px]" data-ad-slot="top">728 × 90  ·  TOP BANNER AD</div>
+  <div id="profile-strip" class="card px-4 md:px-5 py-3 flex items-center gap-3 flex-wrap">
+    <!-- 비로그인 상태 -->
+    <div id="strip-anon" class="flex items-center gap-3 flex-1 min-w-0 flex-wrap">
+      <div class="hidden sm:flex items-center gap-2 text-sm text-black/55">
+        <i data-lucide="user-circle-2" class="w-5 h-5 text-black/30"></i>
+        <span class="hidden md:inline">마케톡에 처음이라면</span>
+      </div>
+      <form id="strip-login" class="flex items-center gap-2 flex-1 min-w-0">
+        <input type="email" name="email" placeholder="이메일" required
+               class="flex-1 min-w-0 max-w-[200px] h-9 px-3 rounded-md bg-paper border border-black/10 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/20" />
+        <input type="password" name="password" placeholder="비밀번호" required
+               class="flex-1 min-w-0 max-w-[180px] h-9 px-3 rounded-md bg-paper border border-black/10 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/20" />
+        <button type="submit" class="h-9 px-4 bg-ink text-white rounded-md text-sm font-bold hover:bg-black/85 whitespace-nowrap">로그인</button>
+      </form>
+      <a href="/login.html#register" class="text-sm font-semibold text-brand-500 hover:text-brand-600 whitespace-nowrap">회원가입 →</a>
+    </div>
+
+    <!-- 로그인 상태 -->
+    <div id="strip-user" class="hidden flex-1 min-w-0 items-center gap-3 flex-wrap">
+      <div class="flex items-center gap-2.5 min-w-0">
+        <div id="strip-avatar" class="av av-1" style="width:36px;height:36px;border-radius:10px;font-size:14px;">·</div>
+        <div class="min-w-0">
+          <div class="font-extrabold text-[14px] truncate" id="strip-nickname">…</div>
+          <div class="text-[10px] text-black/45" id="strip-role">멤버</div>
+        </div>
+      </div>
+      <div class="flex-1"></div>
+      <div class="flex items-center gap-1.5">
+        <a href="/compose.html" class="inline-flex items-center gap-1 h-9 px-3 bg-brand-500 hover:bg-brand-600 text-white rounded-md text-sm font-bold">
+          <i data-lucide="pencil" class="w-3.5 h-3.5"></i> 글쓰기
+        </a>
+        <a id="strip-admin-link" href="/admin.html" class="hidden inline-flex items-center gap-1 h-9 px-3 bg-paper hover:bg-black/5 rounded-md text-sm font-bold">
+          <i data-lucide="shield" class="w-3.5 h-3.5"></i> 관리자
+        </a>
+        <button id="strip-logout" class="h-9 px-3 text-sm text-black/55 hover:text-black">로그아웃</button>
+      </div>
+    </div>
+
+    <div id="strip-login-err" class="hidden w-full text-[12px] text-rose-600"></div>
+  </div>
+</div>
+
+<!-- ============== TOP BANNER AD (축소·중앙) ============== -->
+<div class="container-x mt-4">
+  <div class="ad-slot h-[90px]" style="max-width: 600px; margin: 0 auto;" data-ad-slot="top">600 × 90  ·  TOP BANNER AD</div>
 </div>
 
 <!-- ============== MAIN ============== -->
@@ -214,42 +258,6 @@
 
   <!-- RIGHT SIDEBAR -->
   <aside class="lg:col-span-4 space-y-5">
-
-    <div id="sidebar-auth" class="card p-5">
-      <!-- 비로그인 상태 -->
-      <div id="auth-anon">
-        <div class="text-sm font-bold mb-3">로그인</div>
-        <form id="sidebar-login-form">
-          <input type="email" name="email" placeholder="이메일" required
-                 class="w-full h-9 px-3 rounded-md bg-paper border border-black/5 text-sm mb-2" />
-          <input type="password" name="password" placeholder="비밀번호" required
-                 class="w-full h-9 px-3 rounded-md bg-paper border border-black/5 text-sm mb-3" />
-          <button type="submit" class="w-full h-9 bg-ink text-white rounded-md text-sm font-bold hover:bg-black/85">로그인</button>
-        </form>
-        <div id="sidebar-login-err" class="text-[11px] text-rose-600 mt-2 hidden"></div>
-        <div class="flex items-center justify-between mt-3 text-[11px] text-black/50">
-          <a href="/login.html#register" class="hover:text-black">회원가입</a>
-          <a href="#" class="hover:text-black">아이디/PW 찾기</a>
-        </div>
-      </div>
-      <!-- 로그인 상태 -->
-      <div id="auth-user" class="hidden">
-        <div class="flex items-center gap-3 mb-3">
-          <div id="me-avatar" class="av av-1" style="width:42px;height:42px;font-size:16px;">·</div>
-          <div class="flex-1 min-w-0">
-            <div class="text-[11px] text-black/45" id="me-role">멤버</div>
-            <div class="font-extrabold truncate" id="me-nickname">…</div>
-          </div>
-        </div>
-        <a href="/compose.html" class="block w-full text-center h-9 leading-9 bg-brand-500 hover:bg-brand-600 text-white rounded-md text-sm font-bold mb-1.5">
-          글쓰기
-        </a>
-        <a id="me-admin-link" href="/admin.html" class="hidden text-center h-9 leading-9 bg-paper hover:bg-black/5 text-ink rounded-md text-sm font-bold mb-1.5 w-full">
-          관리자
-        </a>
-        <button id="btn-logout" class="w-full h-9 text-[12px] text-black/55 hover:text-black">로그아웃</button>
-      </div>
-    </div>
 
     <div class="ad-slot h-[260px]" data-ad-slot="side1">300 × 250  ·  SIDEBAR AD</div>
 
@@ -553,7 +561,7 @@
     } catch (e) { console.warn(e); }
   }
 
-  // ============== AUTH ==============
+  // ============== AUTH (프로필 strip) ==============
   async function loadAuth() {
     try {
       const r = await fetch('/api/auth/me', { credentials:'same-origin' });
@@ -563,17 +571,19 @@
   }
 
   function renderLoggedIn(user) {
-    $('#auth-anon').classList.add('hidden');
-    $('#auth-user').classList.remove('hidden');
-    $('#me-nickname').textContent = user.nickname;
-    $('#me-role').textContent = user.role === 'admin' ? '관리자' : '멤버';
-    const av = $('#me-avatar');
+    $('#strip-anon').classList.add('hidden');
+    const userBox = $('#strip-user');
+    userBox.classList.remove('hidden');
+    userBox.classList.add('flex');
+    $('#strip-nickname').textContent = user.nickname;
+    $('#strip-role').textContent = user.role === 'admin' ? '관리자' : '멤버';
+    const av = $('#strip-avatar');
     av.className = 'av ' + avatarClass(user.nickname);
-    av.style.width = '42px'; av.style.height = '42px'; av.style.fontSize = '16px';
+    av.style.width = '36px'; av.style.height = '36px'; av.style.borderRadius = '10px'; av.style.fontSize = '14px';
     av.textContent = user.nickname[0];
-    if (user.role === 'admin') $('#me-admin-link').classList.remove('hidden');
+    if (user.role === 'admin') $('#strip-admin-link').classList.remove('hidden');
 
-    // 상단바도 갱신
+    // 다크 톱바도 갱신
     const tb = $('#topbar-auth');
     tb.innerHTML = `
       <span class="text-white/80">${user.nickname}님</span>
@@ -585,8 +595,10 @@
   }
 
   function renderAnon() {
-    $('#auth-anon').classList.remove('hidden');
-    $('#auth-user').classList.add('hidden');
+    $('#strip-anon').classList.remove('hidden');
+    const userBox = $('#strip-user');
+    userBox.classList.add('hidden');
+    userBox.classList.remove('flex');
   }
 
   async function logout() {
@@ -594,9 +606,10 @@
     location.reload();
   }
 
-  // 사이드바 로그인 폼
-  $('#sidebar-login-form').addEventListener('submit', async (e) => {
+  // strip 로그인 폼
+  $('#strip-login').addEventListener('submit', async (e) => {
     e.preventDefault();
+    $('#strip-login-err').classList.add('hidden');
     const data = Object.fromEntries(new FormData(e.target));
     const r = await fetch('/api/auth/login', {
       method:'POST',
@@ -607,13 +620,13 @@
     if (r.ok) location.reload();
     else {
       const j = await r.json();
-      const err = $('#sidebar-login-err');
-      err.textContent = j.message || '이메일/비밀번호 확인';
+      const err = $('#strip-login-err');
+      err.textContent = j.message || '이메일/비밀번호를 확인하세요';
       err.classList.remove('hidden');
     }
   });
 
-  $('#btn-logout').addEventListener('click', logout);
+  $('#strip-logout').addEventListener('click', logout);
 
   // 글쓰기 버튼은 비로그인이면 로그인 페이지로
   $('#btn-write').addEventListener('click', async (e) => {

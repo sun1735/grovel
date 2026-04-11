@@ -99,9 +99,48 @@
   </div>
 </header>
 
-<!-- TOP AD -->
+<!-- PROFILE STRIP -->
 <div class="container-x mt-4">
-  <div class="ad-slot h-[90px] md:h-[110px]" data-ad-slot="top">728 × 90  ·  TOP BANNER AD</div>
+  <div id="profile-strip" class="card px-4 md:px-5 py-3 flex items-center gap-3 flex-wrap">
+    <div id="strip-anon" class="flex items-center gap-3 flex-1 min-w-0 flex-wrap">
+      <div class="hidden sm:flex items-center gap-2 text-sm text-black/55">
+        <i data-lucide="user-circle-2" class="w-5 h-5 text-black/30"></i>
+      </div>
+      <form id="strip-login" class="flex items-center gap-2 flex-1 min-w-0">
+        <input type="email" name="email" placeholder="이메일" required
+               class="flex-1 min-w-0 max-w-[200px] h-9 px-3 rounded-md bg-paper border border-black/10 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/20" />
+        <input type="password" name="password" placeholder="비밀번호" required
+               class="flex-1 min-w-0 max-w-[180px] h-9 px-3 rounded-md bg-paper border border-black/10 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/20" />
+        <button type="submit" class="h-9 px-4 bg-ink text-white rounded-md text-sm font-bold hover:bg-black/85 whitespace-nowrap">로그인</button>
+      </form>
+      <a href="/login.html#register" class="text-sm font-semibold text-brand-500 hover:text-brand-600 whitespace-nowrap">회원가입 →</a>
+    </div>
+    <div id="strip-user" class="hidden flex-1 min-w-0 items-center gap-3 flex-wrap">
+      <div class="flex items-center gap-2.5 min-w-0">
+        <div id="strip-avatar" class="av av-1" style="width:36px;height:36px;border-radius:10px;font-size:14px;">·</div>
+        <div class="min-w-0">
+          <div class="font-extrabold text-[14px] truncate" id="strip-nickname">…</div>
+          <div class="text-[10px] text-black/45" id="strip-role">멤버</div>
+        </div>
+      </div>
+      <div class="flex-1"></div>
+      <div class="flex items-center gap-1.5">
+        <a href="/compose.html" class="inline-flex items-center gap-1 h-9 px-3 bg-brand-500 hover:bg-brand-600 text-white rounded-md text-sm font-bold">
+          <i data-lucide="pencil" class="w-3.5 h-3.5"></i> 글쓰기
+        </a>
+        <a id="strip-admin-link" href="/admin.html" class="hidden inline-flex items-center gap-1 h-9 px-3 bg-paper hover:bg-black/5 rounded-md text-sm font-bold">
+          <i data-lucide="shield" class="w-3.5 h-3.5"></i> 관리자
+        </a>
+        <button id="strip-logout" class="h-9 px-3 text-sm text-black/55 hover:text-black">로그아웃</button>
+      </div>
+    </div>
+    <div id="strip-login-err" class="hidden w-full text-[12px] text-rose-600"></div>
+  </div>
+</div>
+
+<!-- TOP AD (축소·중앙) -->
+<div class="container-x mt-4">
+  <div class="ad-slot h-[90px]" style="max-width: 600px; margin: 0 auto;" data-ad-slot="top">600 × 90  ·  TOP BANNER AD</div>
 </div>
 
 <!-- MAIN -->
@@ -348,24 +387,80 @@
     } catch {}
   }
 
-  // ───── 인증 + 댓글 폼 ─────
+  // ───── 인증 + 댓글 폼 + 프로필 strip ─────
   async function loadAuth() {
     try {
       const r = await fetch('/api/auth/me', { credentials:'same-origin' });
       const { user } = await r.json();
-      if (user) renderLoggedIn(user);
-    } catch {}
+      if (user) renderLoggedIn(user); else renderAnon();
+    } catch { renderAnon(); }
   }
 
   function renderLoggedIn(user) {
+    // 댓글 폼
     $('#cmt-anon').classList.add('hidden');
     $('#cmt-form').classList.remove('hidden');
     $('#cmt-me-nick').textContent = user.nickname;
-    const av = $('#cmt-me-av');
+    const cav = $('#cmt-me-av');
+    cav.className = 'av ' + avatarClass(user.nickname);
+    cav.style.width = '22px'; cav.style.height = '22px'; cav.style.fontSize = '10px';
+    cav.textContent = user.nickname[0];
+
+    // 상단 strip
+    $('#strip-anon').classList.add('hidden');
+    const userBox = $('#strip-user');
+    userBox.classList.remove('hidden');
+    userBox.classList.add('flex');
+    $('#strip-nickname').textContent = user.nickname;
+    $('#strip-role').textContent = user.role === 'admin' ? '관리자' : '멤버';
+    const av = $('#strip-avatar');
     av.className = 'av ' + avatarClass(user.nickname);
-    av.style.width = '22px'; av.style.height = '22px'; av.style.fontSize = '10px';
+    av.style.width = '36px'; av.style.height = '36px'; av.style.borderRadius = '10px'; av.style.fontSize = '14px';
     av.textContent = user.nickname[0];
+    if (user.role === 'admin') $('#strip-admin-link').classList.remove('hidden');
+
+    // 다크 톱바
+    const tb = $('#stat-online')?.parentElement?.parentElement?.querySelector('.flex.items-center.gap-3');
+    if (tb && tb.classList.contains('text-white/70')) {
+      tb.innerHTML = `
+        <span class="text-white/80">${user.nickname}님</span>
+        <span class="text-white/30">|</span>
+        <button id="topbar-logout" class="hover:text-white">로그아웃</button>
+      `;
+      document.getElementById('topbar-logout')?.addEventListener('click', logout);
+    }
   }
+
+  function renderAnon() {
+    $('#strip-anon').classList.remove('hidden');
+    const userBox = $('#strip-user');
+    userBox.classList.add('hidden');
+    userBox.classList.remove('flex');
+  }
+
+  async function logout() {
+    await fetch('/api/auth/logout', { method:'POST', credentials:'same-origin' });
+    location.reload();
+  }
+
+  // strip 로그인 폼
+  document.getElementById('strip-login')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const data = Object.fromEntries(new FormData(e.target));
+    const r = await fetch('/api/auth/login', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      credentials:'same-origin',
+      body: JSON.stringify(data),
+    });
+    if (r.ok) location.reload();
+    else {
+      const j = await r.json();
+      const err = $('#strip-login-err');
+      if (err) { err.textContent = j.message || '이메일/비밀번호 확인'; err.classList.remove('hidden'); }
+    }
+  });
+  document.getElementById('strip-logout')?.addEventListener('click', logout);
 
   document.addEventListener('submit', async (e) => {
     if (e.target.id !== 'cmt-form') return;

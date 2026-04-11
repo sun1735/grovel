@@ -5,6 +5,7 @@
  * (첫 가입자가 자동으로 admin role 받음)
  */
 const express = require('express');
+const multer = require('multer');
 const { query } = require('../db');
 const { requireAdmin } = require('../middleware/auth');
 const { VALID_SLOTS, MAX_PER_SLOT } = require('./banners');
@@ -12,6 +13,16 @@ const { VALID_SLOTS, MAX_PER_SLOT } = require('./banners');
 const router = express.Router();
 
 router.use(requireAdmin);
+
+// ── 멀티파트 업로드 설정 (메모리, 5MB, 이미지만) ──
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 },  // 5MB
+  fileFilter: (_req, file, cb) => {
+    if (/^image\/(jpeg|png|gif|webp|svg\+xml)$/.test(file.mimetype)) cb(null, true);
+    else cb(new Error('이미지 파일만 업로드 가능합니다 (jpg/png/gif/webp/svg)'));
+  },
+});
 
 // ─────────────────────────────────────────────
 // GET /api/admin/overview — 대시보드 핵심 지표
@@ -192,14 +203,20 @@ router.get('/banners', async (_req, res) => {
   }
 });
 
-// POST /api/admin/banners — 새 배너 생성
-router.post('/banners', async (req, res) => {
+// POST /api/admin/banners — 새 배너 생성 (URL 또는 파일 업로드)
+// multer가 multipart/form-data를 파싱해 req.file에 넣어줌. JSON 요청은 그대로 통과.
+router.post('/banners', upload.single('image'), async (req, res) => {
   const { slot, image_url, link_url, alt_text, sort_order } = req.body || {};
-  if (!slot || !image_url) return res.status(400).json({ error: 'missing_fields' });
+  if (!slot) return res.status(400).json({ error: 'missing_slot' });
   if (!VALID_SLOTS.includes(slot)) return res.status(400).json({ error: 'invalid_slot' });
 
-  if (!/^https?:\/\//.test(image_url)) {
-    return res.status(400).json({ error: 'invalid_image_url', message: 'http(s)://로 시작해야 합니다.' });
+  // 이미지: 파일 OR URL 중 하나 필수
+  const hasFile = !!req.file;
+  if (!hasFile && !image_url) {
+    return res.status(400).json({ error: 'missing_image', message: '이미지 파일을 업로드하거나 URL을 입력해 주세요.' });
+  }
+  if (image_url && !/^https?:\/\//.test(image_url)) {
+    return res.status(400).json({ error: 'invalid_image_url', message: '이미지 URL은 http(s)://로 시작해야 합니다.' });
   }
   if (link_url && !/^https?:\/\//.test(link_url)) {
     return res.status(400).json({ error: 'invalid_link_url', message: '링크 URL은 http(s)://로 시작해야 합니다.' });
@@ -219,15 +236,36 @@ router.post('/banners', async (req, res) => {
     }
 
     const { rows } = await query(
-      `INSERT INTO banners (slot, image_url, link_url, alt_text, sort_order)
-       VALUES ($1,$2,$3,$4,$5) RETURNING *`,
-      [slot, image_url, link_url || null, alt_text || null, sort_order || 0]
+      `INSERT INTO banners (slot, image_url, image_data, image_mime, link_url, alt_text, sort_order)
+       VALUES ($1,$2,$3,$4,$5,$6,$7)
+       RETURNING id, slot, image_url, link_url, alt_text, sort_order, is_active, click_count, created_at,
+                 (image_data IS NOT NULL) AS has_uploaded_image`,
+      [
+        slot,
+        hasFile ? null : image_url,
+        hasFile ? req.file.buffer : null,
+        hasFile ? req.file.mimetype : null,
+        link_url || null,
+        alt_text || null,
+        parseInt(sort_order) || 0,
+      ]
     );
     res.status(201).json({ banner: rows[0] });
   } catch (err) {
     console.error('[admin/banners/create]', err);
-    res.status(500).json({ error: 'failed' });
+    res.status(500).json({ error: 'failed', message: err.message });
   }
+});
+
+// multer 에러 (파일 크기 초과 등)를 JSON으로 반환
+router.use((err, _req, res, next) => {
+  if (err instanceof multer.MulterError) {
+    return res.status(400).json({ error: 'upload_error', message: err.message });
+  }
+  if (err && err.message?.includes('이미지 파일만')) {
+    return res.status(400).json({ error: 'invalid_file_type', message: err.message });
+  }
+  next(err);
 });
 
 // PUT /api/admin/banners/:id — 수정

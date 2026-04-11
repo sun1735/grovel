@@ -188,7 +188,7 @@
         <div>
           <label class="text-[11px] font-bold text-black/55 block mb-1">슬롯</label>
           <select name="slot" required class="w-full h-10 px-3 rounded-md bg-paper border border-black/10 text-sm">
-            <option value="top">top — 728×110 (상단)</option>
+            <option value="top">top — 600×90 (상단)</option>
             <option value="inline">inline — 728×110 (인라인)</option>
             <option value="bottom">bottom — 728×110 (하단)</option>
             <option value="side1">side1 — 300×250 (사이드 1)</option>
@@ -199,12 +199,36 @@
           <label class="text-[11px] font-bold text-black/55 block mb-1">정렬 순서 (작을수록 먼저)</label>
           <input type="number" name="sort_order" value="0" class="w-full h-10 px-3 rounded-md bg-paper border border-black/10 text-sm" />
         </div>
+
+        <!-- 이미지 소스 토글 -->
         <div class="md:col-span-2">
-          <label class="text-[11px] font-bold text-black/55 block mb-1">이미지 URL <span class="text-rose-500">*</span></label>
-          <input type="url" name="image_url" required placeholder="https://example.com/banner.jpg"
-                 class="w-full h-10 px-3 rounded-md bg-paper border border-black/10 text-sm" />
-          <div class="text-[11px] text-black/40 mt-1">권장 크기: 가로형 728×110 / 사이드 300×250. JPG/PNG/WebP/GIF 모두 OK.</div>
+          <div class="flex gap-1 bg-paper rounded-md p-1 mb-2 w-fit">
+            <button type="button" id="src-upload" class="src-tab px-3 h-8 rounded text-[12px] font-bold bg-white shadow-sm">📁 파일 업로드</button>
+            <button type="button" id="src-url" class="src-tab px-3 h-8 rounded text-[12px] font-bold text-black/55 hover:text-black">🔗 URL</button>
+          </div>
+
+          <!-- 파일 업로드 패널 -->
+          <div id="panel-upload">
+            <label class="text-[11px] font-bold text-black/55 block mb-1">이미지 파일 <span class="text-rose-500">*</span></label>
+            <input type="file" id="image-file" name="image" accept="image/jpeg,image/png,image/webp,image/gif,image/svg+xml"
+                   class="w-full text-sm file:mr-3 file:py-2 file:px-4 file:rounded-md file:border-0 file:bg-ink file:text-white file:font-bold file:hover:bg-black/85 file:cursor-pointer" />
+            <div class="text-[11px] text-black/40 mt-1">최대 5MB · JPG/PNG/WebP/GIF/SVG · 권장 크기: 가로형 600~728×90~110, 사이드 300×250</div>
+            <div id="file-preview" class="hidden mt-3 p-2 border border-dashed border-black/15 rounded-lg">
+              <div class="text-[11px] text-black/45 mb-1">미리보기:</div>
+              <img id="preview-img" class="max-h-40 rounded" />
+              <div class="text-[11px] text-black/45 mt-1" id="preview-info"></div>
+            </div>
+          </div>
+
+          <!-- URL 패널 -->
+          <div id="panel-url" class="hidden">
+            <label class="text-[11px] font-bold text-black/55 block mb-1">이미지 URL <span class="text-rose-500">*</span></label>
+            <input type="url" name="image_url" placeholder="https://example.com/banner.jpg"
+                   class="w-full h-10 px-3 rounded-md bg-paper border border-black/10 text-sm" />
+            <div class="text-[11px] text-black/40 mt-1">외부 호스팅 URL (Imgur, CDN 등). http(s)://로 시작.</div>
+          </div>
         </div>
+
         <div class="md:col-span-2">
           <label class="text-[11px] font-bold text-black/55 block mb-1">클릭 시 이동할 링크 (선택)</label>
           <input type="url" name="link_url" placeholder="https://yoursite.com/landing"
@@ -445,16 +469,78 @@
     });
   }
 
+  // 소스 토글 (파일 업로드 vs URL)
+  let bannerSource = 'upload';
+  function switchSource(s) {
+    bannerSource = s;
+    if (s === 'upload') {
+      $('#src-upload').classList.add('bg-white','shadow-sm');
+      $('#src-upload').classList.remove('text-black/55');
+      $('#src-url').classList.remove('bg-white','shadow-sm');
+      $('#src-url').classList.add('text-black/55');
+      $('#panel-upload').classList.remove('hidden');
+      $('#panel-url').classList.add('hidden');
+    } else {
+      $('#src-url').classList.add('bg-white','shadow-sm');
+      $('#src-url').classList.remove('text-black/55');
+      $('#src-upload').classList.remove('bg-white','shadow-sm');
+      $('#src-upload').classList.add('text-black/55');
+      $('#panel-url').classList.remove('hidden');
+      $('#panel-upload').classList.add('hidden');
+    }
+  }
+  $('#src-upload').addEventListener('click', () => switchSource('upload'));
+  $('#src-url').addEventListener('click', () => switchSource('url'));
+
+  // 파일 미리보기
+  $('#image-file').addEventListener('change', (e) => {
+    const f = e.target.files[0];
+    if (!f) { $('#file-preview').classList.add('hidden'); return; }
+    if (f.size > 5 * 1024 * 1024) {
+      alert('파일 크기는 5MB를 넘을 수 없습니다.');
+      e.target.value = '';
+      return;
+    }
+    const url = URL.createObjectURL(f);
+    $('#preview-img').src = url;
+    $('#preview-info').textContent = `${f.name} · ${(f.size/1024).toFixed(1)} KB · ${f.type}`;
+    $('#file-preview').classList.remove('hidden');
+  });
+
   $('#banner-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     $('#banner-err').classList.add('hidden');
-    const data = Object.fromEntries(new FormData(e.target));
-    if (data.sort_order) data.sort_order = parseInt(data.sort_order) || 0;
+
+    // multipart FormData (파일 + 일반 필드 같이)
+    const fd = new FormData();
+    const form = e.target;
+    fd.append('slot', form.slot.value);
+    fd.append('sort_order', form.sort_order.value || '0');
+    fd.append('link_url', form.link_url.value || '');
+    fd.append('alt_text', form.alt_text.value || '');
+
+    if (bannerSource === 'upload') {
+      const file = $('#image-file').files[0];
+      if (!file) {
+        $('#banner-err').textContent = '이미지 파일을 선택하세요.';
+        $('#banner-err').classList.remove('hidden');
+        return;
+      }
+      fd.append('image', file);
+    } else {
+      const urlVal = form.image_url.value.trim();
+      if (!urlVal) {
+        $('#banner-err').textContent = '이미지 URL을 입력하세요.';
+        $('#banner-err').classList.remove('hidden');
+        return;
+      }
+      fd.append('image_url', urlVal);
+    }
+
     const r = await fetch('/api/admin/banners', {
       method:'POST',
-      headers:{'Content-Type':'application/json'},
       credentials:'same-origin',
-      body: JSON.stringify(data),
+      body: fd,  // Content-Type 헤더 자동 설정 (multipart boundary 포함)
     });
     const j = await r.json();
     if (!r.ok) {
@@ -462,7 +548,8 @@
       $('#banner-err').classList.remove('hidden');
       return;
     }
-    e.target.reset();
+    form.reset();
+    $('#file-preview').classList.add('hidden');
     loadBanners();
   });
 
