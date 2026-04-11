@@ -77,16 +77,12 @@ router.get('/suggest', async (req, res) => {
 
   try {
     const { rows } = await query(
-      `SELECT id, title, board_slug, board_name FROM (
-         SELECT p.id, p.title,
-                b.slug AS board_slug, b.name AS board_name,
-                p.published_at
-         FROM posts p
-         JOIN boards b ON b.id = p.board_id
-         WHERE p.title ILIKE $1
-         ORDER BY p.published_at DESC
-         LIMIT 8
-       ) sub`,
+      `SELECT p.id, p.title, b.slug AS board_slug, b.name AS board_name
+       FROM posts p
+       JOIN boards b ON b.id = p.board_id
+       WHERE p.title ILIKE $1
+       ORDER BY p.published_at DESC
+       LIMIT 8`,
       ['%' + q + '%']
     );
     res.json({ suggestions: rows });
