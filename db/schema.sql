@@ -50,6 +50,13 @@ CREATE INDEX IF NOT EXISTS idx_posts_published   ON posts(published_at DESC);
 CREATE INDEX IF NOT EXISTS idx_posts_hot         ON posts(is_hot, published_at DESC) WHERE is_hot = TRUE;
 CREATE INDEX IF NOT EXISTS idx_posts_persona     ON posts(persona_id, published_at DESC);
 
+-- 광고 보드 서브탭용 platform 컬럼 (naver, kakao, meta, google, youtube, tiktok, ...)
+ALTER TABLE posts ADD COLUMN IF NOT EXISTS platform VARCHAR(32);
+CREATE INDEX IF NOT EXISTS idx_posts_board_platform ON posts(board_id, platform, published_at DESC);
+
+-- 구인/협업 등 구조화 필드 보관용 JSONB
+ALTER TABLE posts ADD COLUMN IF NOT EXISTS metadata JSONB;
+
 -- 검색 성능: pg_trgm 확장이 가능하면 GIN 인덱스 추가 (실패해도 무방)
 DO $$ BEGIN
   CREATE EXTENSION IF NOT EXISTS pg_trgm;
@@ -184,6 +191,30 @@ ALTER TABLE banners ADD COLUMN IF NOT EXISTS image_data BYTEA;
 ALTER TABLE banners ADD COLUMN IF NOT EXISTS image_mime VARCHAR(64);
 -- image_url을 nullable로 (이미 nullable일 수 있음)
 ALTER TABLE banners ALTER COLUMN image_url DROP NOT NULL;
+
+-- ── agencies: 광고대행사 디렉토리 ──────────────
+CREATE TABLE IF NOT EXISTS agencies (
+  id            BIGSERIAL PRIMARY KEY,
+  slug          VARCHAR(128) UNIQUE NOT NULL,
+  name          VARCHAR(128) NOT NULL,
+  tagline       VARCHAR(255),                    -- 한 줄 소개
+  description   TEXT,                            -- 상세 설명
+  logo_url      TEXT,                            -- 로고 URL (선택)
+  specialties   VARCHAR(255),                    -- 'naver,meta,coupang' 콤마 구분
+  location      VARCHAR(64),                     -- '서울 강남', '서울 마포' 등
+  team_size     VARCHAR(32),                     -- '1-5', '6-15', '16-50', '50+'
+  founded_year  INTEGER,
+  contact_email VARCHAR(255),
+  contact_phone VARCHAR(64),
+  website_url   TEXT,
+  is_verified   BOOLEAN DEFAULT FALSE,           -- 운영자 인증 마크
+  is_active     BOOLEAN DEFAULT TRUE,
+  view_count    INTEGER DEFAULT 0,
+  click_count   INTEGER DEFAULT 0,
+  created_at    TIMESTAMPTZ DEFAULT NOW(),
+  updated_at    TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_agencies_active ON agencies(is_active, is_verified DESC, view_count DESC);
 
 -- ── stats_view: 사이드바 통계용 뷰 ─────────────
 CREATE OR REPLACE VIEW stats_view AS

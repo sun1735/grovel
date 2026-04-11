@@ -10,6 +10,7 @@ const authApi   = require('./api/auth');
 const adminApi  = require('./api/admin');
 const searchApi = require('./api/search');
 const { router: bannersApi } = require('./api/banners');
+const { router: agenciesApi } = require('./api/agencies');
 const { attachUser } = require('./middleware/auth');
 
 const app = express();
@@ -34,7 +35,8 @@ app.use('/api/posts',   postsApi);
 app.use('/api/stats',   statsApi);
 app.use('/api/admin',   adminApi);
 app.use('/api/search',  searchApi);
-app.use('/api/banners', bannersApi);
+app.use('/api/banners',  bannersApi);
+app.use('/api/agencies', agenciesApi);
 
 // 헬스체크
 app.get('/healthz', (_req, res) => {

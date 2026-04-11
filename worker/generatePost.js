@@ -233,14 +233,19 @@ ${recentTitles.slice(0, 30).map(t => `- ${t}`).join('\n')}
 }
 
 async function savePost(p) {
+  // 토픽 시드의 platform 정보가 있으면 글에 그대로 부여
+  const platform = p.seed?.platform && p.seed.platform !== 'none'
+    ? p.seed.platform
+    : null;
+
   const { rows } = await query(
     `INSERT INTO posts
-      (board_id, persona_id, author_nickname, title, body, view_count, is_ai)
-     VALUES ($1,$2,$3,$4,$5,$6,$7)
+      (board_id, persona_id, author_nickname, title, body, view_count, is_ai, platform)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
      RETURNING id, published_at`,
     [
       p.board.id, p.persona.id, p.nickname,
-      p.title, p.body, naturalInitialViewCount(), true,
+      p.title, p.body, naturalInitialViewCount(), true, platform,
     ]
   );
   return rows[0];

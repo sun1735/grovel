@@ -35,26 +35,32 @@ router.get('/hot', async (req, res) => {
 // ─────────────────────────────────────────────
 router.get('/', async (req, res) => {
   const board = req.query.board;
+  const platform = req.query.platform;
   const page  = Math.max(parseInt(req.query.page) || 1, 1);
   const limit = Math.min(parseInt(req.query.limit) || 20, 50);
   const offset = (page - 1) * limit;
 
   try {
-    let whereClause = '';
+    const where = [];
     const params = [];
 
     if (board && board !== 'all') {
       params.push(board);
-      whereClause = `WHERE b.slug = $${params.length}`;
+      where.push(`b.slug = $${params.length}`);
     }
+    if (platform && platform !== 'all') {
+      params.push(platform);
+      where.push(`p.platform = $${params.length}`);
+    }
+    const whereClause = where.length > 0 ? 'WHERE ' + where.join(' AND ') : '';
 
     params.push(limit, offset);
 
     const sql = `
       SELECT
-        p.id, p.title, p.author_nickname, p.persona_id,
+        p.id, p.title, p.author_nickname, p.persona_id, p.platform,
         p.comment_count, p.view_count, p.is_pinned, p.is_hot,
-        p.published_at,
+        p.published_at, p.metadata,
         b.slug AS board_slug, b.name AS board_name, b.badge_class
       FROM posts p
       JOIN boards b ON b.id = p.board_id
@@ -65,12 +71,11 @@ router.get('/', async (req, res) => {
     const { rows } = await query(sql, params);
 
     // 총 카운트 (페이지네이션용)
-    const countParams = board && board !== 'all' ? [board] : [];
-    const countWhere = board && board !== 'all' ? 'WHERE b.slug = $1' : '';
+    const countParams = params.slice(0, params.length - 2);
     const { rows: countRows } = await query(`
       SELECT COUNT(*)::int AS total
       FROM posts p JOIN boards b ON b.id = p.board_id
-      ${countWhere}
+      ${whereClause}
     `, countParams);
 
     res.json({
@@ -141,7 +146,7 @@ router.post('/:id/view', async (req, res) => {
 // body: { board_slug, title, body }
 // ─────────────────────────────────────────────
 router.post('/', requireAuth, async (req, res) => {
-  const { board_slug, title, body } = req.body || {};
+  const { board_slug, title, body, metadata } = req.body || {};
   if (!board_slug || !title || !body) {
     return res.status(400).json({ error: 'missing_fields' });
   }
@@ -156,23 +161,34 @@ router.post('/', requireAuth, async (req, res) => {
     const { rows: boardRows } = await query('SELECT id FROM boards WHERE slug = $1', [board_slug]);
     if (boardRows.length === 0) return res.status(400).json({ error: 'invalid_board' });
 
-    // 도배 방지: 같은 유저가 최근 60초 안에 작성한 글이 있으면 거부
+    // 도배 방지
     const { rows: recent } = await query(
-      `SELECT id FROM posts
-       WHERE user_id = $1 AND published_at > NOW() - INTERVAL '60 seconds'
-       LIMIT 1`,
+      `SELECT id FROM posts WHERE user_id = $1 AND published_at > NOW() - INTERVAL '60 seconds' LIMIT 1`,
       [req.user.id]
     );
     if (recent.length > 0) {
       return res.status(429).json({ error: 'too_fast', message: '잠시 후 다시 시도해 주세요.' });
     }
 
+    // 구인/협업 보드면 metadata 검증
+    let cleanedMeta = null;
+    if (board_slug === 'job' && metadata && typeof metadata === 'object') {
+      cleanedMeta = {
+        budget:    String(metadata.budget || '').slice(0, 64),
+        duration:  String(metadata.duration || '').slice(0, 64),
+        category:  String(metadata.category || '').slice(0, 32),
+        deadline:  String(metadata.deadline || '').slice(0, 32),
+        location:  String(metadata.location || '').slice(0, 64),
+        contact:   String(metadata.contact || '').slice(0, 128),
+      };
+    }
+
     const { rows } = await query(
       `INSERT INTO posts
-        (board_id, user_id, author_nickname, title, body, view_count, is_ai)
-       VALUES ($1,$2,$3,$4,$5,$6,FALSE)
+        (board_id, user_id, author_nickname, title, body, view_count, is_ai, metadata)
+       VALUES ($1,$2,$3,$4,$5,$6,FALSE,$7)
        RETURNING id, published_at`,
-      [boardRows[0].id, req.user.id, req.user.nickname, title.trim(), body.trim(), 0]
+      [boardRows[0].id, req.user.id, req.user.nickname, title.trim(), body.trim(), 0, cleanedMeta]
     );
     res.status(201).json({ post: rows[0] });
   } catch (err) {

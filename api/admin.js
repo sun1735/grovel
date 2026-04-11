@@ -314,4 +314,105 @@ router.delete('/banners/:id', async (req, res) => {
   }
 });
 
+// ─────────────────────────────────────────────
+// 광고대행사 디렉토리 관리
+// ─────────────────────────────────────────────
+function slugify(name) {
+  return name.toString().toLowerCase().trim()
+    .replace(/[^a-z0-9가-힣]+/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 64) || 'agency-' + Date.now();
+}
+
+router.get('/agencies', async (_req, res) => {
+  try {
+    const { rows } = await query(`
+      SELECT id, slug, name, tagline, specialties, location, team_size,
+             is_verified, is_active, view_count, click_count, created_at
+      FROM agencies ORDER BY id DESC
+    `);
+    res.json({ agencies: rows });
+  } catch (err) {
+    res.status(500).json({ error: 'failed' });
+  }
+});
+
+router.post('/agencies', async (req, res) => {
+  const a = req.body || {};
+  if (!a.name) return res.status(400).json({ error: 'missing_name' });
+  try {
+    const slug = a.slug || slugify(a.name);
+    const { rows } = await query(
+      `INSERT INTO agencies
+        (slug, name, tagline, description, logo_url, specialties, location, team_size,
+         founded_year, contact_email, contact_phone, website_url, is_verified, is_active)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+       RETURNING *`,
+      [
+        slug, a.name, a.tagline || null, a.description || null, a.logo_url || null,
+        a.specialties || null, a.location || null, a.team_size || null,
+        a.founded_year ? parseInt(a.founded_year) : null,
+        a.contact_email || null, a.contact_phone || null, a.website_url || null,
+        a.is_verified === true || a.is_verified === 'true',
+        a.is_active !== false && a.is_active !== 'false',
+      ]
+    );
+    res.status(201).json({ agency: rows[0] });
+  } catch (err) {
+    if (err.code === '23505') return res.status(409).json({ error: 'duplicate_slug' });
+    console.error('[admin/agencies/create]', err);
+    res.status(500).json({ error: 'failed', message: err.message });
+  }
+});
+
+router.put('/agencies/:id', async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (!id) return res.status(400).json({ error: 'invalid_id' });
+  const a = req.body || {};
+  try {
+    const { rows } = await query(
+      `UPDATE agencies SET
+        name          = COALESCE($2, name),
+        tagline       = $3,
+        description   = $4,
+        logo_url      = $5,
+        specialties   = $6,
+        location      = $7,
+        team_size     = $8,
+        founded_year  = $9,
+        contact_email = $10,
+        contact_phone = $11,
+        website_url   = $12,
+        is_verified   = COALESCE($13, is_verified),
+        is_active     = COALESCE($14, is_active),
+        updated_at    = NOW()
+       WHERE id = $1
+       RETURNING *`,
+      [
+        id, a.name, a.tagline, a.description, a.logo_url,
+        a.specialties, a.location, a.team_size,
+        a.founded_year ? parseInt(a.founded_year) : null,
+        a.contact_email, a.contact_phone, a.website_url,
+        typeof a.is_verified === 'boolean' ? a.is_verified : null,
+        typeof a.is_active === 'boolean' ? a.is_active : null,
+      ]
+    );
+    if (rows.length === 0) return res.status(404).json({ error: 'not_found' });
+    res.json({ agency: rows[0] });
+  } catch (err) {
+    res.status(500).json({ error: 'failed' });
+  }
+});
+
+router.delete('/agencies/:id', async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (!id) return res.status(400).json({ error: 'invalid_id' });
+  try {
+    await query('DELETE FROM agencies WHERE id = $1', [id]);
+    res.json({ ok: true });
+  } catch {
+    res.status(500).json({ error: 'failed' });
+  }
+});
+
 module.exports = router;

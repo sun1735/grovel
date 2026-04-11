@@ -115,18 +115,22 @@
       </div>
     </a>
 
-    <form id="hdr-search" class="flex-1 max-w-xl hidden md:block">
+    <form id="hdr-search" class="flex-1 max-w-xl hidden md:block relative">
       <div class="relative">
-        <input id="hdr-q" type="text" placeholder="검색어를 입력하세요. 예) 인스타 광고 단가, 부업 추천"
+        <input id="hdr-q" type="text" autocomplete="off" placeholder="검색어를 입력하세요. 예) 인스타 광고 단가, 부업 추천"
                class="w-full h-10 pl-10 pr-4 rounded-xl bg-paper border border-black/5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:bg-white" />
         <i data-lucide="search" class="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-black/40"></i>
       </div>
+      <!-- 자동완성 dropdown -->
+      <div id="search-suggest" class="hidden absolute top-full left-0 right-0 mt-1 card overflow-hidden shadow-lg z-50"></div>
     </form>
 
     <nav class="hidden lg:flex items-center gap-5 text-sm text-black/70">
       <a href="#" class="hover:text-black">실시간 인기</a>
       <a href="#" class="hover:text-black">베스트</a>
-      <a href="#" class="hover:text-black">뉴스</a>
+      <a href="/agencies.html" class="hover:text-black font-bold flex items-center gap-1">
+        <i data-lucide="building-2" class="w-3.5 h-3.5"></i> 대행사
+      </a>
     </nav>
 
     <a href="/compose.html" id="btn-write" class="inline-flex items-center gap-1.5 rounded-lg bg-brand-500 hover:bg-brand-600 text-white px-4 py-2 text-sm font-bold">
@@ -233,6 +237,18 @@
           <span class="text-[11px] text-black/40" id="latest-board-label">전체</span>
         </div>
       </div>
+      <!-- 플랫폼 서브탭 (광고 보드일 때만 표시) -->
+      <div id="platform-tabs" class="hidden px-5 py-2 border-b border-black/5 flex items-center gap-1 overflow-x-auto">
+        <button data-platform="all"        class="ptab text-[12px] font-bold px-2.5 h-7 rounded-md bg-ink text-white whitespace-nowrap">전체</button>
+        <button data-platform="naver"      class="ptab text-[12px] font-bold px-2.5 h-7 rounded-md bg-paper hover:bg-black/5 text-black/60 whitespace-nowrap">네이버</button>
+        <button data-platform="kakao"      class="ptab text-[12px] font-bold px-2.5 h-7 rounded-md bg-paper hover:bg-black/5 text-black/60 whitespace-nowrap">카카오</button>
+        <button data-platform="meta"       class="ptab text-[12px] font-bold px-2.5 h-7 rounded-md bg-paper hover:bg-black/5 text-black/60 whitespace-nowrap">메타</button>
+        <button data-platform="google"     class="ptab text-[12px] font-bold px-2.5 h-7 rounded-md bg-paper hover:bg-black/5 text-black/60 whitespace-nowrap">구글</button>
+        <button data-platform="youtube"    class="ptab text-[12px] font-bold px-2.5 h-7 rounded-md bg-paper hover:bg-black/5 text-black/60 whitespace-nowrap">유튜브</button>
+        <button data-platform="tiktok"     class="ptab text-[12px] font-bold px-2.5 h-7 rounded-md bg-paper hover:bg-black/5 text-black/60 whitespace-nowrap">틱톡</button>
+        <button data-platform="coupang"    class="ptab text-[12px] font-bold px-2.5 h-7 rounded-md bg-paper hover:bg-black/5 text-black/60 whitespace-nowrap">쿠팡</button>
+        <button data-platform="smartstore" class="ptab text-[12px] font-bold px-2.5 h-7 rounded-md bg-paper hover:bg-black/5 text-black/60 whitespace-nowrap">스마트스토어</button>
+      </div>
       <ul class="divide-y divide-black/5 text-sm" id="latest-list">
         <li class="px-5 py-3"><div class="skeleton h-4 w-full"></div></li>
         <li class="px-5 py-3"><div class="skeleton h-4 w-5/6"></div></li>
@@ -331,7 +347,7 @@
         <ul class="space-y-1.5 text-black/65">
           <li><a href="#" class="hover:text-black">전체 게시판</a></li>
           <li><a href="#" class="hover:text-black">실시간 인기</a></li>
-          <li><a href="#" class="hover:text-black">검색</a></li>
+          <li><a href="/agencies.html" class="hover:text-black">광고대행사 디렉토리</a></li>
         </ul>
       </div>
       <div>
@@ -391,6 +407,7 @@
 
   // ============== STATE ==============
   let currentBoard = 'all';
+  let currentPlatform = 'all';
   let currentPage = 1;
 
   // ============== STATS ==============
@@ -429,6 +446,7 @@
         if (!tab) return;
         e.preventDefault();
         currentBoard = tab.dataset.board;
+        currentPlatform = 'all';
         currentPage = 1;
         document.querySelectorAll('.board-tab').forEach(el => {
           el.classList.remove('text-brand-600','bg-brand-50');
@@ -437,6 +455,37 @@
         tab.classList.add('text-brand-600','bg-brand-50');
         tab.classList.remove('hover:bg-paper');
         $('#latest-board-label').textContent = tab.textContent;
+        // 광고 보드일 때만 플랫폼 서브탭 표시
+        const ptabs = $('#platform-tabs');
+        if (currentBoard === 'ad') {
+          ptabs.classList.remove('hidden');
+          ptabs.classList.add('flex');
+          // 서브탭도 전체로 리셋
+          document.querySelectorAll('.ptab').forEach(p => {
+            p.classList.remove('bg-ink','text-white');
+            p.classList.add('bg-paper','text-black/60');
+          });
+          document.querySelector('.ptab[data-platform="all"]').classList.add('bg-ink','text-white');
+          document.querySelector('.ptab[data-platform="all"]').classList.remove('bg-paper','text-black/60');
+        } else {
+          ptabs.classList.add('hidden');
+          ptabs.classList.remove('flex');
+        }
+        loadLatestPosts();
+      });
+
+      // 플랫폼 서브탭 클릭
+      document.getElementById('platform-tabs').addEventListener('click', (e) => {
+        const btn = e.target.closest('.ptab');
+        if (!btn) return;
+        currentPlatform = btn.dataset.platform;
+        currentPage = 1;
+        document.querySelectorAll('.ptab').forEach(p => {
+          p.classList.remove('bg-ink','text-white');
+          p.classList.add('bg-paper','text-black/60');
+        });
+        btn.classList.add('bg-ink','text-white');
+        btn.classList.remove('bg-paper','text-black/60');
         loadLatestPosts();
       });
 
@@ -509,7 +558,7 @@
   // ============== LATEST POSTS ==============
   async function loadLatestPosts() {
     try {
-      const url = `/api/posts?board=${currentBoard}&page=${currentPage}&limit=20`;
+      const url = `/api/posts?board=${currentBoard}&platform=${currentPlatform}&page=${currentPage}&limit=20`;
       const data = await fetchJson(url);
       const ul = $('#latest-list');
 
@@ -646,12 +695,71 @@
     location.href = user ? '/compose.html' : '/login.html?next=/compose.html';
   });
 
-  // ============== SEARCH ==============
-  document.getElementById('hdr-search')?.addEventListener('submit', (e) => {
-    e.preventDefault();
-    const v = document.getElementById('hdr-q').value.trim();
-    if (v.length >= 2) location.href = '/search.html?q=' + encodeURIComponent(v);
-  });
+  // ============== SEARCH + 자동완성 ==============
+  (() => {
+    const form = document.getElementById('hdr-search');
+    const input = document.getElementById('hdr-q');
+    const drop = document.getElementById('search-suggest');
+    if (!form || !input || !drop) return;
+
+    let timer;
+    let activeIdx = -1;
+
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const v = input.value.trim();
+      if (v.length >= 2) location.href = '/search.html?q=' + encodeURIComponent(v);
+    });
+
+    input.addEventListener('input', () => {
+      clearTimeout(timer);
+      const v = input.value.trim();
+      if (v.length < 2) { drop.classList.add('hidden'); drop.innerHTML = ''; return; }
+      timer = setTimeout(async () => {
+        try {
+          const r = await fetch('/api/search/suggest?q=' + encodeURIComponent(v));
+          const { suggestions } = await r.json();
+          if (!suggestions || suggestions.length === 0) {
+            drop.classList.add('hidden');
+            return;
+          }
+          drop.innerHTML = `
+            ${suggestions.map((s, i) => `
+              <a href="/post.html?id=${s.id}" data-i="${i}" class="suggest-item flex items-center gap-2 px-4 py-2.5 hover:bg-paper text-sm border-b border-black/5 last:border-b-0">
+                <span class="text-[10px] font-bold text-brand-500 px-1.5 py-0.5 bg-brand-50 rounded">${escapeHtml(s.board_name)}</span>
+                <span class="flex-1 truncate">${escapeHtml(s.title)}</span>
+              </a>
+            `).join('')}
+            <a href="/search.html?q=${encodeURIComponent(v)}" class="block px-4 py-2.5 text-center text-[12px] font-bold text-brand-500 hover:bg-brand-50 bg-paper">"${escapeHtml(v)}" 전체 검색 결과 →</a>
+          `;
+          drop.classList.remove('hidden');
+          activeIdx = -1;
+        } catch {}
+      }, 200);  // 200ms debounce
+    });
+
+    input.addEventListener('keydown', (e) => {
+      const items = drop.querySelectorAll('.suggest-item');
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        activeIdx = Math.min(activeIdx + 1, items.length - 1);
+        items.forEach((it, i) => it.classList.toggle('bg-paper', i === activeIdx));
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        activeIdx = Math.max(activeIdx - 1, -1);
+        items.forEach((it, i) => it.classList.toggle('bg-paper', i === activeIdx));
+      } else if (e.key === 'Enter' && activeIdx >= 0 && items[activeIdx]) {
+        e.preventDefault();
+        location.href = items[activeIdx].href;
+      } else if (e.key === 'Escape') {
+        drop.classList.add('hidden');
+      }
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!form.contains(e.target)) drop.classList.add('hidden');
+    });
+  })();
 
   // ============== BANNERS / ADS ==============
   // 우선순위: DB 배너 > env 슬롯(HTML 코드) > placeholder

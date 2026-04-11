@@ -67,4 +67,33 @@ router.get('/', async (req, res) => {
   }
 });
 
+// ─────────────────────────────────────────────
+// GET /api/search/suggest?q=키워드
+// 빠른 자동완성 — 제목 매치 상위 8개 반환
+// ─────────────────────────────────────────────
+router.get('/suggest', async (req, res) => {
+  const q = (req.query.q || '').trim();
+  if (q.length < 2) return res.json({ suggestions: [] });
+
+  try {
+    const { rows } = await query(
+      `SELECT id, title, board_slug, board_name FROM (
+         SELECT p.id, p.title,
+                b.slug AS board_slug, b.name AS board_name,
+                p.published_at
+         FROM posts p
+         JOIN boards b ON b.id = p.board_id
+         WHERE p.title ILIKE $1
+         ORDER BY p.published_at DESC
+         LIMIT 8
+       ) sub`,
+      ['%' + q + '%']
+    );
+    res.json({ suggestions: rows });
+  } catch (err) {
+    console.error('[api/search/suggest]', err);
+    res.status(500).json({ error: 'failed' });
+  }
+});
+
 module.exports = router;

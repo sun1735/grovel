@@ -123,6 +123,7 @@
     <button data-tab="memories" class="tab px-4 py-2.5 text-sm font-bold border-b-2 border-transparent text-black/55 hover:text-black whitespace-nowrap">페르소나 메모리</button>
     <button data-tab="engine"   class="tab px-4 py-2.5 text-sm font-bold border-b-2 border-transparent text-black/55 hover:text-black whitespace-nowrap">엔진 로그</button>
     <button data-tab="banners"  class="tab px-4 py-2.5 text-sm font-bold border-b-2 border-transparent text-black/55 hover:text-black whitespace-nowrap">배너 관리</button>
+    <button data-tab="agencies" class="tab px-4 py-2.5 text-sm font-bold border-b-2 border-transparent text-black/55 hover:text-black whitespace-nowrap">대행사 관리</button>
   </div>
 
   <!-- 탭 내용 -->
@@ -254,6 +255,93 @@
 
     <!-- 슬롯별 배너 목록 -->
     <div id="banner-list" class="space-y-5"></div>
+
+  </section>
+
+  <!-- 대행사 관리 탭 -->
+  <section id="tab-agencies" class="tab-pane hidden space-y-5">
+
+    <!-- 새 대행사 추가 폼 -->
+    <div class="card p-5">
+      <div class="font-extrabold text-[15px] mb-4 flex items-center gap-2">
+        <i data-lucide="building-2" class="w-4 h-4 text-brand-500"></i>
+        새 대행사 등록
+      </div>
+      <form id="agency-form" class="grid md:grid-cols-2 gap-4">
+        <div>
+          <label class="text-[11px] font-bold text-black/55 block mb-1">회사명 <span class="text-rose-500">*</span></label>
+          <input type="text" name="name" required maxlength="128" class="w-full h-10 px-3 rounded-md bg-paper border border-black/10 text-sm" />
+        </div>
+        <div>
+          <label class="text-[11px] font-bold text-black/55 block mb-1">slug (URL용, 영문/숫자/하이픈)</label>
+          <input type="text" name="slug" maxlength="128" placeholder="자동 생성됨" class="w-full h-10 px-3 rounded-md bg-paper border border-black/10 text-sm font-mono text-[12px]" />
+        </div>
+        <div class="md:col-span-2">
+          <label class="text-[11px] font-bold text-black/55 block mb-1">한 줄 소개</label>
+          <input type="text" name="tagline" maxlength="255" placeholder="네이버·메타 광고 전문 종합 대행사" class="w-full h-10 px-3 rounded-md bg-paper border border-black/10 text-sm" />
+        </div>
+        <div class="md:col-span-2">
+          <label class="text-[11px] font-bold text-black/55 block mb-1">상세 설명</label>
+          <textarea name="description" rows="4" class="w-full px-3 py-2 rounded-md bg-paper border border-black/10 text-sm resize-y" placeholder="회사 소개, 주력 분야, 경험, 가격 등"></textarea>
+        </div>
+        <div class="md:col-span-2">
+          <label class="text-[11px] font-bold text-black/55 block mb-1">전문 분야 (콤마로 구분)</label>
+          <input type="text" name="specialties" maxlength="255" placeholder="naver,kakao,meta,coupang" class="w-full h-10 px-3 rounded-md bg-paper border border-black/10 text-sm font-mono text-[12px]" />
+          <div class="text-[11px] text-black/40 mt-1">옵션: naver, kakao, meta, google, youtube, tiktok, coupang, smartstore, content, design, data, seo, brand</div>
+        </div>
+        <div>
+          <label class="text-[11px] font-bold text-black/55 block mb-1">위치</label>
+          <input type="text" name="location" maxlength="64" placeholder="서울 강남" class="w-full h-10 px-3 rounded-md bg-paper border border-black/10 text-sm" />
+        </div>
+        <div>
+          <label class="text-[11px] font-bold text-black/55 block mb-1">규모</label>
+          <select name="team_size" class="w-full h-10 px-3 rounded-md bg-paper border border-black/10 text-sm">
+            <option value="">선택...</option>
+            <option value="1-5">1-5인</option>
+            <option value="6-15">6-15인</option>
+            <option value="16-50">16-50인</option>
+            <option value="50+">50인 이상</option>
+          </select>
+        </div>
+        <div>
+          <label class="text-[11px] font-bold text-black/55 block mb-1">설립연도</label>
+          <input type="number" name="founded_year" min="1990" max="2030" class="w-full h-10 px-3 rounded-md bg-paper border border-black/10 text-sm" />
+        </div>
+        <div>
+          <label class="text-[11px] font-bold text-black/55 block mb-1">웹사이트</label>
+          <input type="url" name="website_url" placeholder="https://" class="w-full h-10 px-3 rounded-md bg-paper border border-black/10 text-sm" />
+        </div>
+        <div>
+          <label class="text-[11px] font-bold text-black/55 block mb-1">연락 이메일</label>
+          <input type="email" name="contact_email" maxlength="255" class="w-full h-10 px-3 rounded-md bg-paper border border-black/10 text-sm" />
+        </div>
+        <div>
+          <label class="text-[11px] font-bold text-black/55 block mb-1">연락 전화</label>
+          <input type="text" name="contact_phone" maxlength="64" class="w-full h-10 px-3 rounded-md bg-paper border border-black/10 text-sm" />
+        </div>
+        <div class="md:col-span-2 flex items-center gap-3">
+          <label class="inline-flex items-center gap-2 text-sm">
+            <input type="checkbox" name="is_verified" /> 인증 마크 표시
+          </label>
+        </div>
+        <div id="agency-err" class="md:col-span-2 hidden text-rose-600 text-sm"></div>
+        <div class="md:col-span-2 flex justify-end">
+          <button type="submit" class="px-5 h-10 rounded-md bg-brand-500 hover:bg-brand-600 text-white text-sm font-bold inline-flex items-center gap-1.5">
+            <i data-lucide="plus" class="w-4 h-4"></i> 대행사 등록
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <!-- 대행사 목록 -->
+    <div class="card scrollbox">
+      <table class="w-full">
+        <thead><tr>
+          <th>ID</th><th>회사명</th><th>전문</th><th>위치</th><th>규모</th><th>인증</th><th>활성</th><th>조회</th><th>클릭</th><th></th>
+        </tr></thead>
+        <tbody id="tbody-agencies"></tbody>
+      </table>
+    </div>
 
   </section>
 
@@ -564,6 +652,70 @@
     loadBanners();
   });
 
+  // ─── 대행사 ───
+  async function loadAgencies() {
+    const r = await fetch('/api/admin/agencies', { credentials:'same-origin' });
+    const { agencies } = await r.json();
+    $('#tbody-agencies').innerHTML = agencies.map(a => `
+      <tr>
+        <td>${a.id}</td>
+        <td><a href="/agency.html?slug=${escapeHtml(a.slug)}" target="_blank" class="font-bold hover:underline">${escapeHtml(a.name)}</a></td>
+        <td class="text-[11px] text-black/55">${escapeHtml(a.specialties || '-')}</td>
+        <td>${escapeHtml(a.location || '-')}</td>
+        <td>${escapeHtml(a.team_size || '-')}</td>
+        <td>${a.is_verified ? '<span class="badge b-ai">인증</span>' : '-'}</td>
+        <td>${a.is_active ? '<span class="badge b-ok">ON</span>' : '<span class="badge b-warn">OFF</span>'}</td>
+        <td>${a.view_count}</td>
+        <td>${a.click_count}</td>
+        <td>
+          <button data-id="${a.id}" data-active="${a.is_active}" class="ag-toggle text-[11px] px-2 py-0.5 rounded ${a.is_active ? 'bg-emerald-50 text-emerald-700' : 'bg-black/5'}">${a.is_active ? '활성' : '비활성'}</button>
+          <button data-id="${a.id}" class="ag-del text-[11px] px-2 py-0.5 rounded bg-rose-50 text-rose-600 ml-1">삭제</button>
+        </td>
+      </tr>
+    `).join('');
+
+    document.querySelectorAll('.ag-del').forEach(b => b.addEventListener('click', async () => {
+      if (!confirm('이 대행사를 삭제하시겠습니까?')) return;
+      await fetch('/api/admin/agencies/' + b.dataset.id, { method:'DELETE', credentials:'same-origin' });
+      loadAgencies();
+    }));
+    document.querySelectorAll('.ag-toggle').forEach(b => b.addEventListener('click', async () => {
+      const cur = b.dataset.active === 'true';
+      await fetch('/api/admin/agencies/' + b.dataset.id, {
+        method:'PUT',
+        headers:{'Content-Type':'application/json'},
+        credentials:'same-origin',
+        body: JSON.stringify({ is_active: !cur }),
+      });
+      loadAgencies();
+    }));
+  }
+
+  $('#agency-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    $('#agency-err').classList.add('hidden');
+    const fd = new FormData(e.target);
+    const data = {};
+    for (const [k, v] of fd.entries()) data[k] = v;
+    data.is_verified = e.target.is_verified.checked;
+    if (data.founded_year) data.founded_year = parseInt(data.founded_year);
+
+    const r = await fetch('/api/admin/agencies', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      credentials:'same-origin',
+      body: JSON.stringify(data),
+    });
+    const j = await r.json();
+    if (!r.ok) {
+      $('#agency-err').textContent = j.message || `오류: ${j.error}`;
+      $('#agency-err').classList.remove('hidden');
+      return;
+    }
+    e.target.reset();
+    loadAgencies();
+  });
+
   // 탭
   $$('.tab').forEach(t => t.addEventListener('click', () => {
     const target = t.dataset.tab;
@@ -579,6 +731,7 @@
     if (target === 'memories') loadMemories();
     if (target === 'engine')   loadEngine();
     if (target === 'banners')  loadBanners();
+    if (target === 'agencies') loadAgencies();
   }));
 
   $('#mem-search').addEventListener('click', loadMemories);

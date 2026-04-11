@@ -63,6 +63,55 @@
       </select>
     </div>
 
+    <!-- 구인/협업 전용 구조화 필드 -->
+    <div id="job-fields" class="hidden mb-5 p-4 rounded-lg bg-rose-50/40 border border-rose-100">
+      <div class="text-xs font-bold text-rose-700 mb-3 flex items-center gap-1.5">
+        <i data-lucide="briefcase" class="w-4 h-4"></i>
+        구인/협업 정보 (선택, 입력하면 카드로 강조됩니다)
+      </div>
+      <div class="grid sm:grid-cols-2 gap-3">
+        <div>
+          <label class="text-[11px] font-bold text-black/55 block mb-1">카테고리</label>
+          <select name="job_category" class="w-full h-10 px-3 rounded-md border border-black/10 text-sm bg-white">
+            <option value="">선택 안함</option>
+            <option value="performance">퍼포먼스 마케팅</option>
+            <option value="brand">브랜드 마케팅</option>
+            <option value="content">콘텐츠 제작</option>
+            <option value="design">디자인</option>
+            <option value="seo">SEO</option>
+            <option value="sns">SNS 운영</option>
+            <option value="data">데이터 분석</option>
+            <option value="other">기타</option>
+          </select>
+        </div>
+        <div>
+          <label class="text-[11px] font-bold text-black/55 block mb-1">예산</label>
+          <input type="text" name="job_budget" maxlength="64" placeholder="월 250만원 / 건당 50만원 / 협의"
+                 class="w-full h-10 px-3 rounded-md border border-black/10 text-sm" />
+        </div>
+        <div>
+          <label class="text-[11px] font-bold text-black/55 block mb-1">기간</label>
+          <input type="text" name="job_duration" maxlength="64" placeholder="3개월 / 단발성 / 장기"
+                 class="w-full h-10 px-3 rounded-md border border-black/10 text-sm" />
+        </div>
+        <div>
+          <label class="text-[11px] font-bold text-black/55 block mb-1">마감일 (선택)</label>
+          <input type="date" name="job_deadline"
+                 class="w-full h-10 px-3 rounded-md border border-black/10 text-sm" />
+        </div>
+        <div>
+          <label class="text-[11px] font-bold text-black/55 block mb-1">근무지 / 형태</label>
+          <input type="text" name="job_location" maxlength="64" placeholder="재택 / 서울 강남 / 하이브리드"
+                 class="w-full h-10 px-3 rounded-md border border-black/10 text-sm" />
+        </div>
+        <div>
+          <label class="text-[11px] font-bold text-black/55 block mb-1">연락처 (선택)</label>
+          <input type="text" name="job_contact" maxlength="128" placeholder="이메일 또는 카톡 ID"
+                 class="w-full h-10 px-3 rounded-md border border-black/10 text-sm" />
+        </div>
+      </div>
+    </div>
+
     <div class="mb-5">
       <label class="text-xs font-bold text-black/60 block mb-1.5">제목</label>
       <input type="text" name="title" required minlength="4" maxlength="200"
@@ -118,10 +167,10 @@
     $('#form-compose').classList.remove('hidden');
 
     // 보드 목록
+    const sel = $('select[name="board_slug"]');
     try {
       const r = await fetch('/api/boards');
       const { boards } = await r.json();
-      const sel = $('select[name="board_slug"]');
       const preferredBoard = new URLSearchParams(location.search).get('board') || '';
       for (const b of boards.filter(b => b.slug !== 'notice')) {
         const opt = document.createElement('option');
@@ -131,6 +180,18 @@
         sel.appendChild(opt);
       }
     } catch {}
+
+    // 보드 변경 시 구인 필드 토글
+    function toggleJobFields() {
+      if (sel.value === 'job') {
+        $('#job-fields').classList.remove('hidden');
+        lucide.createIcons();
+      } else {
+        $('#job-fields').classList.add('hidden');
+      }
+    }
+    sel.addEventListener('change', toggleJobFields);
+    toggleJobFields();  // 초기 상태
 
     // 글자 수 카운터
     const ta = document.querySelector('textarea[name="body"]');
@@ -142,7 +203,28 @@
     $('#form-compose').addEventListener('submit', async (e) => {
       e.preventDefault();
       $('#err').classList.add('hidden');
-      const data = Object.fromEntries(new FormData(e.target));
+      const fd = new FormData(e.target);
+      const data = {
+        board_slug: fd.get('board_slug'),
+        title: fd.get('title'),
+        body: fd.get('body'),
+      };
+      // 구인/협업 보드면 metadata 구성
+      if (data.board_slug === 'job') {
+        const meta = {
+          category: fd.get('job_category') || '',
+          budget:   fd.get('job_budget')   || '',
+          duration: fd.get('job_duration') || '',
+          deadline: fd.get('job_deadline') || '',
+          location: fd.get('job_location') || '',
+          contact:  fd.get('job_contact')  || '',
+        };
+        // 빈 값만 있는 metadata는 보내지 않음
+        if (Object.values(meta).some(v => v.trim().length > 0)) {
+          data.metadata = meta;
+        }
+      }
+
       try {
         const r = await fetch('/api/posts', {
           method:'POST',

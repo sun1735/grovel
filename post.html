@@ -86,12 +86,13 @@
         <div class="text-[10px] text-black/50">MarkeTalk Community</div>
       </div>
     </a>
-    <form id="hdr-search" class="flex-1 max-w-xl hidden md:block">
+    <form id="hdr-search" class="flex-1 max-w-xl hidden md:block relative">
       <div class="relative">
-        <input id="hdr-q" type="text" placeholder="검색어를 입력하세요"
+        <input id="hdr-q" type="text" autocomplete="off" placeholder="검색어를 입력하세요"
                class="w-full h-10 pl-10 pr-4 rounded-xl bg-paper border border-black/5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:bg-white" />
         <i data-lucide="search" class="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-black/40"></i>
       </div>
+      <div id="search-suggest" class="hidden absolute top-full left-0 right-0 mt-1 card overflow-hidden shadow-lg z-50"></div>
     </form>
     <a href="/" class="inline-flex items-center gap-1.5 rounded-lg bg-paper hover:bg-black/5 text-ink px-4 py-2 text-sm font-bold">
       <i data-lucide="arrow-left" class="w-4 h-4"></i> 목록으로
@@ -177,6 +178,15 @@
             <i data-lucide="flag" class="w-3.5 h-3.5"></i> 신고
           </button>
         </div>
+      </div>
+
+      <!-- 구인/협업 등 metadata가 있는 글의 정보 카드 -->
+      <div id="post-meta-card" class="hidden mx-6 md:mx-8 mt-6 p-5 rounded-2xl bg-gradient-to-br from-rose-50 to-amber-50 border border-rose-100">
+        <div class="text-[11px] font-bold text-rose-700 mb-3 flex items-center gap-1.5">
+          <i data-lucide="briefcase" class="w-3.5 h-3.5"></i>
+          구인/협업 정보
+        </div>
+        <div id="post-meta-grid" class="grid sm:grid-cols-2 gap-3 text-[13px]"></div>
       </div>
 
       <div class="px-6 md:px-8 py-8 post-body" id="post-body">
@@ -322,6 +332,32 @@
       $('#post-title').textContent = post.title;
       $('#post-body').innerHTML = escapeHtml(post.body);
       $('#post-author').textContent = post.author_nickname;
+
+      // 구인/협업 metadata 카드
+      if (post.metadata && Object.values(post.metadata).some(v => v && String(v).trim())) {
+        const m = post.metadata;
+        const CAT_LABEL = {
+          performance:'퍼포먼스 마케팅', brand:'브랜드 마케팅', content:'콘텐츠 제작',
+          design:'디자인', seo:'SEO', sns:'SNS 운영', data:'데이터 분석', other:'기타',
+        };
+        const items = [
+          ['카테고리', CAT_LABEL[m.category] || m.category],
+          ['예산', m.budget],
+          ['기간', m.duration],
+          ['마감일', m.deadline],
+          ['근무지/형태', m.location],
+          ['연락처', m.contact],
+        ].filter(([_, v]) => v && String(v).trim());
+
+        $('#post-meta-grid').innerHTML = items.map(([k, v]) => `
+          <div class="bg-white/80 rounded-lg px-3 py-2.5">
+            <div class="text-[10px] font-bold text-rose-600 uppercase tracking-wider">${escapeHtml(k)}</div>
+            <div class="text-[14px] font-extrabold mt-0.5">${escapeHtml(String(v))}</div>
+          </div>
+        `).join('');
+        $('#post-meta-card').classList.remove('hidden');
+        lucide.createIcons();
+      }
       const av = $('#post-author-avatar');
       av.className = `av ${avatarClass(post.author_nickname)}`;
       av.textContent = post.author_nickname[0];
@@ -492,12 +528,56 @@
     loadPost();
   });
 
-  // ───── 검색 ─────
-  document.getElementById('hdr-search')?.addEventListener('submit', (e) => {
-    e.preventDefault();
-    const v = document.getElementById('hdr-q').value.trim();
-    if (v.length >= 2) location.href = '/search.html?q=' + encodeURIComponent(v);
-  });
+  // ───── 검색 + 자동완성 ─────
+  (() => {
+    const form = document.getElementById('hdr-search');
+    const inp = document.getElementById('hdr-q');
+    const drop = document.getElementById('search-suggest');
+    if (!form || !inp || !drop) return;
+    let timer, activeIdx = -1;
+
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const v = inp.value.trim();
+      if (v.length >= 2) location.href = '/search.html?q=' + encodeURIComponent(v);
+    });
+
+    inp.addEventListener('input', () => {
+      clearTimeout(timer);
+      const v = inp.value.trim();
+      if (v.length < 2) { drop.classList.add('hidden'); return; }
+      timer = setTimeout(async () => {
+        try {
+          const r = await fetch('/api/search/suggest?q=' + encodeURIComponent(v));
+          const { suggestions } = await r.json();
+          if (!suggestions || suggestions.length === 0) { drop.classList.add('hidden'); return; }
+          drop.innerHTML = `
+            ${suggestions.map((s, i) => `
+              <a href="/post.html?id=${s.id}" data-i="${i}" class="suggest-item flex items-center gap-2 px-4 py-2.5 hover:bg-paper text-sm border-b border-black/5 last:border-b-0">
+                <span class="text-[10px] font-bold text-brand-500 px-1.5 py-0.5 bg-brand-50 rounded">${escapeHtml(s.board_name)}</span>
+                <span class="flex-1 truncate">${escapeHtml(s.title)}</span>
+              </a>
+            `).join('')}
+            <a href="/search.html?q=${encodeURIComponent(v)}" class="block px-4 py-2.5 text-center text-[12px] font-bold text-brand-500 hover:bg-brand-50 bg-paper">"${escapeHtml(v)}" 전체 검색 결과 →</a>
+          `;
+          drop.classList.remove('hidden');
+          activeIdx = -1;
+        } catch {}
+      }, 200);
+    });
+
+    inp.addEventListener('keydown', (e) => {
+      const items = drop.querySelectorAll('.suggest-item');
+      if (e.key === 'ArrowDown') { e.preventDefault(); activeIdx = Math.min(activeIdx + 1, items.length - 1); items.forEach((it, i) => it.classList.toggle('bg-paper', i === activeIdx)); }
+      else if (e.key === 'ArrowUp') { e.preventDefault(); activeIdx = Math.max(activeIdx - 1, -1); items.forEach((it, i) => it.classList.toggle('bg-paper', i === activeIdx)); }
+      else if (e.key === 'Enter' && activeIdx >= 0 && items[activeIdx]) { e.preventDefault(); location.href = items[activeIdx].href; }
+      else if (e.key === 'Escape') drop.classList.add('hidden');
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!form.contains(e.target)) drop.classList.add('hidden');
+    });
+  })();
 
   // ───── 배너 / 광고 ─────
   async function loadBanners() {
