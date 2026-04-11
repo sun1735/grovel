@@ -7,6 +7,7 @@
 const express = require('express');
 const { query } = require('../db');
 const { requireAdmin } = require('../middleware/auth');
+const { VALID_SLOTS, MAX_PER_SLOT } = require('./banners');
 
 const router = express.Router();
 
@@ -168,6 +169,107 @@ router.delete('/comments/:id', async (req, res) => {
       await query('UPDATE posts SET comment_count = GREATEST(0, comment_count - 1) WHERE id = $1', [rows[0].post_id]);
     }
     await query('DELETE FROM comments WHERE id = $1', [id]);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: 'failed' });
+  }
+});
+
+// ─────────────────────────────────────────────
+// 배너 관리
+// ─────────────────────────────────────────────
+
+// GET /api/admin/banners — 전체 배너 (비활성 포함)
+router.get('/banners', async (_req, res) => {
+  try {
+    const { rows } = await query(`
+      SELECT id, slot, image_url, link_url, alt_text, sort_order, is_active, click_count, created_at
+      FROM banners ORDER BY slot, sort_order, id
+    `);
+    res.json({ banners: rows, slots: VALID_SLOTS, max_per_slot: MAX_PER_SLOT });
+  } catch (err) {
+    res.status(500).json({ error: 'failed' });
+  }
+});
+
+// POST /api/admin/banners — 새 배너 생성
+router.post('/banners', async (req, res) => {
+  const { slot, image_url, link_url, alt_text, sort_order } = req.body || {};
+  if (!slot || !image_url) return res.status(400).json({ error: 'missing_fields' });
+  if (!VALID_SLOTS.includes(slot)) return res.status(400).json({ error: 'invalid_slot' });
+
+  if (!/^https?:\/\//.test(image_url)) {
+    return res.status(400).json({ error: 'invalid_image_url', message: 'http(s)://로 시작해야 합니다.' });
+  }
+  if (link_url && !/^https?:\/\//.test(link_url)) {
+    return res.status(400).json({ error: 'invalid_link_url', message: '링크 URL은 http(s)://로 시작해야 합니다.' });
+  }
+
+  try {
+    // 슬롯당 활성 배너 5개 제한
+    const { rows: countRows } = await query(
+      'SELECT COUNT(*)::int AS c FROM banners WHERE slot = $1 AND is_active = TRUE',
+      [slot]
+    );
+    if (countRows[0].c >= MAX_PER_SLOT) {
+      return res.status(400).json({
+        error: 'slot_full',
+        message: `이 슬롯엔 이미 ${MAX_PER_SLOT}개의 활성 배너가 있습니다. 기존 배너를 비활성화하거나 삭제하세요.`,
+      });
+    }
+
+    const { rows } = await query(
+      `INSERT INTO banners (slot, image_url, link_url, alt_text, sort_order)
+       VALUES ($1,$2,$3,$4,$5) RETURNING *`,
+      [slot, image_url, link_url || null, alt_text || null, sort_order || 0]
+    );
+    res.status(201).json({ banner: rows[0] });
+  } catch (err) {
+    console.error('[admin/banners/create]', err);
+    res.status(500).json({ error: 'failed' });
+  }
+});
+
+// PUT /api/admin/banners/:id — 수정
+router.put('/banners/:id', async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (!id) return res.status(400).json({ error: 'invalid_id' });
+
+  const { image_url, link_url, alt_text, sort_order, is_active } = req.body || {};
+
+  if (image_url && !/^https?:\/\//.test(image_url)) {
+    return res.status(400).json({ error: 'invalid_image_url' });
+  }
+  if (link_url && !/^https?:\/\//.test(link_url)) {
+    return res.status(400).json({ error: 'invalid_link_url' });
+  }
+
+  try {
+    const { rows } = await query(
+      `UPDATE banners SET
+        image_url  = COALESCE($2, image_url),
+        link_url   = $3,
+        alt_text   = $4,
+        sort_order = COALESCE($5, sort_order),
+        is_active  = COALESCE($6, is_active),
+        updated_at = NOW()
+       WHERE id = $1
+       RETURNING *`,
+      [id, image_url, link_url, alt_text, sort_order, is_active]
+    );
+    if (rows.length === 0) return res.status(404).json({ error: 'not_found' });
+    res.json({ banner: rows[0] });
+  } catch (err) {
+    res.status(500).json({ error: 'failed' });
+  }
+});
+
+// DELETE /api/admin/banners/:id
+router.delete('/banners/:id', async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (!id) return res.status(400).json({ error: 'invalid_id' });
+  try {
+    await query('DELETE FROM banners WHERE id = $1', [id]);
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: 'failed' });

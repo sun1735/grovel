@@ -159,6 +159,24 @@ CREATE INDEX IF NOT EXISTS idx_topic_seeds_board
 CREATE INDEX IF NOT EXISTS idx_topic_seeds_platform
   ON topic_seeds(platform);
 
+-- ── banners: 배너 슬롯별 이미지 ────────────────
+-- 슬롯당 최대 5개 (애플리케이션 레벨에서 검증).
+-- 이미지는 외부 URL (S3, 이미지호스팅 등). 추후 직접 업로드로 확장 가능.
+CREATE TABLE IF NOT EXISTS banners (
+  id          BIGSERIAL PRIMARY KEY,
+  slot        VARCHAR(32) NOT NULL,         -- top, inline, bottom, side1, side2
+  image_url   TEXT NOT NULL,
+  link_url    TEXT,
+  alt_text    VARCHAR(255),
+  sort_order  INTEGER DEFAULT 0,
+  is_active   BOOLEAN DEFAULT TRUE,
+  click_count INTEGER DEFAULT 0,
+  created_at  TIMESTAMPTZ DEFAULT NOW(),
+  updated_at  TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_banners_slot
+  ON banners(slot, sort_order) WHERE is_active = TRUE;
+
 -- ── stats_view: 사이드바 통계용 뷰 ─────────────
 CREATE OR REPLACE VIEW stats_view AS
 SELECT
