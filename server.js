@@ -23,6 +23,36 @@ app.use(express.json({ limit: '256kb' }));
 app.use(cookieParser());
 app.use(attachUser);  // 모든 요청에 req.user 채워줌 (없으면 null)
 
+// ── OG 메타태그 주입 (소셜 공유 미리보기) ──
+const fs = require('fs');
+const postHtmlTemplate = fs.readFileSync(path.join(__dirname, 'post.html'), 'utf-8');
+
+app.get('/post.html', async (req, res) => {
+  const id = req.query.id;
+  if (!id) return res.send(postHtmlTemplate);
+  try {
+    const { rows } = await require('./db').query(
+      `SELECT p.title, SUBSTRING(p.body, 1, 200) AS excerpt
+       FROM posts p WHERE p.id = $1`, [id]
+    );
+    if (rows.length === 0) return res.send(postHtmlTemplate);
+    const p = rows[0];
+    const clean = (s) => String(s || '').replace(/["\n\r<>]/g, ' ').trim();
+    const ogTags = `
+    <meta property="og:type" content="article" />
+    <meta property="og:title" content="${clean(p.title)}" />
+    <meta property="og:description" content="${clean(p.excerpt)}" />
+    <meta property="og:site_name" content="마케톡" />
+    <meta property="og:url" content="https://www.grovel.kr/post.html?id=${id}" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="${clean(p.title)}" />
+    <meta name="twitter:description" content="${clean(p.excerpt)}" />`;
+    res.send(postHtmlTemplate
+      .replace('<title>마케톡 — 게시글</title>', `<title>${clean(p.title)} — 마케톡</title>`)
+      .replace('</head>', ogTags + '\n</head>'));
+  } catch { res.send(postHtmlTemplate); }
+});
+
 // 정적 파일
 app.use(express.static(__dirname, {
   extensions: ['html'],
@@ -64,10 +94,8 @@ app.get('/api/ads', (_req, res) => {
   });
 });
 
-// SPA-ish 폴백 — API/healthz는 위에서 처리됨, 나머지는 index.html
+// SPA-ish 폴백
 app.get('*', (req, res) => {
-  // post.html 같은 정적 파일은 위 미들웨어가 처리
-  // 매칭 안 된 경로는 index로
   if (req.path.startsWith('/api/')) {
     return res.status(404).json({ error: 'not_found' });
   }

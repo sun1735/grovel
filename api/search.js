@@ -92,4 +92,45 @@ router.get('/suggest', async (req, res) => {
   }
 });
 
+// ─────────────────────────────────────────────
+// GET /api/search/trending — 실시간 인기 키워드
+// 최근 48시간 인기글 제목에서 빈도 높은 2-4글자 단어 추출
+// ─────────────────────────────────────────────
+router.get('/trending', async (_req, res) => {
+  try {
+    const { rows } = await query(`
+      SELECT title FROM posts
+      WHERE published_at > NOW() - INTERVAL '48 hours'
+      ORDER BY (view_count + comment_count * 30) DESC
+      LIMIT 30
+    `);
+
+    // 제목에서 키워드 추출 (2-6글자 한글 단어)
+    const wordCount = {};
+    const stopWords = new Set(['이거','저거','그거','이건','저건','그건','진짜','완전',
+      '어떻게','있으면','없으면','하는데','해봤는데','아닌가','인가요','아시는','해야','되는',
+      '해주세요','해봤습니다','있나요','할까요','인데요','같은','좀','더','안','못','다','또',
+      '제일','가장','모든','이번','오늘','어제','최근','지금']);
+
+    for (const { title } of rows) {
+      // 한글 2-6글자 단어 추출
+      const words = title.match(/[가-힣]{2,6}/g) || [];
+      for (const w of words) {
+        if (stopWords.has(w)) continue;
+        wordCount[w] = (wordCount[w] || 0) + 1;
+      }
+    }
+
+    const trending = Object.entries(wordCount)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10)
+      .map(([keyword, count], i) => ({ rank: i + 1, keyword, count }));
+
+    res.json({ trending, updated_at: new Date().toISOString() });
+  } catch (err) {
+    console.error('[api/search/trending]', err);
+    res.status(500).json({ error: 'failed' });
+  }
+});
+
 module.exports = router;

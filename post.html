@@ -429,9 +429,21 @@
       list.innerHTML = '<div class="px-6 py-12 text-center text-sm text-black/40">아직 댓글이 없습니다. 가장 먼저 댓글을 남겨보세요.</div>';
       return;
     }
-    list.innerHTML = comments.map((c) => {
+    // 대댓글 트리 구성
+    const topLevel = comments.filter(c => !c.parent_id);
+    const replies = {};
+    comments.forEach(c => {
+      if (c.parent_id) {
+        if (!replies[c.parent_id]) replies[c.parent_id] = [];
+        replies[c.parent_id].push(c);
+      }
+    });
+
+    function renderComment(c, isReply = false) {
+      const indent = isReply ? 'ml-10 border-l-2 border-black/5 pl-4' : '';
+      const childReplies = replies[c.id] || [];
       return `
-      <div class="px-6 py-4 hover:bg-black/[0.015]">
+      <div class="px-6 py-4 hover:bg-black/[0.015] ${indent}">
         <div class="flex items-start gap-3">
           <div class="av av-sm ${avatarClass(c.author_nickname)}">${escapeHtml(c.author_nickname[0])}</div>
           <div class="flex-1 min-w-0">
@@ -445,12 +457,23 @@
               <button class="cmt-like-btn hover:text-rose-500 inline-flex items-center gap-1 ${myCommentLikes.includes(parseInt(c.id)) ? 'text-rose-500' : ''}" data-cid="${c.id}">
                 <i data-lucide="heart" class="w-3 h-3"></i> <span>${c.like_count || 0}</span>
               </button>
-              <button class="hover:text-black">답글</button>
+              <button class="reply-btn hover:text-brand-500" data-cid="${c.id}" data-nick="${escapeHtml(c.author_nickname)}">답글</button>
+            </div>
+            <!-- 답글 입력 (숨김) -->
+            <div class="reply-form hidden mt-3" id="reply-form-${c.id}">
+              <div class="flex gap-2">
+                <input type="text" placeholder="@${escapeHtml(c.author_nickname)}에게 답글..." maxlength="500"
+                       class="reply-input flex-1 h-9 px-3 rounded-md bg-paper border border-black/10 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/20" />
+                <button class="reply-submit h-9 px-3 bg-brand-500 hover:bg-brand-600 text-white rounded-md text-[12px] font-bold" data-pid="${c.id}">등록</button>
+              </div>
             </div>
           </div>
         </div>
-      </div>`;
-    }).join('');
+      </div>
+      ${childReplies.map(r => renderComment(r, true)).join('')}`;
+    }
+
+    list.innerHTML = topLevel.map(c => renderComment(c)).join('');
     lucide.createIcons();
 
     // 댓글 좋아요 이벤트
@@ -463,6 +486,39 @@
         const span = btn.querySelector('span');
         span.textContent = parseInt(span.textContent) + (liked ? 1 : -1);
         btn.classList.toggle('text-rose-500', liked);
+      });
+    });
+
+    // 답글 토글
+    list.querySelectorAll('.reply-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const form = document.getElementById('reply-form-' + btn.dataset.cid);
+        if (form) {
+          form.classList.toggle('hidden');
+          if (!form.classList.contains('hidden')) form.querySelector('input')?.focus();
+        }
+      });
+    });
+
+    // 답글 제출
+    list.querySelectorAll('.reply-submit').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const parentId = btn.dataset.pid;
+        const input = btn.previousElementSibling;
+        const body = input?.value?.trim();
+        if (!body || body.length < 2) return;
+
+        const resp = await fetch(`/api/posts/${postId}/comments`, {
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          credentials:'same-origin',
+          body: JSON.stringify({ body, parent_id: parseInt(parentId) }),
+        });
+        if (resp.status === 401) { location.href = '/login.html?next=' + encodeURIComponent(location.href); return; }
+        if (resp.ok) {
+          input.value = '';
+          loadPost(); // 다시 로드
+        }
       });
     });
   }
