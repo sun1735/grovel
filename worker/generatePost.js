@@ -92,9 +92,9 @@ async function pickFreshNickname(persona) {
 // ─────────────────────────────────────────────
 function validateOutput(out) {
   if (!out || !out.title || !out.body) return '제목/본문 누락';
-  if (out.title.length < 8 || out.title.length > 80) return `제목 길이 이상 (${out.title.length}자)`;
-  if (out.body.length < 50) return '본문이 너무 짧음';
-  if (out.body.length > 3000) return '본문이 너무 김';
+  if (out.title.length < 5 || out.title.length > 100) return `제목 길이 이상 (${out.title.length}자)`;
+  if (out.body.length < 10) return '본문이 너무 짧음';
+  if (out.body.length > 4000) return '본문이 너무 김';
 
   // AI 흔적 감지 — 절대 노출되면 안 되는 표현들
   const aiMarkers = [
