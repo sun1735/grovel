@@ -1,8 +1,38 @@
 const express = require('express');
+const multer = require('multer');
 const { query } = require('../db');
 const { requireAuth } = require('../middleware/auth');
 
 const router = express.Router();
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    if (/^image\/(jpeg|png|gif|webp)$/.test(file.mimetype)) cb(null, true);
+    else cb(new Error('이미지 파일만 업로드 가능합니다'));
+  },
+});
+
+// ─────────────────────────────────────────────
+// GET /api/posts/images/:id — 이미지 서빙
+// ─────────────────────────────────────────────
+router.get('/images/:id', async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (!id) return res.status(400).end();
+  try {
+    const { rows } = await query(
+      'SELECT image_data, image_mime FROM post_images WHERE id = $1',
+      [id]
+    );
+    if (rows.length === 0) return res.status(404).end();
+    res.set('Content-Type', rows[0].image_mime);
+    res.set('Cache-Control', 'public, max-age=604800'); // 7일
+    res.send(rows[0].image_data);
+  } catch {
+    res.status(500).end();
+  }
+});
 
 // ─────────────────────────────────────────────
 // GET /api/posts/hot — 실시간 인기글 Top N
@@ -119,7 +149,21 @@ router.get('/:id', async (req, res) => {
       ORDER BY created_at ASC
     `, [id]);
 
-    res.json({ post: postRows[0], comments: commentRows });
+    const { rows: imageRows } = await query(`
+      SELECT id, file_name, file_size, sort_order
+      FROM post_images
+      WHERE post_id = $1
+      ORDER BY sort_order
+    `, [id]);
+
+    res.json({
+      post: postRows[0],
+      comments: commentRows,
+      images: imageRows.map(img => ({
+        ...img,
+        url: `/api/posts/images/${img.id}`,
+      })),
+    });
   } catch (err) {
     console.error('[api/posts/:id]', err);
     res.status(500).json({ error: 'failed' });
@@ -145,8 +189,10 @@ router.post('/:id/view', async (req, res) => {
 // POST /api/posts — 유저가 글 작성 (인증 필수)
 // body: { board_slug, title, body }
 // ─────────────────────────────────────────────
-router.post('/', requireAuth, async (req, res) => {
-  const { board_slug, title, body, metadata } = req.body || {};
+router.post('/', requireAuth, upload.array('images', 5), async (req, res) => {
+  const { board_slug, title, body } = req.body || {};
+  let metadata = req.body.metadata;
+  if (typeof metadata === 'string') { try { metadata = JSON.parse(metadata); } catch { metadata = null; } }
   if (!board_slug || !title || !body) {
     return res.status(400).json({ error: 'missing_fields' });
   }
@@ -190,6 +236,20 @@ router.post('/', requireAuth, async (req, res) => {
        RETURNING id, published_at`,
       [boardRows[0].id, req.user.id, req.user.nickname, title.trim(), body.trim(), 0, cleanedMeta]
     );
+    const postId = rows[0].id;
+
+    // 이미지 저장 (있으면)
+    if (req.files && req.files.length > 0) {
+      for (let i = 0; i < req.files.length; i++) {
+        const f = req.files[i];
+        await query(
+          `INSERT INTO post_images (post_id, image_data, image_mime, file_name, file_size, sort_order)
+           VALUES ($1,$2,$3,$4,$5,$6)`,
+          [postId, f.buffer, f.mimetype, f.originalname, f.size, i]
+        );
+      }
+    }
+
     res.status(201).json({ post: rows[0] });
   } catch (err) {
     console.error('[posts/create]', err);
@@ -239,6 +299,94 @@ router.post('/:id/comments', requireAuth, async (req, res) => {
   } catch (err) {
     console.error('[comments/create]', err);
     res.status(500).json({ error: 'server_error' });
+  }
+});
+
+// ─────────────────────────────────────────────
+// POST /api/posts/:id/like — 좋아요 토글 (인증 필수)
+// 이미 좋아요 했으면 취소, 안 했으면 추가
+// ─────────────────────────────────────────────
+router.post('/:id/like', requireAuth, async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (!id) return res.status(400).json({ error: 'invalid_id' });
+  try {
+    // 이미 좋아요 했는지 확인
+    const { rows: existing } = await query(
+      `SELECT id FROM likes WHERE user_id=$1 AND target_type='post' AND target_id=$2`,
+      [req.user.id, id]
+    );
+    if (existing.length > 0) {
+      // 좋아요 취소
+      await query(`DELETE FROM likes WHERE id=$1`, [existing[0].id]);
+      await query(`UPDATE posts SET like_count = GREATEST(0, like_count - 1) WHERE id=$1`, [id]);
+      return res.json({ liked: false });
+    }
+    // 좋아요 추가
+    await query(
+      `INSERT INTO likes (user_id, target_type, target_id) VALUES ($1,'post',$2)`,
+      [req.user.id, id]
+    );
+    await query(`UPDATE posts SET like_count = like_count + 1 WHERE id=$1`, [id]);
+    res.json({ liked: true });
+  } catch (err) {
+    if (err.code === '23505') return res.json({ liked: true }); // duplicate
+    console.error('[like/post]', err);
+    res.status(500).json({ error: 'failed' });
+  }
+});
+
+// ─────────────────────────────────────────────
+// POST /api/posts/:postId/comments/:commentId/like — 댓글 좋아요 토글
+// ─────────────────────────────────────────────
+router.post('/:postId/comments/:commentId/like', requireAuth, async (req, res) => {
+  const commentId = parseInt(req.params.commentId);
+  if (!commentId) return res.status(400).json({ error: 'invalid_id' });
+  try {
+    const { rows: existing } = await query(
+      `SELECT id FROM likes WHERE user_id=$1 AND target_type='comment' AND target_id=$2`,
+      [req.user.id, commentId]
+    );
+    if (existing.length > 0) {
+      await query(`DELETE FROM likes WHERE id=$1`, [existing[0].id]);
+      await query(`UPDATE comments SET like_count = GREATEST(0, like_count - 1) WHERE id=$1`, [commentId]);
+      return res.json({ liked: false });
+    }
+    await query(
+      `INSERT INTO likes (user_id, target_type, target_id) VALUES ($1,'comment',$2)`,
+      [req.user.id, commentId]
+    );
+    await query(`UPDATE comments SET like_count = like_count + 1 WHERE id=$1`, [commentId]);
+    res.json({ liked: true });
+  } catch (err) {
+    if (err.code === '23505') return res.json({ liked: true });
+    res.status(500).json({ error: 'failed' });
+  }
+});
+
+// ─────────────────────────────────────────────
+// GET /api/posts/:id/likes — 내가 이 글/댓글에 좋아요 했는지 확인
+// ─────────────────────────────────────────────
+router.get('/:id/likes', async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (!req.user) return res.json({ post_liked: false, comment_likes: [] });
+  try {
+    // 글 좋아요
+    const { rows: pl } = await query(
+      `SELECT id FROM likes WHERE user_id=$1 AND target_type='post' AND target_id=$2`,
+      [req.user.id, id]
+    );
+    // 댓글 좋아요
+    const { rows: cl } = await query(
+      `SELECT target_id FROM likes WHERE user_id=$1 AND target_type='comment'
+       AND target_id IN (SELECT id FROM comments WHERE post_id=$2)`,
+      [req.user.id, id]
+    );
+    res.json({
+      post_liked: pl.length > 0,
+      comment_likes: cl.map(r => parseInt(r.target_id)),
+    });
+  } catch (err) {
+    res.status(500).json({ error: 'failed' });
   }
 });
 

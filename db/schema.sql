@@ -192,6 +192,33 @@ ALTER TABLE banners ADD COLUMN IF NOT EXISTS image_mime VARCHAR(64);
 -- image_url을 nullable로 (이미 nullable일 수 있음)
 ALTER TABLE banners ALTER COLUMN image_url DROP NOT NULL;
 
+-- ── post_images: 게시글 첨부 이미지 ─────────────
+-- 글당 최대 5장. BYTEA로 저장 (배너와 동일 패턴).
+CREATE TABLE IF NOT EXISTS post_images (
+  id          BIGSERIAL PRIMARY KEY,
+  post_id     BIGINT NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+  image_data  BYTEA NOT NULL,
+  image_mime  VARCHAR(64) NOT NULL,
+  file_name   VARCHAR(255),
+  file_size   INTEGER,                          -- bytes
+  sort_order  INTEGER DEFAULT 0,
+  created_at  TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_post_images_post ON post_images(post_id, sort_order);
+
+-- ── likes: 좋아요 (게시글 + 댓글 겸용) ──────────
+-- 유저당 한 번만. target_type + target_id로 다형성.
+CREATE TABLE IF NOT EXISTS likes (
+  id          BIGSERIAL PRIMARY KEY,
+  user_id     BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  target_type VARCHAR(16) NOT NULL,              -- 'post' | 'comment'
+  target_id   BIGINT NOT NULL,
+  created_at  TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(user_id, target_type, target_id)
+);
+CREATE INDEX IF NOT EXISTS idx_likes_target ON likes(target_type, target_id);
+CREATE INDEX IF NOT EXISTS idx_likes_user   ON likes(user_id, created_at DESC);
+
 -- ── resources: 다운로드 가능한 마케팅 자료 ─────
 CREATE TABLE IF NOT EXISTS resources (
   id             BIGSERIAL PRIMARY KEY,
