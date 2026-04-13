@@ -90,13 +90,21 @@ async function getExistingCommenters(postId) {
   return rows.map(r => r.persona_id);
 }
 
-// 같은 글의 기존 댓글 첫 30자 조회 (시작어 중복 방지용)
-async function getExistingCommentStarts(postId) {
-  const { rows } = await query(
+// 시작어 중복 방지: 같은 글 댓글 + 해당 페르소나의 최근 글로벌 댓글
+async function getExistingCommentStarts(postId, personaId) {
+  // 1) 같은 글의 기존 댓글
+  const { rows: samePost } = await query(
     'SELECT SUBSTRING(body, 1, 30) AS head FROM comments WHERE post_id = $1 ORDER BY created_at DESC LIMIT 10',
     [postId]
   );
-  return rows.map(r => r.head);
+  // 2) 이 페르소나의 최근 글로벌 댓글 (다른 글에 단 것도)
+  const { rows: global } = await query(
+    'SELECT SUBSTRING(body, 1, 30) AS head FROM comments WHERE persona_id = $1 ORDER BY created_at DESC LIMIT 10',
+    [personaId]
+  );
+  // 합치고 중복 제거
+  const all = new Set([...samePost.map(r => r.head), ...global.map(r => r.head)]);
+  return [...all];
 }
 
 // 댓글 작성자 선택: 원글 작성자 + 이미 댓글 단 페르소나 제외
@@ -149,8 +157,8 @@ async function generateOneComment(forcedPostId) {
   if (!persona) throw new Error('이 글에 댓글 달 수 있는 페르소나가 남아있지 않습니다');
   const nickname = await pickFreshNickname(persona);
 
-  // 기존 댓글 시작어 조회 (반복 방지용)
-  const existingStarts = await getExistingCommentStarts(post.id);
+  // 기존 댓글 시작어 조회 (같은 글 + 이 페르소나 글로벌)
+  const existingStarts = await getExistingCommentStarts(post.id, persona.id);
 
   // 페르소나 메모리 조회
   const memories = await recall(persona.id, 3);

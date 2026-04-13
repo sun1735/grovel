@@ -51,9 +51,9 @@ async function pickBoard(forceSlug) {
     if (!rows[0]) throw new Error(`존재하지 않는 보드: ${forceSlug}`);
     return rows[0];
   }
-  // 가중치: 자유/광고/SNS 보드는 자주, 공지/이벤트는 거의 안 함
+  // 가중치: 마케팅 콘텐츠 중심, 자유게시판은 적당히
   const weights = {
-    free: 25, ad: 22, sns: 18, side: 15, qna: 12, seo: 10, tool: 8, job: 5, event: 1, notice: 0,
+    free: 15, ad: 25, sns: 20, side: 14, qna: 12, seo: 10, tool: 8, job: 5, event: 1, notice: 0,
   };
   const { rows } = await query('SELECT id, slug, name FROM boards WHERE slug != $1', ['notice']);
   const pool = rows.map(b => ({ b, w: weights[b.slug] || 5 }));
@@ -187,11 +187,12 @@ async function generateOnePost(forcedBoardSlug) {
     console.log(`   ⚠️ 이 보드 토픽 시드 없음 — LLM이 자유 선택`);
   }
 
-  const { system, user: baseUser } = buildSystemPrompt(chosenPersona, {
+  const promptResult = buildSystemPrompt(chosenPersona, {
     task: 'post',
     board: board.slug,
     nickname,
   });
+  const { system, user: baseUser, isShortPost } = promptResult;
 
   // 토픽 + 회피 목록을 user 프롬프트에 추가 주입
   const topicBlock = seed ? `
@@ -211,6 +212,7 @@ ${recentTitles.slice(0, 30).map(t => `- ${t}`).join('\n')}
   const result = await completeJson({
     system,
     user: finalUser,
+    maxTokens: isShortPost ? 400 : undefined,  // 짧은 글은 토큰 제한
     logCtx: { task_type: 'post', persona_id: chosenPersona.id, board_slug: board.slug },
   });
 

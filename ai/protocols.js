@@ -182,16 +182,28 @@ function buildSystemPrompt(persona, ctx) {
   const isPost = ctx.task === 'post';
   const isComment = ctx.task === 'comment';
 
-  // ── 게시글 다양성: 길이/수준/작성자 유형 무작위 ──
-  const POST_STYLES = [
-    '짧은 잡담 — 2-4줄 짧게. 제목이 거의 본문. 가벼운 톤.',
-    '짧은 질문 — 궁금한 거 하나만 던지는 짧은 글 (3-5줄). 답 구하는 느낌.',
-    '일상 푸념 — 회사/일/생활 불만을 툴툴거리는 글. 공감 유도.',
-    '보통 글 — 5-8문단. 경험이나 의견 공유. 보통 커뮤니티 글 수준.',
-    '정보 공유 — 알게 된 것을 정리해서 올리는 글. 중간 길이.',
-    '긴 후기/사례 — 직접 해본 것을 상세하게 쓰는 글. 구체적 수치 포함.',
-    '한 줄 잡담 — 제목만 있고 본문은 1-2줄이거나 "제목이 곧 내용" 스타일.',
+  // ── 게시글 다양성: 길이/수준/작성자 유형 무작위 (가중치 기반) ──
+  const POST_STYLES_POOL = [
+    { style: '한 줄 잡담 — 본문 1-2줄. "제목이 곧 내용". 30자~80자면 충분.', weight: 15, short: true },
+    { style: '짧은 잡담 — 2-4줄 짧게. 제목이 거의 본문. 가벼운 톤. 100자 이내.', weight: 20, short: true },
+    { style: '짧은 질문 — 궁금한 거 하나만 던지는 짧은 글 (3-5줄). 150자 이내.', weight: 18, short: true },
+    { style: '일상 푸념 — 회사/일/생활 불만을 3-5줄로 툴툴. 200자 이내.', weight: 12, short: false },
+    { style: '보통 글 — 4-6문단. 경험이나 의견 공유.', weight: 15, short: false },
+    { style: '정보 공유 — 알게 된 것을 정리해서 올리는 글. 중간 길이.', weight: 12, short: false },
+    { style: '긴 후기/사례 — 직접 해본 것을 상세하게 쓰는 글. 구체적 수치 포함.', weight: 8, short: false },
   ];
+
+  function pickWeighted(pool) {
+    const total = pool.reduce((s, x) => s + x.weight, 0);
+    let roll = Math.random() * total;
+    for (const item of pool) { roll -= item.weight; if (roll <= 0) return item; }
+    return pool[0];
+  }
+
+  const pickedPostStyleObj = isPost ? pickWeighted(POST_STYLES_POOL) : null;
+  const pickedPostStyle = pickedPostStyleObj?.style || null;
+  // 짧은 글일 때 LLM에게 max_tokens 힌트 (실제 제한은 generatePost.js에서)
+  const isShortPost = pickedPostStyleObj?.short || false;
 
   const WRITER_TYPES = [
     null,  // 기본 (페르소나 그대로)
@@ -203,7 +215,6 @@ function buildSystemPrompt(persona, ctx) {
     '이번 글은 프리랜서가 쓴 것처럼 작성하세요. 외주 경험, 클라이언트 고충, 수입 고민 등.',
   ];
 
-  const pickedPostStyle = isPost ? POST_STYLES[Math.floor(Math.random() * POST_STYLES.length)] : null;
   const pickedWriterType = isPost ? WRITER_TYPES[Math.floor(Math.random() * WRITER_TYPES.length)] : null;
 
   // ── 댓글 다양성: 매 호출마다 랜덤 스타일을 하나 뽑아서 강제 ──
@@ -318,7 +329,7 @@ function buildSystemPrompt(persona, ctx) {
     ].join('\n');
   }
 
-  return { system, user, nickname };
+  return { system, user, nickname, isShortPost };
 }
 
 // ──────────────────────────────────────────────────────
