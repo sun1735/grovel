@@ -192,6 +192,37 @@ ALTER TABLE banners ADD COLUMN IF NOT EXISTS image_mime VARCHAR(64);
 -- image_url을 nullable로 (이미 nullable일 수 있음)
 ALTER TABLE banners ALTER COLUMN image_url DROP NOT NULL;
 
+-- ── resources: 다운로드 가능한 마케팅 자료 ─────
+CREATE TABLE IF NOT EXISTS resources (
+  id             BIGSERIAL PRIMARY KEY,
+  slug           VARCHAR(128) UNIQUE NOT NULL,
+  title          VARCHAR(255) NOT NULL,
+  subtitle       VARCHAR(255),
+  category       VARCHAR(32) NOT NULL,        -- 'copy-pack' | 'checklist' | 'cheatsheet' | 'workbook' | 'glossary'
+  description    TEXT,                        -- 카드 설명용 (1-2줄)
+  body           TEXT NOT NULL,               -- 본문 (마크다운/HTML)
+  cover_gradient VARCHAR(64),                 -- '#ff3e5f,#c41635'
+  read_time      INTEGER DEFAULT 5,
+  view_count     INTEGER DEFAULT 0,
+  download_count INTEGER DEFAULT 0,
+  is_active      BOOLEAN DEFAULT TRUE,
+  is_featured    BOOLEAN DEFAULT FALSE,
+  created_at     TIMESTAMPTZ DEFAULT NOW(),
+  updated_at     TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_resources_category ON resources(category, is_active, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_resources_featured ON resources(is_featured DESC, view_count DESC) WHERE is_active = TRUE;
+
+-- ── copy_gen_usage: 카피 생성기 레이트리밋 ─────
+CREATE TABLE IF NOT EXISTS copy_gen_usage (
+  id          BIGSERIAL PRIMARY KEY,
+  user_id     BIGINT REFERENCES users(id) ON DELETE SET NULL,
+  ip_hash     VARCHAR(64),                   -- 익명 사용자 추적용
+  created_at  TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_copy_gen_user ON copy_gen_usage(user_id, created_at DESC) WHERE user_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_copy_gen_ip   ON copy_gen_usage(ip_hash, created_at DESC) WHERE ip_hash IS NOT NULL;
+
 -- ── agencies: 광고대행사 디렉토리 ──────────────
 CREATE TABLE IF NOT EXISTS agencies (
   id            BIGSERIAL PRIMARY KEY,
