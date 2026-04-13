@@ -81,16 +81,34 @@ async function pickFreshNickname(persona) {
   return nick;
 }
 
-// 댓글 작성자 선택: 원글 작성자와 다른 페르소나, 활동시간 고려
-function pickCommenter(post) {
+// 같은 글에 이미 댓글 단 페르소나 조회
+async function getExistingCommenters(postId) {
+  const { rows } = await query(
+    'SELECT DISTINCT persona_id FROM comments WHERE post_id = $1 AND persona_id IS NOT NULL',
+    [postId]
+  );
+  return rows.map(r => r.persona_id);
+}
+
+// 같은 글의 기존 댓글 첫 30자 조회 (시작어 중복 방지용)
+async function getExistingCommentStarts(postId) {
+  const { rows } = await query(
+    'SELECT SUBSTRING(body, 1, 30) AS head FROM comments WHERE post_id = $1 ORDER BY created_at DESC LIMIT 10',
+    [postId]
+  );
+  return rows.map(r => r.head);
+}
+
+// 댓글 작성자 선택: 원글 작성자 + 이미 댓글 단 페르소나 제외
+function pickCommenter(post, alreadyCommented = []) {
   const candidates = PERSONA_LIST.filter(p => {
-    if (p.id === post.persona_id) return false;     // 자기 글에 자기가 댓글 X
+    if (p.id === post.persona_id) return false;              // 자기 글에 자기가 댓글 X
+    if (alreadyCommented.includes(p.id)) return false;       // 이미 이 글에 댓글 달았음
     if (!isActiveHour(p) && Math.random() > 0.3) return false;
-    // 보드 적합도
     if (p.boards.never?.includes(post.board_slug)) return false;
     return true;
   });
-  if (candidates.length === 0) return PERSONA_LIST[Math.floor(Math.random() * PERSONA_LIST.length)];
+  if (candidates.length === 0) return null;
 
   // 가중치: primary > secondary > rare
   const weighted = candidates.map(p => {
@@ -125,8 +143,14 @@ async function generateOneComment(forcedPostId) {
   const post = await pickTargetPost(forcedPostId);
   if (!post) throw new Error('대상 게시글이 없습니다 (최근 48시간 내 글 없음)');
 
-  const persona = pickCommenter(post);
+  // 이미 이 글에 댓글 달 페르소나 조회 → 중복 방지
+  const alreadyCommented = await getExistingCommenters(post.id);
+  const persona = pickCommenter(post, alreadyCommented);
+  if (!persona) throw new Error('이 글에 댓글 달 수 있는 페르소나가 남아있지 않습니다');
   const nickname = await pickFreshNickname(persona);
+
+  // 기존 댓글 시작어 조회 (반복 방지용)
+  const existingStarts = await getExistingCommentStarts(post.id);
 
   // 페르소나 메모리 조회
   const memories = await recall(persona.id, 3);
@@ -147,8 +171,16 @@ async function generateOneComment(forcedPostId) {
     parentAuthor: post.persona_id,
   });
 
-  // 메모리 블록을 system 프롬프트에 추가
-  const finalSystem = system + memoryBlock;
+  // 기존 댓글 시작어 중복 회피 프롬프트
+  const antiRepeatBlock = existingStarts.length > 0 ? `
+
+# 이 글에 이미 달린 댓글들의 시작 부분 (같은 단어/패턴으로 시작하지 마세요!)
+${existingStarts.map(s => `- "${s}"`).join('\n')}
+※ 위 댓글들과 첫 단어가 겹치면 안 됩니다. 다른 시작어를 쓰세요.
+` : '';
+
+  // 메모리 + 중복 회피를 system 프롬프트에 추가
+  const finalSystem = system + memoryBlock + antiRepeatBlock;
 
   // 댓글은 짧으니 plain complete 사용
   const { text, model } = await complete({
