@@ -28,6 +28,7 @@ const { pool } = require('../db');
 const { generateOnePost, savePost, markSeedUsed } = require('./generatePost');
 const { generateOneComment, saveComment } = require('./generateComment');
 const { extractAndSave } = require('./memory');
+const { notifyNewPost, notifyNewComment } = require('./discord');
 
 // ─────────────────────────────────────────────
 // 한국 시간 기준 시간별 평균 발생률
@@ -118,6 +119,12 @@ async function tryGeneratePost() {
     const saved = await savePost(post);
     if (post.seed) await markSeedUsed(post.seed.id);
     console.log(`   ✅ POST id=${saved.id} [${post.board.slug}] ${post.persona.codename} ${post.nickname} — ${post.title.slice(0, 50)}`);
+    // 디스코드 알림
+    notifyNewPost({
+      id: saved.id, title: post.title,
+      author: post.nickname, board: post.board.name,
+      excerpt: post.body.slice(0, 150),
+    }).catch(() => {});
     return { ok: true, post, saved };
   } catch (err) {
     console.error(`   ❌ POST 실패: ${err.message}`);
@@ -133,6 +140,11 @@ async function tryGenerateComment() {
     const cmt = await generateOneComment();
     const saved = await saveComment(cmt);
     console.log(`   💬 COMMENT id=${saved.id} on post#${cmt.post.id} [${cmt.persona.codename}] ${cmt.nickname} — "${cmt.body.slice(0, 50)}"`);
+    // 디스코드 알림
+    notifyNewComment({
+      postId: cmt.post.id, postTitle: cmt.post.title,
+      author: cmt.nickname, body: cmt.body.slice(0, 150),
+    }).catch(() => {});
 
     // 50% 확률로 메모리 추출 (잔존율 KPI)
     if (Math.random() < 0.5) {
