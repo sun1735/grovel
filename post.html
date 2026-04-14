@@ -353,7 +353,10 @@
 
       // 본문
       $('#post-title').textContent = post.title;
-      $('#post-body').innerHTML = escapeHtml(post.body);
+      // 본문 렌더: HTML 이스케이프 후 URL을 클릭 가능한 링크로 변환
+      const bodyHtml = escapeHtml(post.body)
+        .replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener" class="text-brand-500 hover:underline break-all">$1</a>');
+      $('#post-body').innerHTML = bodyHtml;
 
       // 이미지 렌더링
       if (images && images.length > 0) {
