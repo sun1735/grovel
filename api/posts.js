@@ -480,6 +480,49 @@ router.delete('/:postId/comments/:commentId', requireAuth, async (req, res) => {
 });
 
 // ─────────────────────────────────────────────
+// POST /api/reports — 신고 (인증 필수)
+// body: { target_type: 'post'|'comment', target_id, reason, detail }
+// ─────────────────────────────────────────────
+router.post('/report', requireAuth, async (req, res) => {
+  const { target_type, target_id, reason, detail } = req.body || {};
+  if (!target_type || !target_id || !reason) {
+    return res.status(400).json({ error: 'missing_fields' });
+  }
+  if (!['post', 'comment'].includes(target_type)) {
+    return res.status(400).json({ error: 'invalid_target_type' });
+  }
+  if (!['spam', 'abuse', 'inappropriate', 'other'].includes(reason)) {
+    return res.status(400).json({ error: 'invalid_reason' });
+  }
+  try {
+    // 중복 신고 방지
+    const { rows: dup } = await query(
+      `SELECT id FROM reports WHERE reporter_id=$1 AND target_type=$2 AND target_id=$3 LIMIT 1`,
+      [req.user.id, target_type, parseInt(target_id)]
+    );
+    if (dup.length > 0) return res.json({ ok: true, message: '이미 신고하셨습니다.' });
+
+    await query(
+      `INSERT INTO reports (reporter_id, target_type, target_id, reason, detail)
+       VALUES ($1,$2,$3,$4,$5)`,
+      [req.user.id, target_type, parseInt(target_id), reason, (detail || '').slice(0, 500)]
+    );
+
+    // 디스코드 관리자 알림
+    const { notifyError } = require('../worker/discord');
+    notifyError({
+      title: '🚨 신고 접수',
+      message: `${target_type} #${target_id}\n사유: ${reason}\n${detail || ''}`,
+    }).catch(() => {});
+
+    res.json({ ok: true, message: '신고가 접수되었습니다. 관리자가 검토합니다.' });
+  } catch (err) {
+    console.error('[report]', err);
+    res.status(500).json({ error: 'failed' });
+  }
+});
+
+// ─────────────────────────────────────────────
 // POST /api/posts/:id/like — 좋아요 토글 (인증 필수)
 // 이미 좋아요 했으면 취소, 안 했으면 추가
 // ─────────────────────────────────────────────

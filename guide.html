@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>커뮤니티 가이드 — 마케톡</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/lucide@latest"></script>
+<link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css" />
+<script>
+  tailwind.config = { theme: { extend: {
+    fontFamily: { sans: ['Pretendard Variable','Pretendard','system-ui','sans-serif'] },
+    colors: { paper:'#f6f7f9', ink:'#15171c', brand:{50:'#fff1f3',500:'#ff3e5f',600:'#ed1f43'} }
+  }}}
+</script>
+<style>
+  body { background:#f6f7f9; color:#15171c; }
+  .container-x { max-width:820px; margin:0 auto; padding:0 1rem; }
+  .card { background:#fff; border:1px solid #eaecef; border-radius:14px; }
+  .guide h2 { font-size:20px; font-weight:800; margin-top:36px; margin-bottom:12px; }
+  .guide h3 { font-size:16px; font-weight:700; margin-top:20px; margin-bottom:8px; }
+  .guide p, .guide li { font-size:15px; line-height:1.78; color:#333; }
+  .guide ul { padding-left:1.2em; margin:8px 0; }
+  .guide ul li { list-style:disc; margin:4px 0; }
+  .guide .rule { background:#f0fdf4; border:1px solid #bbf7d0; border-radius:12px; padding:16px 20px; margin:12px 0; }
+  .guide .warn { background:#fef2f2; border:1px solid #fecaca; border-radius:12px; padding:16px 20px; margin:12px 0; }
+</style>
+</head>
+<body class="antialiased">
+
+<header class="bg-white border-b border-black/5">
+  <div class="container-x flex items-center justify-between h-14">
+    <a href="/" class="flex items-center gap-2.5">
+      <div class="w-8 h-8 rounded-lg bg-brand-500 flex items-center justify-center">
+        <i data-lucide="message-square-text" class="w-4 h-4 text-white"></i>
+      </div>
+      <span class="font-extrabold tracking-tight">마케톡</span>
+    </a>
+    <a href="/" class="text-sm text-black/55 hover:text-black flex items-center gap-1">
+      <i data-lucide="arrow-left" class="w-4 h-4"></i> 메인으로
+    </a>
+  </div>
+</header>
+
+<main class="container-x my-8">
+  <div class="card p-8 md:p-12 guide">
+    <div class="text-[11px] text-black/45 tracking-widest font-bold">COMMUNITY GUIDE</div>
+    <h1 class="text-3xl font-black tracking-tight mt-1">커뮤니티 가이드</h1>
+    <p class="mt-4 text-black/65">마케톡은 마케터들이 자유롭게 정보를 공유하고 성장하는 공간입니다. 모두가 편하게 활동할 수 있도록 다음 가이드를 지켜주세요.</p>
+
+    <h2>✅ 권장하는 활동</h2>
+    <div class="rule">
+      <ul>
+        <li><b>실무 경험 공유</b> — 캠페인 결과, 노하우, 실수담 모두 환영합니다</li>
+        <li><b>질문하기</b> — 기초적인 질문도 괜찮습니다. 모르는 건 물어보세요</li>
+        <li><b>데이터 기반 토론</b> — 주장에 근거가 있으면 더 좋은 토론이 됩니다</li>
+        <li><b>건설적인 피드백</b> — 비판은 좋지만, 대안을 함께 제시해 주세요</li>
+        <li><b>출처 밝히기</b> — 다른 곳에서 가져온 정보는 출처를 적어주세요</li>
+      </ul>
+    </div>
+
+    <h2>🚫 금지 행위</h2>
+    <div class="warn">
+      <ul>
+        <li><b>욕설·비방·혐오 표현</b> — 특정 개인이나 집단을 공격하는 표현</li>
+        <li><b>광고성 도배</b> — 같은 내용 반복 게시, 무관한 광고 링크</li>
+        <li><b>타인 정보 노출</b> — 실명, 연락처, 회사 내부 정보 무단 공개</li>
+        <li><b>허위 정보</b> — 검증되지 않은 데이터를 사실처럼 제시</li>
+        <li><b>불법 콘텐츠</b> — 저작권 침해, 불법 복제, 사기 관련</li>
+        <li><b>성인/음란물</b></li>
+      </ul>
+    </div>
+
+    <h2>📋 게시판별 가이드</h2>
+
+    <h3>자유게시판</h3>
+    <p>마케팅 관련이든 아니든 자유롭게 작성 가능합니다. 잡담, 일상, 푸념 모두 환영.</p>
+
+    <h3>광고 노하우</h3>
+    <p>실전 경험 위주로 작성해 주세요. "들었다"보다 "해봤다"가 더 가치 있습니다. 가능하면 데이터(ROAS, CPA 등)를 함께 공유하면 좋습니다.</p>
+
+    <h3>질문답변</h3>
+    <p>질문할 때: 현재 상황 + 시도한 것 + 구체적 질문을 적으면 답변을 받기 쉽습니다. 답변할 때: 추측보다는 경험 기반으로, 모르면 모른다고 솔직하게.</p>
+
+    <h3>구인/협업</h3>
+    <p>구인 글에는 예산, 기간, 업무 범위를 명확히 적어주세요. 모호한 조건은 지원자가 오지 않는 주 원인입니다.</p>
+
+    <h3>뉴스/동향</h3>
+    <p>마케톡이 AI로 자동 분석하는 업계 뉴스 브리핑입니다. 댓글로 의견을 나눠주세요.</p>
+
+    <h2>⚠️ 신고 및 제재</h2>
+    <p>위반 행위를 발견하면 해당 글/댓글의 <b>"신고"</b> 버튼을 눌러주세요. 관리자가 검토 후 조치합니다.</p>
+    <ul>
+      <li><b>1차 위반</b>: 경고 + 해당 게시물 삭제</li>
+      <li><b>2차 위반</b>: 7일 활동 제한</li>
+      <li><b>3차 위반</b>: 영구 차단</li>
+      <li>심각한 위반(불법 행위, 심한 혐오)은 즉시 영구 차단</li>
+    </ul>
+
+    <h2>📧 문의</h2>
+    <p>가이드에 대한 질문이나 이의가 있으면 <a href="/contact.html" class="text-brand-500 underline">문의하기</a> 페이지를 이용하세요.</p>
+
+    <p class="text-[12px] text-black/45 mt-10">본 가이드는 2026년 4월 10일부터 적용됩니다. 변경 시 공지사항으로 안내합니다.</p>
+  </div>
+</main>
+
+<footer class="border-t border-black/5 bg-white py-8">
+  <div class="container-x text-center text-xs text-black/45 space-x-3">
+    <a href="/" class="hover:text-black">메인</a>
+    <span>·</span>
+    <a href="/guide.html" class="hover:text-black font-bold text-black">커뮤니티 가이드</a>
+    <span>·</span>
+    <a href="/terms.html" class="hover:text-black">이용약관</a>
+    <span>·</span>
+    <a href="/privacy.html" class="hover:text-black">개인정보처리방침</a>
+  </div>
+</footer>
+<script>lucide.createIcons();</script>
+</body>
+</html>

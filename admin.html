@@ -124,6 +124,7 @@
     <button data-tab="engine"   class="tab px-4 py-2.5 text-sm font-bold border-b-2 border-transparent text-black/55 hover:text-black whitespace-nowrap">엔진 로그</button>
     <button data-tab="banners"  class="tab px-4 py-2.5 text-sm font-bold border-b-2 border-transparent text-black/55 hover:text-black whitespace-nowrap">배너 관리</button>
     <button data-tab="agencies" class="tab px-4 py-2.5 text-sm font-bold border-b-2 border-transparent text-black/55 hover:text-black whitespace-nowrap">대행사 관리</button>
+    <button data-tab="reports"  class="tab px-4 py-2.5 text-sm font-bold border-b-2 border-transparent text-black/55 hover:text-black whitespace-nowrap">신고 관리</button>
   </div>
 
   <!-- 탭 내용 -->
@@ -256,6 +257,17 @@
     <!-- 슬롯별 배너 목록 -->
     <div id="banner-list" class="space-y-5"></div>
 
+  </section>
+
+  <!-- 신고 관리 탭 -->
+  <section id="tab-reports" class="tab-pane hidden card scrollbox">
+    <table class="w-full">
+      <thead><tr>
+        <th>ID</th><th>유형</th><th>대상</th><th>사유</th><th>신고자</th><th>상태</th><th>시간</th><th></th>
+      </tr></thead>
+      <tbody id="tbody-reports"></tbody>
+    </table>
+    <div id="reports-empty" class="hidden p-8 text-center text-sm text-black/40">접수된 신고가 없습니다</div>
   </section>
 
   <!-- 대행사 관리 탭 -->
@@ -652,6 +664,39 @@
     loadBanners();
   });
 
+  // ─── 신고 ───
+  const REASON_LABEL = { spam:'스팸/도배', abuse:'욕설/비방', inappropriate:'부적절', other:'기타' };
+  const STATUS_LABEL = { pending:'대기', resolved:'처리됨', dismissed:'기각' };
+
+  async function loadReports() {
+    const r = await fetch('/api/admin/reports', { credentials:'same-origin' });
+    const { reports } = await r.json();
+    if (reports.length === 0) { $('#reports-empty').classList.remove('hidden'); $('#tbody-reports').innerHTML=''; return; }
+    $('#reports-empty').classList.add('hidden');
+    $('#tbody-reports').innerHTML = reports.map(r => `
+      <tr>
+        <td>${r.id}</td>
+        <td>${r.target_type}</td>
+        <td><a href="/post.html?id=${r.target_type === 'post' ? r.target_id : ''}" target="_blank" class="text-brand-500">#${r.target_id}</a></td>
+        <td>${REASON_LABEL[r.reason] || r.reason}</td>
+        <td>${escapeHtml(r.reporter_name || '-')}</td>
+        <td><span class="badge ${r.status==='pending'?'b-warn':r.status==='resolved'?'b-ok':'b-err'}">${STATUS_LABEL[r.status]}</span></td>
+        <td>${timeAgo(r.created_at)}</td>
+        <td>${r.status === 'pending' ? `
+          <button class="rpt-act text-[11px] px-2 py-0.5 rounded bg-emerald-50 text-emerald-700" data-id="${r.id}" data-s="resolved">처리</button>
+          <button class="rpt-act text-[11px] px-2 py-0.5 rounded bg-black/5 ml-1" data-id="${r.id}" data-s="dismissed">기각</button>
+        ` : ''}</td>
+      </tr>
+    `).join('');
+    $$('.rpt-act').forEach(b => b.addEventListener('click', async () => {
+      await fetch('/api/admin/reports/' + b.dataset.id, {
+        method:'PUT', headers:{'Content-Type':'application/json'}, credentials:'same-origin',
+        body: JSON.stringify({ status: b.dataset.s }),
+      });
+      loadReports();
+    }));
+  }
+
   // ─── 대행사 ───
   async function loadAgencies() {
     const r = await fetch('/api/admin/agencies', { credentials:'same-origin' });
@@ -732,6 +777,7 @@
     if (target === 'engine')   loadEngine();
     if (target === 'banners')  loadBanners();
     if (target === 'agencies') loadAgencies();
+    if (target === 'reports')  loadReports();
   }));
 
   $('#mem-search').addEventListener('click', loadMemories);

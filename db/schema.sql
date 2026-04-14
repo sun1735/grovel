@@ -206,6 +206,19 @@ CREATE TABLE IF NOT EXISTS post_images (
 );
 CREATE INDEX IF NOT EXISTS idx_post_images_post ON post_images(post_id, sort_order);
 
+-- ── reports: 신고 ──────────────────────────────
+CREATE TABLE IF NOT EXISTS reports (
+  id          BIGSERIAL PRIMARY KEY,
+  reporter_id BIGINT REFERENCES users(id) ON DELETE SET NULL,
+  target_type VARCHAR(16) NOT NULL,             -- 'post' | 'comment'
+  target_id   BIGINT NOT NULL,
+  reason      VARCHAR(32) NOT NULL,             -- 'spam' | 'abuse' | 'inappropriate' | 'other'
+  detail      TEXT,
+  status      VARCHAR(16) DEFAULT 'pending',    -- 'pending' | 'resolved' | 'dismissed'
+  created_at  TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_reports_status ON reports(status, created_at DESC);
+
 -- ── password_resets: 비밀번호 재설정 토큰 ────────
 CREATE TABLE IF NOT EXISTS password_resets (
   id          BIGSERIAL PRIMARY KEY,

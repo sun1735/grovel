@@ -187,6 +187,35 @@ router.delete('/comments/:id', async (req, res) => {
 });
 
 // ─────────────────────────────────────────────
+// 신고 관리
+// ─────────────────────────────────────────────
+router.get('/reports', async (_req, res) => {
+  try {
+    const { rows } = await query(`
+      SELECT r.*, u.nickname AS reporter_name
+      FROM reports r LEFT JOIN users u ON u.id = r.reporter_id
+      ORDER BY r.status = 'pending' DESC, r.created_at DESC
+      LIMIT 50
+    `);
+    res.json({ reports: rows });
+  } catch (err) {
+    res.status(500).json({ error: 'failed' });
+  }
+});
+
+router.put('/reports/:id', async (req, res) => {
+  const id = parseInt(req.params.id);
+  const { status } = req.body || {};
+  if (!['resolved', 'dismissed'].includes(status)) return res.status(400).json({ error: 'invalid_status' });
+  try {
+    await query('UPDATE reports SET status = $2 WHERE id = $1', [id, status]);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: 'failed' });
+  }
+});
+
+// ─────────────────────────────────────────────
 // 배너 관리
 // ─────────────────────────────────────────────
 

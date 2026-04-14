@@ -75,9 +75,9 @@
       <span class="flex items-center gap-1.5"><span class="live-dot"></span> 지금 <b class="text-emerald-300" id="stat-online">…</b> 접속 중</span>
     </div>
     <div class="flex items-center gap-3 text-white/70">
-      <a href="#" class="hover:text-white">로그인</a>
+      <a href="/login.html" class="hover:text-white">로그인</a>
       <span class="text-white/30">|</span>
-      <a href="#" class="hover:text-white">회원가입</a>
+      <a href="/login.html#register" class="hover:text-white">회원가입</a>
     </div>
   </div>
 </div>
@@ -182,9 +182,12 @@
               <span>댓글 <span id="post-comment-count">…</span></span>
             </div>
           </div>
-          <div id="post-actions" class="hidden flex items-center gap-1">
-            <button id="post-edit-btn" class="text-xs text-black/50 hover:text-brand-500 px-2 py-1 rounded hover:bg-brand-50">수정</button>
-            <button id="post-delete-btn" class="text-xs text-black/50 hover:text-rose-500 px-2 py-1 rounded hover:bg-rose-50">삭제</button>
+          <div class="flex items-center gap-1">
+            <div id="post-actions" class="hidden flex items-center gap-1">
+              <button id="post-edit-btn" class="text-xs text-black/50 hover:text-brand-500 px-2 py-1 rounded hover:bg-brand-50">수정</button>
+              <button id="post-delete-btn" class="text-xs text-black/50 hover:text-rose-500 px-2 py-1 rounded hover:bg-rose-50">삭제</button>
+            </div>
+            <button id="post-report-btn" class="text-xs text-black/40 hover:text-rose-500 px-2 py-1 rounded hover:bg-rose-50">신고</button>
           </div>
         </div>
       </div>
@@ -406,6 +409,20 @@
 
       // 좋아요 상태 확인 + 버튼 동작
       loadLikeState();
+
+      // 글 신고
+      $('#post-report-btn').addEventListener('click', async () => {
+        if (!currentUserId) { location.href = '/login.html?next=' + encodeURIComponent(location.href); return; }
+        const reason = prompt('신고 사유를 선택하세요:\n1. 스팸/도배\n2. 욕설/비방\n3. 부적절한 내용\n4. 기타\n\n번호를 입력하세요 (1-4):');
+        if (!reason) return;
+        const reasons = { '1':'spam', '2':'abuse', '3':'inappropriate', '4':'other' };
+        const r = await fetch('/api/posts/report', {
+          method:'POST', headers:{'Content-Type':'application/json'}, credentials:'same-origin',
+          body: JSON.stringify({ target_type:'post', target_id: postId, reason: reasons[reason] || 'other' }),
+        });
+        const j = await r.json();
+        alert(j.message || '신고가 접수되었습니다.');
+      });
 
       // 수정/삭제 버튼 (작성자 본인 또는 admin)
       if (currentUserId && (parseInt(post.user_id) === currentUserId || currentUserRole === 'admin')) {
