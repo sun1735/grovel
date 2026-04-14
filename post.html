@@ -109,13 +109,13 @@
 </header>
 
 <!-- TOP ROW: 배너 + 프로필 (2열) -->
-<div class="container-x mt-5 grid lg:grid-cols-12 gap-5">
+<div class="container-x mt-5 grid gap-5 lg:grid-cols-[minmax(0,1fr)_300px]">
   <!-- 좌측: 배너 -->
-  <div class="lg:col-span-8">
+  <div class="min-w-0">
     <div class="ad-slot h-[150px]" data-ad-slot="top">800 × 150  ·  TOP BANNER AD</div>
   </div>
   <!-- 우측: 프로필 카드 -->
-  <div class="lg:col-span-4">
+  <div class="">
     <div id="profile-card" class="card h-[150px] p-4 flex flex-col">
       <div id="strip-anon" class="flex flex-col h-full justify-center">
         <div class="flex items-center gap-2 mb-2.5">
@@ -159,9 +159,9 @@
 </div>
 
 <!-- MAIN -->
-<main class="container-x mt-5 grid lg:grid-cols-12 gap-5">
+<main class="container-x mt-5 grid gap-5 lg:grid-cols-[minmax(0,1fr)_300px]">
 
-  <section class="lg:col-span-8 space-y-5">
+  <section class="min-w-0 space-y-5">
 
     <!-- POST -->
     <article class="card overflow-hidden">
@@ -271,7 +271,7 @@
   </section>
 
   <!-- SIDEBAR -->
-  <aside class="lg:col-span-4 space-y-5">
+  <aside class=" space-y-5">
     <div class="ad-slot h-[150px]" data-ad-slot="side1">SIDEBAR AD</div>
 
     <div class="card p-5">
