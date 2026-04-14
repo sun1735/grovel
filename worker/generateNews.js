@@ -211,9 +211,14 @@ async function main() {
   console.log(`  본문: ${result.body.slice(0, 150)}...`);
   console.log(`  플랫폼: ${result.platform || 'none'}`);
 
-  // 3. 저장
+  // 3. 원문 출처 링크 추가
+  const sourceBlock = '\n\n---\n\n📌 **원문 출처**\n' +
+    articles.map(a => `- [${a.source}] ${a.title}\n  ${a.link}`).join('\n');
+  const fullBody = result.body + sourceBlock;
+
+  // 4. 저장
   if (!isDryRun) {
-    const saved = await saveNewsPost(result.title, result.body, result.platform);
+    const saved = await saveNewsPost(result.title, fullBody, result.platform);
     console.log(`\n✅ 브리핑 발행 완료 (id=${saved.id})`);
 
     // 디스코드 알림
