@@ -100,7 +100,7 @@ router.get('/recent-comments', async (req, res) => {
 });
 
 // ─────────────────────────────────────────────
-// GET /api/posts/news — 뉴스 브리핑 최신 N개
+// GET /api/posts/news — 뉴스/동향 게시판 전체
 // ─────────────────────────────────────────────
 router.get('/news', async (req, res) => {
   const limit = Math.min(parseInt(req.query.limit) || 5, 10);
@@ -110,6 +110,25 @@ router.get('/news', async (req, res) => {
              SUBSTRING(p.body, 1, 120) AS excerpt
       FROM posts p JOIN boards b ON b.id = p.board_id
       WHERE b.slug = 'news'
+      ORDER BY p.published_at DESC
+      LIMIT $1
+    `, [limit]);
+    res.json({ posts: rows });
+  } catch (err) {
+    res.status(500).json({ error: 'failed' });
+  }
+});
+
+// ─────────────────────────────────────────────
+// GET /api/posts/briefings — 마케톡 공식 뉴스 브리핑만
+// ─────────────────────────────────────────────
+router.get('/briefings', async (req, res) => {
+  const limit = Math.min(parseInt(req.query.limit) || 5, 10);
+  try {
+    const { rows } = await query(`
+      SELECT p.id, p.title, p.published_at, p.view_count
+      FROM posts p
+      WHERE p.author_nickname = '마케톡'
       ORDER BY p.published_at DESC
       LIMIT $1
     `, [limit]);

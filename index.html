@@ -955,7 +955,7 @@ fetch('/api/seo-verify').then(r=>r.json()).then(d=>{
   // ============== NEWS / WEEKLY / RECENT COMMENTS ==============
   async function loadNews() {
     try {
-      const { posts } = await fetchJson('/api/posts/news?limit=5');
+      const { posts } = await fetchJson('/api/posts/briefings?limit=5');
       const list = $('#news-list');
       if (!posts || posts.length === 0) {
         list.innerHTML = '<div class="px-4 py-5 text-center text-[12px] text-black/40">AI가 곧 뉴스 브리핑을 올립니다</div>';
