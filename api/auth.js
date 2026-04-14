@@ -127,4 +127,147 @@ router.get('/me', (req, res) => {
   res.json({ user: req.user });
 });
 
+// ─────────────────────────────────────────────
+// PUT /api/auth/profile — 프로필 수정
+// ─────────────────────────────────────────────
+router.put('/profile', requireAuth, async (req, res) => {
+  const { nickname, bio, current_password, new_password } = req.body || {};
+
+  try {
+    const updates = [];
+    const params = [req.user.id];
+
+    // 닉네임 변경
+    if (nickname && nickname !== req.user.nickname) {
+      if (!NICK_RE.test(nickname)) {
+        return res.status(400).json({ error: 'invalid_nickname', message: '닉네임은 한글/영문/숫자/_ 2-20자' });
+      }
+      const { rows: dup } = await query('SELECT id FROM users WHERE nickname = $1 AND id != $2', [nickname, req.user.id]);
+      if (dup.length > 0) return res.status(409).json({ error: 'duplicate_nickname', message: '이미 사용 중인 닉네임입니다.' });
+      params.push(nickname);
+      updates.push(`nickname = $${params.length}`);
+    }
+
+    // 자기소개 변경
+    if (bio !== undefined) {
+      params.push(String(bio).slice(0, 200));
+      updates.push(`bio = $${params.length}`);
+    }
+
+    // 비밀번호 변경
+    if (new_password) {
+      if (!current_password) return res.status(400).json({ error: 'missing_current_password', message: '현재 비밀번호를 입력하세요.' });
+      if (new_password.length < PWD_MIN) return res.status(400).json({ error: 'weak_password', message: `새 비밀번호는 ${PWD_MIN}자 이상` });
+
+      const { rows: userRows } = await query('SELECT password_hash FROM users WHERE id = $1', [req.user.id]);
+      const ok = await bcrypt.compare(current_password, userRows[0].password_hash);
+      if (!ok) return res.status(401).json({ error: 'wrong_password', message: '현재 비밀번호가 틀립니다.' });
+
+      const hash = await bcrypt.hash(new_password, 12);
+      params.push(hash);
+      updates.push(`password_hash = $${params.length}`);
+    }
+
+    if (updates.length === 0) return res.status(400).json({ error: 'nothing_to_update' });
+
+    await query(`UPDATE users SET ${updates.join(', ')} WHERE id = $1`, params);
+
+    // 닉네임 변경 시 토큰 갱신
+    if (nickname && nickname !== req.user.nickname) {
+      const { rows } = await query('SELECT id, email, nickname, role FROM users WHERE id = $1', [req.user.id]);
+      const token = signToken(rows[0]);
+      setSessionCookie(res, token);
+    }
+
+    res.json({ ok: true, message: '프로필이 수정되었습니다.' });
+  } catch (err) {
+    console.error('[auth/profile]', err);
+    res.status(500).json({ error: 'server_error' });
+  }
+});
+
+// ─────────────────────────────────────────────
+// GET /api/auth/my-posts — 내가 쓴 글
+// ─────────────────────────────────────────────
+router.get('/my-posts', requireAuth, async (req, res) => {
+  const page = Math.max(parseInt(req.query.page) || 1, 1);
+  const limit = 20;
+  const offset = (page - 1) * limit;
+  try {
+    const { rows } = await query(`
+      SELECT p.id, p.title, p.comment_count, p.view_count, p.like_count, p.published_at,
+             b.name AS board_name, b.slug AS board_slug, b.badge_class
+      FROM posts p JOIN boards b ON b.id = p.board_id
+      WHERE p.user_id = $1
+      ORDER BY p.published_at DESC
+      LIMIT $2 OFFSET $3
+    `, [req.user.id, limit, offset]);
+    const { rows: cnt } = await query('SELECT COUNT(*)::int AS c FROM posts WHERE user_id = $1', [req.user.id]);
+    res.json({ posts: rows, total: cnt[0].c, page, limit });
+  } catch (err) {
+    res.status(500).json({ error: 'failed' });
+  }
+});
+
+// ─────────────────────────────────────────────
+// GET /api/auth/my-comments — 내가 쓴 댓글
+// ─────────────────────────────────────────────
+router.get('/my-comments', requireAuth, async (req, res) => {
+  const page = Math.max(parseInt(req.query.page) || 1, 1);
+  const limit = 20;
+  const offset = (page - 1) * limit;
+  try {
+    const { rows } = await query(`
+      SELECT c.id, c.body, c.like_count, c.created_at,
+             p.id AS post_id, p.title AS post_title
+      FROM comments c JOIN posts p ON p.id = c.post_id
+      WHERE c.user_id = $1
+      ORDER BY c.created_at DESC
+      LIMIT $2 OFFSET $3
+    `, [req.user.id, limit, offset]);
+    const { rows: cnt } = await query('SELECT COUNT(*)::int AS c FROM comments WHERE user_id = $1', [req.user.id]);
+    res.json({ comments: rows, total: cnt[0].c, page, limit });
+  } catch (err) {
+    res.status(500).json({ error: 'failed' });
+  }
+});
+
+// ─────────────────────────────────────────────
+// GET /api/auth/my-likes — 내가 좋아요한 글
+// ─────────────────────────────────────────────
+router.get('/my-likes', requireAuth, async (req, res) => {
+  try {
+    const { rows } = await query(`
+      SELECT p.id, p.title, p.comment_count, p.view_count, p.like_count, p.published_at,
+             b.name AS board_name, b.badge_class
+      FROM likes l
+      JOIN posts p ON p.id = l.target_id
+      JOIN boards b ON b.id = p.board_id
+      WHERE l.user_id = $1 AND l.target_type = 'post'
+      ORDER BY l.created_at DESC
+      LIMIT 50
+    `, [req.user.id]);
+    res.json({ posts: rows });
+  } catch (err) {
+    res.status(500).json({ error: 'failed' });
+  }
+});
+
+// ─────────────────────────────────────────────
+// GET /api/auth/stats — 내 활동 통계
+// ─────────────────────────────────────────────
+router.get('/stats', requireAuth, async (req, res) => {
+  try {
+    const { rows } = await query(`
+      SELECT
+        (SELECT COUNT(*)::int FROM posts WHERE user_id = $1) AS post_count,
+        (SELECT COUNT(*)::int FROM comments WHERE user_id = $1) AS comment_count,
+        (SELECT COUNT(*)::int FROM likes WHERE user_id = $1) AS like_count
+    `, [req.user.id]);
+    res.json(rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: 'failed' });
+  }
+});
+
 module.exports = router;

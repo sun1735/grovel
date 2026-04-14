@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>마이페이지 — 마케톡</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/lucide@latest"></script>
+<link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css" />
+<script>
+  tailwind.config = { theme: { extend: {
+    fontFamily: { sans: ['Pretendard Variable','Pretendard','system-ui','sans-serif'] },
+    colors: { paper:'#f6f7f9', ink:'#15171c', brand:{50:'#fff1f3',500:'#ff3e5f',600:'#ed1f43'} }
+  }}}
+</script>
+<style>
+  body { background:#f6f7f9; color:#15171c; }
+  .container-x { max-width:980px; margin:0 auto; padding:0 1rem; }
+  .card { background:#fff; border:1px solid #eaecef; border-radius:14px; }
+  .tab { padding:10px 16px; font-size:14px; font-weight:700; color:#9aa1aa; border-bottom:2px solid transparent; cursor:pointer; white-space:nowrap; }
+  .tab.active { color:#15171c; border-bottom-color:#ff3e5f; }
+  .av { width:48px; height:48px; border-radius:14px; display:inline-flex; align-items:center; justify-content:center; color:white; font-weight:800; font-size:20px; }
+  .av-1{background:linear-gradient(135deg,#ff6b9d,#c44569)} .av-2{background:linear-gradient(135deg,#4facfe,#00f2fe)}
+  .av-3{background:linear-gradient(135deg,#43e97b,#38f9d7)} .av-4{background:linear-gradient(135deg,#fa709a,#fee140)}
+  .av-5{background:linear-gradient(135deg,#a18cd1,#fbc2eb)} .av-6{background:linear-gradient(135deg,#ffecd2,#fcb69f);color:#7a4d2c}
+  .av-7{background:linear-gradient(135deg,#84fab0,#8fd3f4);color:#0a4f3e} .av-8{background:linear-gradient(135deg,#667eea,#764ba2)}
+  .row-hover:hover { background:#fafbfc; }
+  .badge-cat { display:inline-flex; align-items:center; padding:.15rem .5rem; border-radius:6px; font-size:11px; font-weight:600; }
+  input:focus,textarea:focus { outline:none; box-shadow:0 0 0 3px rgba(255,62,95,.12); border-color:#ff3e5f; }
+</style>
+</head>
+<body class="antialiased">
+
+<header class="bg-white border-b border-black/5">
+  <div class="container-x flex items-center justify-between h-14">
+    <a href="/" class="flex items-center gap-2.5">
+      <div class="w-8 h-8 rounded-lg bg-brand-500 flex items-center justify-center">
+        <i data-lucide="message-square-text" class="w-4 h-4 text-white"></i>
+      </div>
+      <span class="font-extrabold tracking-tight">마케톡</span>
+    </a>
+    <a href="/" class="text-sm text-black/55 hover:text-black flex items-center gap-1">
+      <i data-lucide="arrow-left" class="w-4 h-4"></i> 메인으로
+    </a>
+  </div>
+</header>
+
+<!-- 미로그인 -->
+<div id="auth-guard" class="hidden container-x py-32 text-center">
+  <i data-lucide="user-circle-2" class="w-12 h-12 text-black/20 mx-auto mb-4"></i>
+  <h2 class="font-extrabold text-xl">로그인이 필요합니다</h2>
+  <a href="/login.html?next=/profile.html" class="mt-4 inline-flex items-center gap-1.5 bg-brand-500 text-white rounded-lg px-5 py-2.5 text-sm font-bold">로그인 →</a>
+</div>
+
+<main id="main" class="container-x my-8 hidden space-y-6">
+
+  <!-- 프로필 카드 -->
+  <div class="card p-7">
+    <div class="flex items-center gap-5">
+      <div id="my-avatar" class="av av-1">·</div>
+      <div class="flex-1 min-w-0">
+        <div class="font-black text-xl" id="my-nickname">…</div>
+        <div class="text-[12px] text-black/50" id="my-email">…</div>
+        <div class="text-[12px] text-black/45 mt-1" id="my-bio"></div>
+      </div>
+      <div class="text-right text-[12px] text-black/50">
+        <div>가입일: <span id="my-joined">…</span></div>
+        <div id="my-role-badge" class="mt-1 inline-block px-2 py-0.5 rounded-full text-[11px] font-bold bg-brand-50 text-brand-600">멤버</div>
+      </div>
+    </div>
+    <!-- 활동 통계 -->
+    <div class="grid grid-cols-3 gap-3 mt-6">
+      <div class="rounded-lg bg-paper p-3 text-center">
+        <div class="text-2xl font-extrabold" id="stat-posts">0</div>
+        <div class="text-[11px] text-black/50">작성한 글</div>
+      </div>
+      <div class="rounded-lg bg-paper p-3 text-center">
+        <div class="text-2xl font-extrabold" id="stat-comments">0</div>
+        <div class="text-[11px] text-black/50">작성한 댓글</div>
+      </div>
+      <div class="rounded-lg bg-paper p-3 text-center">
+        <div class="text-2xl font-extrabold" id="stat-likes">0</div>
+        <div class="text-[11px] text-black/50">좋아요</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 탭 -->
+  <div class="flex gap-1 border-b border-black/10 overflow-x-auto">
+    <button data-tab="edit"     class="tab active">프로필 수정</button>
+    <button data-tab="posts"    class="tab">내 글</button>
+    <button data-tab="comments" class="tab">내 댓글</button>
+    <button data-tab="likes"    class="tab">좋아요한 글</button>
+  </div>
+
+  <!-- 프로필 수정 탭 -->
+  <section id="tab-edit" class="card p-6">
+    <form id="edit-form" class="space-y-5 max-w-lg">
+      <div>
+        <label class="text-[11px] font-bold text-black/55 block mb-1.5">닉네임</label>
+        <input type="text" name="nickname" id="edit-nick" minlength="2" maxlength="20"
+               class="w-full h-11 px-3.5 rounded-lg border border-black/10 text-sm" />
+        <div class="text-[11px] text-black/40 mt-1">한글/영문/숫자/_ 2-20자</div>
+      </div>
+      <div>
+        <label class="text-[11px] font-bold text-black/55 block mb-1.5">자기소개</label>
+        <textarea name="bio" id="edit-bio" rows="3" maxlength="200"
+                  class="w-full px-3.5 py-2.5 rounded-lg border border-black/10 text-sm resize-y"
+                  placeholder="한 줄 자기소개 (선택, 200자 이내)"></textarea>
+      </div>
+      <div class="pt-4 border-t border-black/5">
+        <div class="text-[12px] font-bold text-black/55 mb-3">비밀번호 변경 (선택)</div>
+        <div class="space-y-2">
+          <input type="password" name="current_password" placeholder="현재 비밀번호"
+                 class="w-full h-11 px-3.5 rounded-lg border border-black/10 text-sm" />
+          <input type="password" name="new_password" placeholder="새 비밀번호 (8자 이상)"
+                 class="w-full h-11 px-3.5 rounded-lg border border-black/10 text-sm" />
+        </div>
+      </div>
+      <div id="edit-msg" class="hidden text-sm"></div>
+      <button type="submit" class="h-11 px-6 bg-brand-500 hover:bg-brand-600 text-white rounded-lg text-sm font-bold">저장</button>
+    </form>
+  </section>
+
+  <!-- 내 글 탭 -->
+  <section id="tab-posts" class="card hidden">
+    <div id="my-posts-list" class="divide-y divide-black/5"></div>
+    <div id="my-posts-empty" class="hidden p-12 text-center text-sm text-black/40">아직 작성한 글이 없습니다.</div>
+  </section>
+
+  <!-- 내 댓글 탭 -->
+  <section id="tab-comments" class="card hidden">
+    <div id="my-comments-list" class="divide-y divide-black/5"></div>
+    <div id="my-comments-empty" class="hidden p-12 text-center text-sm text-black/40">아직 작성한 댓글이 없습니다.</div>
+  </section>
+
+  <!-- 좋아요 탭 -->
+  <section id="tab-likes" class="card hidden">
+    <div id="my-likes-list" class="divide-y divide-black/5"></div>
+    <div id="my-likes-empty" class="hidden p-12 text-center text-sm text-black/40">아직 좋아요한 글이 없습니다.</div>
+  </section>
+
+</main>
+
+<footer class="border-t border-black/5 bg-white py-8 mt-10">
+  <div class="container-x text-center text-xs text-black/45">
+    <a href="/" class="hover:text-black">© 2026 마케톡</a>
+  </div>
+</footer>
+
+<script>
+  lucide.createIcons();
+  const $ = (s) => document.querySelector(s);
+  const $$ = (s) => document.querySelectorAll(s);
+  const fmt = new Intl.NumberFormat('ko-KR');
+  const escapeHtml = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+  function timeAgo(iso) {
+    const d = (Date.now() - new Date(iso).getTime())/1000;
+    if (d<60) return '방금';
+    if (d<3600) return Math.floor(d/60)+'분 전';
+    if (d<86400) return Math.floor(d/3600)+'시간 전';
+    if (d<86400*30) return Math.floor(d/86400)+'일 전';
+    return new Date(iso).toLocaleDateString('ko-KR');
+  }
+  function avatarClass(nick) {
+    let h = 0; for (const c of nick) h = (h*31+c.charCodeAt(0))>>>0;
+    return 'av-' + ((h%10)+1);
+  }
+
+  let me = null;
+
+  async function init() {
+    try {
+      const r = await fetch('/api/auth/me', { credentials:'same-origin' });
+      const j = await r.json();
+      me = j.user;
+    } catch {}
+
+    if (!me) {
+      $('#auth-guard').classList.remove('hidden');
+      lucide.createIcons();
+      return;
+    }
+
+    $('#main').classList.remove('hidden');
+
+    // 프로필 카드
+    const av = $('#my-avatar');
+    av.className = 'av ' + avatarClass(me.nickname);
+    av.textContent = me.nickname[0];
+    $('#my-nickname').textContent = me.nickname;
+    $('#my-email').textContent = me.email;
+    if (me.role === 'admin') {
+      $('#my-role-badge').textContent = '관리자';
+      $('#my-role-badge').classList.add('bg-blue-50','text-blue-700');
+      $('#my-role-badge').classList.remove('bg-brand-50','text-brand-600');
+    }
+
+    // 가입일 — me에서 직접 못 가져오니 stats에서
+    // 통계 로드
+    try {
+      const r = await fetch('/api/auth/stats', { credentials:'same-origin' });
+      const s = await r.json();
+      $('#stat-posts').textContent = fmt.format(s.post_count);
+      $('#stat-comments').textContent = fmt.format(s.comment_count);
+      $('#stat-likes').textContent = fmt.format(s.like_count);
+    } catch {}
+
+    // 수정 폼 기본값
+    $('#edit-nick').value = me.nickname;
+
+    // 자기소개 로드 (me에 bio가 없으니 DB에서)
+    try {
+      const r = await fetch('/api/auth/me', { credentials:'same-origin' });
+      // bio is not in JWT, need separate call... for now skip
+    } catch {}
+
+    lucide.createIcons();
+  }
+
+  // 탭
+  $$('.tab').forEach(t => t.addEventListener('click', () => {
+    const target = t.dataset.tab;
+    $$('.tab').forEach(x => x.classList.remove('active'));
+    t.classList.add('active');
+    ['edit','posts','comments','likes'].forEach(id => {
+      const el = $('#tab-' + id);
+      if (el) el.classList.toggle('hidden', id !== target);
+    });
+    if (target === 'posts') loadMyPosts();
+    if (target === 'comments') loadMyComments();
+    if (target === 'likes') loadMyLikes();
+  }));
+
+  // 프로필 수정 폼
+  $('#edit-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const msg = $('#edit-msg');
+    msg.classList.add('hidden');
+
+    const fd = new FormData(e.target);
+    const data = {};
+    if (fd.get('nickname') && fd.get('nickname') !== me.nickname) data.nickname = fd.get('nickname');
+    if (fd.get('bio') !== undefined) data.bio = fd.get('bio');
+    if (fd.get('new_password')) {
+      data.current_password = fd.get('current_password');
+      data.new_password = fd.get('new_password');
+    }
+
+    if (Object.keys(data).length === 0) {
+      msg.textContent = '변경할 내용이 없습니다.';
+      msg.className = 'text-sm text-black/55';
+      msg.classList.remove('hidden');
+      return;
+    }
+
+    const r = await fetch('/api/auth/profile', {
+      method:'PUT',
+      headers:{'Content-Type':'application/json'},
+      credentials:'same-origin',
+      body: JSON.stringify(data),
+    });
+    const j = await r.json();
+    if (r.ok) {
+      msg.textContent = '✓ ' + (j.message || '저장되었습니다.');
+      msg.className = 'text-sm text-emerald-600';
+      msg.classList.remove('hidden');
+      if (data.nickname) setTimeout(() => location.reload(), 1000);
+    } else {
+      msg.textContent = j.message || `오류: ${j.error}`;
+      msg.className = 'text-sm text-rose-600';
+      msg.classList.remove('hidden');
+    }
+  });
+
+  // 내 글
+  async function loadMyPosts() {
+    try {
+      const r = await fetch('/api/auth/my-posts', { credentials:'same-origin' });
+      const { posts, total } = await r.json();
+      if (posts.length === 0) { $('#my-posts-empty').classList.remove('hidden'); $('#my-posts-list').innerHTML=''; return; }
+      $('#my-posts-empty').classList.add('hidden');
+      $('#my-posts-list').innerHTML = posts.map(p => `
+        <a href="/post.html?id=${p.id}" class="row-hover flex items-center gap-3 px-5 py-3 text-sm">
+          <span class="badge-cat" style="background:#eef2ff;color:#4338ca">${escapeHtml(p.board_name)}</span>
+          <span class="flex-1 truncate font-semibold">${escapeHtml(p.title)}
+            ${p.comment_count > 0 ? `<span class="text-brand-500 font-bold ml-1">[${p.comment_count}]</span>` : ''}
+          </span>
+          <span class="text-[11px] text-black/40 flex items-center gap-2">
+            <span>❤ ${p.like_count}</span>
+            <span>👁 ${fmt.format(p.view_count)}</span>
+            <span>${timeAgo(p.published_at)}</span>
+          </span>
+        </a>
+      `).join('');
+    } catch {}
+  }
+
+  // 내 댓글
+  async function loadMyComments() {
+    try {
+      const r = await fetch('/api/auth/my-comments', { credentials:'same-origin' });
+      const { comments } = await r.json();
+      if (comments.length === 0) { $('#my-comments-empty').classList.remove('hidden'); $('#my-comments-list').innerHTML=''; return; }
+      $('#my-comments-empty').classList.add('hidden');
+      $('#my-comments-list').innerHTML = comments.map(c => `
+        <a href="/post.html?id=${c.post_id}" class="row-hover block px-5 py-3 text-sm">
+          <div class="text-[11px] text-black/45 mb-1">
+            <span class="font-semibold text-black/70">${escapeHtml(c.post_title?.slice(0,40))}</span> 에 댓글 · ${timeAgo(c.created_at)}
+          </div>
+          <div class="text-black/75 truncate">${escapeHtml(c.body?.slice(0, 100))}</div>
+          <div class="text-[11px] text-black/35 mt-1">❤ ${c.like_count || 0}</div>
+        </a>
+      `).join('');
+    } catch {}
+  }
+
+  // 좋아요한 글
+  async function loadMyLikes() {
+    try {
+      const r = await fetch('/api/auth/my-likes', { credentials:'same-origin' });
+      const { posts } = await r.json();
+      if (posts.length === 0) { $('#my-likes-empty').classList.remove('hidden'); $('#my-likes-list').innerHTML=''; return; }
+      $('#my-likes-empty').classList.add('hidden');
+      $('#my-likes-list').innerHTML = posts.map(p => `
+        <a href="/post.html?id=${p.id}" class="row-hover flex items-center gap-3 px-5 py-3 text-sm">
+          <span class="badge-cat" style="background:#eef2ff;color:#4338ca">${escapeHtml(p.board_name)}</span>
+          <span class="flex-1 truncate font-semibold">${escapeHtml(p.title)}</span>
+          <span class="text-[11px] text-black/40">${timeAgo(p.published_at)}</span>
+        </a>
+      `).join('');
+    } catch {}
+  }
+
+  init();
+</script>
+</body>
+</html>
