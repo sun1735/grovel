@@ -144,7 +144,7 @@ router.get('/:id', async (req, res) => {
     }
 
     const { rows: commentRows } = await query(`
-      SELECT id, parent_id, persona_id, author_nickname, body, like_count, created_at
+      SELECT id, parent_id, persona_id, user_id, author_nickname, body, like_count, created_at
       FROM comments
       WHERE post_id = $1
       ORDER BY created_at ASC
@@ -313,6 +313,109 @@ router.post('/:id/comments', requireAuth, async (req, res) => {
     res.status(201).json({ comment: rows[0] });
   } catch (err) {
     console.error('[comments/create]', err);
+    res.status(500).json({ error: 'server_error' });
+  }
+});
+
+// ─────────────────────────────────────────────
+// PUT /api/posts/:id — 글 수정 (작성자 본인만)
+// ─────────────────────────────────────────────
+router.put('/:id', requireAuth, async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (!id) return res.status(400).json({ error: 'invalid_id' });
+  const { title, body } = req.body || {};
+
+  try {
+    // 본인 글인지 확인 (admin이면 모두 수정 가능)
+    const { rows: postRows } = await query('SELECT user_id FROM posts WHERE id = $1', [id]);
+    if (postRows.length === 0) return res.status(404).json({ error: 'not_found' });
+    if (postRows[0].user_id !== req.user.id && req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'not_author' });
+    }
+
+    const updates = [];
+    const params = [id];
+    if (title && title.trim().length >= 4) {
+      params.push(title.trim());
+      updates.push(`title = $${params.length}`);
+    }
+    if (body && body.trim().length >= 5) {
+      params.push(body.trim());
+      updates.push(`body = $${params.length}`);
+    }
+    if (updates.length === 0) return res.status(400).json({ error: 'nothing_to_update' });
+
+    await query(`UPDATE posts SET ${updates.join(', ')} WHERE id = $1`, params);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[posts/update]', err);
+    res.status(500).json({ error: 'server_error' });
+  }
+});
+
+// ─────────────────────────────────────────────
+// DELETE /api/posts/:id — 글 삭제 (작성자 본인 또는 admin)
+// ─────────────────────────────────────────────
+router.delete('/:id', requireAuth, async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (!id) return res.status(400).json({ error: 'invalid_id' });
+
+  try {
+    const { rows } = await query('SELECT user_id FROM posts WHERE id = $1', [id]);
+    if (rows.length === 0) return res.status(404).json({ error: 'not_found' });
+    if (rows[0].user_id !== req.user.id && req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'not_author' });
+    }
+
+    await query('DELETE FROM posts WHERE id = $1', [id]);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: 'server_error' });
+  }
+});
+
+// ─────────────────────────────────────────────
+// PUT /api/posts/:postId/comments/:commentId — 댓글 수정
+// ─────────────────────────────────────────────
+router.put('/:postId/comments/:commentId', requireAuth, async (req, res) => {
+  const commentId = parseInt(req.params.commentId);
+  if (!commentId) return res.status(400).json({ error: 'invalid_id' });
+  const { body } = req.body || {};
+  if (!body || body.trim().length < 2) return res.status(400).json({ error: 'invalid_body' });
+
+  try {
+    const { rows } = await query('SELECT user_id FROM comments WHERE id = $1', [commentId]);
+    if (rows.length === 0) return res.status(404).json({ error: 'not_found' });
+    if (rows[0].user_id !== req.user.id && req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'not_author' });
+    }
+
+    await query('UPDATE comments SET body = $2 WHERE id = $1', [commentId, body.trim()]);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: 'server_error' });
+  }
+});
+
+// ─────────────────────────────────────────────
+// DELETE /api/posts/:postId/comments/:commentId — 댓글 삭제
+// ─────────────────────────────────────────────
+router.delete('/:postId/comments/:commentId', requireAuth, async (req, res) => {
+  const postId = parseInt(req.params.postId);
+  const commentId = parseInt(req.params.commentId);
+  if (!commentId) return res.status(400).json({ error: 'invalid_id' });
+
+  try {
+    const { rows } = await query('SELECT user_id FROM comments WHERE id = $1', [commentId]);
+    if (rows.length === 0) return res.status(404).json({ error: 'not_found' });
+    if (rows[0].user_id !== req.user.id && req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'not_author' });
+    }
+
+    await query('DELETE FROM comments WHERE id = $1', [commentId]);
+    await query('UPDATE posts SET comment_count = GREATEST(0, comment_count - 1) WHERE id = $1', [postId]);
+    res.json({ ok: true });
+  } catch (err) {
     res.status(500).json({ error: 'server_error' });
   }
 });

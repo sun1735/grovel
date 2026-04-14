@@ -174,9 +174,10 @@
               <span>댓글 <span id="post-comment-count">…</span></span>
             </div>
           </div>
-          <button class="text-xs text-black/40 hover:text-rose-500 flex items-center gap-1">
-            <i data-lucide="flag" class="w-3.5 h-3.5"></i> 신고
-          </button>
+          <div id="post-actions" class="hidden flex items-center gap-1">
+            <button id="post-edit-btn" class="text-xs text-black/50 hover:text-brand-500 px-2 py-1 rounded hover:bg-brand-50">수정</button>
+            <button id="post-delete-btn" class="text-xs text-black/50 hover:text-rose-500 px-2 py-1 rounded hover:bg-rose-50">삭제</button>
+          </div>
         </div>
       </div>
 
@@ -189,6 +190,15 @@
         <div id="post-meta-grid" class="grid sm:grid-cols-2 gap-3 text-[13px]"></div>
       </div>
 
+      <!-- 수정 모드 (숨김) -->
+      <div id="post-edit-form" class="hidden px-6 md:px-8 py-6">
+        <input type="text" id="edit-title" class="w-full h-12 px-3.5 rounded-lg border border-black/10 text-lg font-bold mb-3" />
+        <textarea id="edit-body" rows="12" class="w-full px-3.5 py-3 rounded-lg border border-black/10 text-[15px] leading-relaxed resize-y"></textarea>
+        <div class="flex justify-end gap-2 mt-3">
+          <button id="edit-cancel" class="px-4 py-2 rounded-lg bg-paper hover:bg-black/5 text-sm font-bold">취소</button>
+          <button id="edit-save" class="px-4 py-2 rounded-lg bg-brand-500 hover:bg-brand-600 text-white text-sm font-bold">저장</button>
+        </div>
+      </div>
       <div class="px-6 md:px-8 py-8 post-body" id="post-body">
         <div class="skeleton h-4 w-full mb-3"></div>
         <div class="skeleton h-4 w-11/12 mb-3"></div>
@@ -309,6 +319,8 @@
 
   // ───── 게시글 로드 ─────
   const postId = new URLSearchParams(location.search).get('id');
+  let currentUserId = null;
+  let currentUserRole = null;
   if (!postId) {
     document.body.innerHTML = '<div class="container-x py-32 text-center"><p class="text-lg">잘못된 접근입니다.</p><a href="/" class="mt-4 inline-block text-brand-500 underline">목록으로</a></div>';
     throw new Error('no id');
@@ -386,6 +398,47 @@
 
       // 좋아요 상태 확인 + 버튼 동작
       loadLikeState();
+
+      // 수정/삭제 버튼 (작성자 본인 또는 admin)
+      if (currentUserId && (parseInt(post.user_id) === currentUserId || currentUserRole === 'admin')) {
+        $('#post-actions').classList.remove('hidden');
+        $('#post-actions').classList.add('flex');
+
+        // 삭제
+        $('#post-delete-btn').addEventListener('click', async () => {
+          if (!confirm('이 글을 삭제하시겠습니까? 복구할 수 없습니다.')) return;
+          const r = await fetch(`/api/posts/${postId}`, { method:'DELETE', credentials:'same-origin' });
+          if (r.ok) { alert('삭제되었습니다.'); location.href = '/'; }
+          else { const j = await r.json(); alert(j.message || '삭제 실패'); }
+        });
+
+        // 수정
+        $('#post-edit-btn').addEventListener('click', () => {
+          $('#edit-title').value = post.title;
+          $('#edit-body').value = post.body;
+          $('#post-edit-form').classList.remove('hidden');
+          $('#post-body').classList.add('hidden');
+          // 이미지/메타카드도 숨기기
+          document.querySelector('#post-body + div')?.classList.add('hidden');
+        });
+        $('#edit-cancel').addEventListener('click', () => {
+          $('#post-edit-form').classList.add('hidden');
+          $('#post-body').classList.remove('hidden');
+        });
+        $('#edit-save').addEventListener('click', async () => {
+          const newTitle = $('#edit-title').value.trim();
+          const newBody = $('#edit-body').value.trim();
+          if (newTitle.length < 4 || newBody.length < 5) { alert('제목 4자, 본문 5자 이상 필요합니다.'); return; }
+          const r = await fetch(`/api/posts/${postId}`, {
+            method:'PUT',
+            headers:{'Content-Type':'application/json'},
+            credentials:'same-origin',
+            body: JSON.stringify({ title: newTitle, body: newBody }),
+          });
+          if (r.ok) location.reload();
+          else { const j = await r.json(); alert(j.message || '수정 실패'); }
+        });
+      }
     } catch (err) {
       $('#post-body').innerHTML = '<div class="text-center text-rose-500 py-8">게시글을 불러올 수 없습니다.</div>';
       console.error(err);
@@ -458,6 +511,10 @@
                 <i data-lucide="heart" class="w-3 h-3"></i> <span>${c.like_count || 0}</span>
               </button>
               <button class="reply-btn hover:text-brand-500" data-cid="${c.id}" data-nick="${escapeHtml(c.author_nickname)}">답글</button>
+              ${c.user_id && currentUserId && (parseInt(c.user_id) === currentUserId || currentUserRole === 'admin') ? `
+                <button class="cmt-edit-btn hover:text-brand-500" data-cid="${c.id}">수정</button>
+                <button class="cmt-del-btn hover:text-rose-500" data-cid="${c.id}">삭제</button>
+              ` : ''}
             </div>
             <!-- 답글 입력 (숨김) -->
             <div class="reply-form hidden mt-3" id="reply-form-${c.id}">
@@ -497,6 +554,49 @@
           form.classList.toggle('hidden');
           if (!form.classList.contains('hidden')) form.querySelector('input')?.focus();
         }
+      });
+    });
+
+    // 댓글 수정
+    list.querySelectorAll('.cmt-edit-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const cid = btn.dataset.cid;
+        const bodyEl = btn.closest('.flex-1').querySelector('.whitespace-pre-wrap');
+        if (!bodyEl) return;
+        const original = bodyEl.textContent;
+        bodyEl.innerHTML = `
+          <textarea class="cmt-edit-ta w-full px-2 py-1.5 rounded border border-black/15 text-[13px] resize-y" rows="3">${escapeHtml(original)}</textarea>
+          <div class="flex gap-1.5 mt-1.5">
+            <button class="cmt-edit-save px-3 py-1 bg-brand-500 text-white rounded text-[11px] font-bold" data-cid="${cid}">저장</button>
+            <button class="cmt-edit-cancel px-3 py-1 bg-paper rounded text-[11px] font-bold">취소</button>
+          </div>`;
+        bodyEl.querySelector('.cmt-edit-cancel').addEventListener('click', () => {
+          bodyEl.textContent = original;
+        });
+        bodyEl.querySelector('.cmt-edit-save').addEventListener('click', async () => {
+          const newBody = bodyEl.querySelector('.cmt-edit-ta').value.trim();
+          if (newBody.length < 2) return;
+          const r = await fetch(`/api/posts/${postId}/comments/${cid}`, {
+            method:'PUT',
+            headers:{'Content-Type':'application/json'},
+            credentials:'same-origin',
+            body: JSON.stringify({ body: newBody }),
+          });
+          if (r.ok) loadPost();
+          else alert('수정 실패');
+        });
+      });
+    });
+
+    // 댓글 삭제
+    list.querySelectorAll('.cmt-del-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        if (!confirm('이 댓글을 삭제하시겠습니까?')) return;
+        const r = await fetch(`/api/posts/${postId}/comments/${btn.dataset.cid}`, {
+          method:'DELETE', credentials:'same-origin',
+        });
+        if (r.ok) loadPost();
+        else alert('삭제 실패');
       });
     });
 
@@ -549,7 +649,11 @@
     try {
       const r = await fetch('/api/auth/me', { credentials:'same-origin' });
       const { user } = await r.json();
-      if (user) renderLoggedIn(user); else renderAnon();
+      if (user) {
+        currentUserId = parseInt(user.id);
+        currentUserRole = user.role;
+        renderLoggedIn(user);
+      } else { renderAnon(); }
     } catch { renderAnon(); }
   }
 
