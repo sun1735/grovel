@@ -23,6 +23,16 @@ const EMAIL_RE    = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const NICK_RE     = /^[가-힣a-zA-Z0-9_]{2,20}$/;
 const PWD_MIN     = 8;
 
+// 마케톡 관련 닉네임 금지 (운영자 사칭 방지)
+const BLOCKED_NICKS = [
+  '마케톡', 'marketalk', 'marketok', '마켓톡', '관리자', '운영자', '운영팀',
+  'admin', 'administrator', 'moderator', 'mod', '그로벨', 'grovel',
+];
+function isBlockedNickname(nick) {
+  const lower = nick.toLowerCase().replace(/[\s_\-]/g, '');
+  return BLOCKED_NICKS.some(b => lower.includes(b.toLowerCase()));
+}
+
 // ─────────────────────────────────────────────
 // POST /api/auth/register
 // ─────────────────────────────────────────────
@@ -38,6 +48,9 @@ router.post('/register', async (req, res) => {
   }
   if (!NICK_RE.test(nickname)) {
     return res.status(400).json({ error: 'invalid_nickname', message: '닉네임은 한글/영문/숫자/_ 2-20자' });
+  }
+  if (isBlockedNickname(nickname)) {
+    return res.status(400).json({ error: 'blocked_nickname', message: '마케톡/관리자 관련 닉네임은 사용할 수 없습니다.' });
   }
   if (password.length < PWD_MIN) {
     return res.status(400).json({ error: 'weak_password', message: `비밀번호는 ${PWD_MIN}자 이상` });
@@ -250,6 +263,9 @@ router.put('/profile', requireAuth, async (req, res) => {
     if (nickname && nickname !== req.user.nickname) {
       if (!NICK_RE.test(nickname)) {
         return res.status(400).json({ error: 'invalid_nickname', message: '닉네임은 한글/영문/숫자/_ 2-20자' });
+      }
+      if (isBlockedNickname(nickname)) {
+        return res.status(400).json({ error: 'blocked_nickname', message: '마케톡/관리자 관련 닉네임은 사용할 수 없습니다.' });
       }
       const { rows: dup } = await query('SELECT id FROM users WHERE nickname = $1 AND id != $2', [nickname, req.user.id]);
       if (dup.length > 0) return res.status(409).json({ error: 'duplicate_nickname', message: '이미 사용 중인 닉네임입니다.' });
