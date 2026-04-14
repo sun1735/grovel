@@ -257,7 +257,10 @@ fetch('/api/seo-verify').then(r=>r.json()).then(d=>{
           <a href="/profile.html" class="flex items-center gap-2.5 hover:opacity-80">
           <div id="strip-avatar" class="av av-1" style="width:48px;height:48px;border-radius:14px;font-size:18px;">·</div>
           <div class="min-w-0 flex-1">
-            <div class="font-extrabold text-[15px] truncate" id="strip-nickname">…</div>
+            <div class="flex items-center gap-1.5">
+              <span class="font-extrabold text-[15px] truncate" id="strip-nickname">…</span>
+              <i data-lucide="settings" class="w-3.5 h-3.5 text-black/30 hover:text-black/60"></i>
+            </div>
             <div class="text-[11px] text-black/45" id="strip-role">멤버</div>
           </div>
         </a>
