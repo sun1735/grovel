@@ -210,10 +210,25 @@ function buildSystemPrompt(persona, ctx) {
     null,  // 기본 (페르소나 그대로)
     null,  // 기본
     null,  // 기본 (50% 확률로 전문가 그대로)
-    '이번 글은 마케팅 3개월차 신입이 쓴 것처럼 작성하세요. 용어를 잘 모르고, 기초적인 질문이나 실수담을 쓸 수 있습니다. 전문가 톤을 버리세요.',
-    '이번 글은 1인 사업자(식당/카페/쇼핑몰 사장님)가 쓴 것처럼 작성하세요. 마케팅 용어를 잘 모르고 "이거 어떻게 하는 거예요" 식으로 질문합니다.',
-    '이번 글은 마케팅과 무관한 일반 직장인이 쓴 것처럼 작성하세요. 잡담, 일상, 직장 푸념 등 가벼운 내용.',
-    '이번 글은 프리랜서가 쓴 것처럼 작성하세요. 외주 경험, 클라이언트 고충, 수입 고민 등.',
+    `이번 글은 마케팅 3개월차 신입이 쓴 것처럼 작성하세요.
+     - ROAS, CPA, CTR, CPM, LTV, CAC 같은 전문 약어는 절대 쓰지 마세요
+     - "이거 맞는 건지 모르겠는데", "선배님들 도와주세요" 같은 초보 톤
+     - 기초적인 질문이나 실수담, 용어를 틀리게 쓰는 것도 자연스러움`,
+
+    `이번 글은 1인 사업자(식당/카페/쇼핑몰 사장님)가 쓴 것처럼 작성하세요.
+     - 마케팅 전문 용어(ROAS, CPA, CTR, 퍼널, 리타겟팅, 어트리뷰션 등) 절대 사용 X
+     - "매출이 안 나와서", "손님이 안 와서", "광고를 해야 하는데 뭘 해야 할지" 같은 사장님 언어
+     - "이거 어떻게 하는 거예요" "효과 있나요" 같은 단순한 질문 톤`,
+
+    `이번 글은 마케팅과 무관한 일반 직장인이 쓴 것처럼 작성하세요.
+     - 마케팅 전문 용어 일절 사용 금지. ROAS, CPA, CTR, SEO 같은 약어도 X
+     - 일상 한국어로만 작성: 잡담, 일상, 직장 푸념, 추천 요청, 가벼운 고민
+     - "회사에서", "퇴근하고", "주말에", "요즘" 같은 일상 단어 위주
+     - 페르소나의 전문가 말투를 완전히 버리세요. 그냥 평범한 사람이에요.`,
+
+    `이번 글은 프리랜서가 쓴 것처럼 작성하세요.
+     - 외주 경험, 클라이언트 고충, 수입 고민, 시간 관리 등
+     - 전문 마케팅 용어는 최소한으로. 있어도 "광고", "SNS 관리" 수준까지만`,
   ];
 
   const pickedWriterType = isPost ? WRITER_TYPES[Math.floor(Math.random() * WRITER_TYPES.length)] : null;
@@ -229,7 +244,17 @@ function buildSystemPrompt(persona, ctx) {
     '보완 — 원글에 빠진 정보를 추가',
     '딴소리 — 글 읽다가 떠오른 다른 주제로 빠지기',
   ];
+
+  // 댓글도 30% 확률로 일반인 톤 오버라이드
+  const COMMENT_WRITER_OVERRIDES = [
+    null, null, null, null, null, null, null,  // 70% 기본
+    '일반인 톤: 마케팅 전문 용어(ROAS, CPA, CTR, CPM, 퍼널, 리타겟팅 등) 절대 X. 일상 한국어로만. "나도 그래", "맞아 진짜", "그거 어떻게 하는 건데?" 같은 평범한 말투.',
+    '신입 톤: 전문 용어를 잘 모르는 초보. "이게 뭔 뜻이에요?", "저도 처음인데..." 같은 톤.',
+    '사장님 톤: 마케팅 용어 없이 "매출", "손님", "홍보" 같은 단순한 단어만. "우리 가게도 이거 해볼까" 수준.',
+  ];
+
   const pickedStyle = isComment ? COMMENT_STYLES[Math.floor(Math.random() * COMMENT_STYLES.length)] : null;
+  const pickedCommentWriter = isComment ? COMMENT_WRITER_OVERRIDES[Math.floor(Math.random() * COMMENT_WRITER_OVERRIDES.length)] : null;
 
   const forbiddenList = [
     ...persona.forbidden,
@@ -300,6 +325,12 @@ function buildSystemPrompt(persona, ctx) {
       `# 이번 댓글 스타일 (반드시 따르세요)`,
       `이번 댓글은 이 스타일로 작성하세요: **${pickedStyle}**`,
       `스타일에 따라 아주 짧을 수도 있고(5자), 보통 길이(100자)일 수도 있습니다. 이 스타일 밖으로 벗어나지 마세요.`,
+      ...(pickedCommentWriter ? [
+        ``,
+        `# 작성자 톤 오버라이드 (이번 댓글만)`,
+        `${pickedCommentWriter}`,
+        `페르소나의 전문가 말투를 버리고, 위 톤으로 작성하세요.`,
+      ] : []),
     ] : []),
   ].join('\n');
 
