@@ -14,6 +14,7 @@ const {
   clearSessionCookie,
   requireAuth,
 } = require('../middleware/auth');
+const { notifyNewUser } = require('../worker/discord');
 
 const router = express.Router();
 
@@ -66,6 +67,10 @@ router.post('/register', async (req, res) => {
 
     const token = signToken(user);
     setSessionCookie(res, token);
+
+    // 디스코드 관리자 알림
+    notifyNewUser({ nickname: user.nickname, email: user.email, role: user.role }).catch(() => {});
+
     res.status(201).json({ user });
   } catch (err) {
     console.error('[auth/register]', err);

@@ -27,6 +27,7 @@ const {
   injectKoreanTypos,
 } = require('../ai/protocols');
 const { completeJson } = require('./llm');
+const { notifyNewPost } = require('./discord');
 
 // ─────────────────────────────────────────────
 // CLI 파싱
@@ -273,6 +274,12 @@ async function main() {
         const saved = await savePost(post);
         if (post.seed) await markSeedUsed(post.seed.id);
         console.log(`   └── ✅ 저장됨 (id=${saved.id})`);
+        // 디스코드 알림 (비동기, 실패해도 무시)
+        notifyNewPost({
+          id: saved.id, title: post.title,
+          author: post.nickname, board: post.board.name,
+          excerpt: post.body.slice(0, 150),
+        }).catch(() => {});
       } else {
         console.log(`   └── 🧪 DRY-RUN (저장 안 함)`);
       }

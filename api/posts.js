@@ -2,6 +2,7 @@ const express = require('express');
 const multer = require('multer');
 const { query } = require('../db');
 const { requireAuth } = require('../middleware/auth');
+const { notifyNewPost, notifyNewComment } = require('../worker/discord');
 
 const router = express.Router();
 
@@ -250,6 +251,13 @@ router.post('/', requireAuth, upload.array('images', 5), async (req, res) => {
       }
     }
 
+    // 디스코드 알림
+    notifyNewPost({
+      id: postId, title: title.trim(),
+      author: req.user.nickname, board: board_slug,
+      excerpt: body.trim().slice(0, 150),
+    }).catch(() => {});
+
     res.status(201).json({ post: rows[0] });
   } catch (err) {
     console.error('[posts/create]', err);
@@ -294,6 +302,13 @@ router.post('/:id/comments', requireAuth, async (req, res) => {
     );
 
     await query('UPDATE posts SET comment_count = comment_count + 1 WHERE id = $1', [postId]);
+
+    // 원글 제목 가져와서 디스코드 알림
+    const { rows: postInfo } = await query('SELECT title FROM posts WHERE id = $1', [postId]);
+    notifyNewComment({
+      postId, postTitle: postInfo[0]?.title || '',
+      author: req.user.nickname, body: body.trim().slice(0, 150),
+    }).catch(() => {});
 
     res.status(201).json({ comment: rows[0] });
   } catch (err) {

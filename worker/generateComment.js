@@ -27,6 +27,7 @@ const {
 } = require('../ai/protocols');
 const { completeJson, complete } = require('./llm');
 const { recall, formatMemoriesForPrompt, extractAndSave } = require('./memory');
+const { notifyNewComment } = require('./discord');
 
 function parseArgs() {
   const args = process.argv.slice(2);
@@ -243,6 +244,11 @@ async function main() {
       if (!args.dryRun) {
         const saved = await saveComment(cmt);
         console.log(`     ✅ 저장 (id=${saved.id})`);
+        // 디스코드 알림
+        notifyNewComment({
+          postId: cmt.post.id, postTitle: cmt.post.title,
+          author: cmt.nickname, body: cmt.body.slice(0, 150),
+        }).catch(() => {});
 
         // 메모리 추출 (50% 확률 — 모든 댓글에서 추출하면 비용 큼)
         if (Math.random() < 0.5) {
