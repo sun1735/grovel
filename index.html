@@ -397,14 +397,12 @@ fetch('/api/seo-verify').then(r=>r.json()).then(d=>{
   <!-- RIGHT SIDEBAR -->
   <aside class="space-y-5">
 
-    <div class="ad-slot h-[150px]" data-ad-slot="side1">SIDEBAR AD</div>
-
-    <div class="card overflow-hidden">
-      <div class="flex items-center justify-between px-4 py-3 border-b border-black/5">
+    <div class="card overflow-hidden border-brand-500/20" style="border-left:3px solid #ff3e5f">
+      <div class="flex items-center justify-between px-4 py-3 bg-brand-50/50 border-b border-brand-100/50">
         <div class="flex items-center gap-2">
           <i data-lucide="newspaper" class="w-4 h-4 text-brand-500"></i>
-          <h2 class="font-bold text-[14px]">마케팅 뉴스</h2>
-          <span class="text-[10px] text-black/35">AI 분석</span>
+          <h2 class="font-extrabold text-[14px]">마케팅 뉴스</h2>
+          <span class="text-[10px] text-brand-500 font-bold">AI 분석</span>
         </div>
       </div>
       <div id="news-list" class="divide-y divide-black/5">
@@ -413,6 +411,8 @@ fetch('/api/seo-verify').then(r=>r.json()).then(d=>{
         <div class="px-4 py-2.5"><div class="skeleton h-3 w-4/5"></div></div>
       </div>
     </div>
+
+    <div class="ad-slot h-[150px]" data-ad-slot="side1">SIDEBAR AD</div>
 
     <div class="card p-5">
       <div class="text-sm font-bold mb-4 flex items-center gap-2">
