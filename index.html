@@ -337,22 +337,6 @@ fetch('/api/seo-verify').then(r=>r.json()).then(d=>{
     <!-- INLINE BANNER AD -->
     <div class="ad-slot h-[110px]" data-ad-slot="inline">1200 × 110  ·  INLINE BANNER AD</div>
 
-    <!-- 마케팅 뉴스 브리핑 -->
-    <div class="card overflow-hidden">
-      <div class="flex items-center justify-between px-5 py-3 border-b border-black/5">
-        <div class="flex items-center gap-2">
-          <i data-lucide="newspaper" class="w-4 h-4 text-brand-500"></i>
-          <h2 class="font-extrabold text-[15px]">마케팅 뉴스 브리핑</h2>
-          <span class="text-[11px] text-black/40">AI 분석</span>
-        </div>
-        <a href="#" data-board-link="news" class="text-xs text-black/50 hover:text-black">더보기 →</a>
-      </div>
-      <div id="news-list" class="divide-y divide-black/5">
-        <div class="px-5 py-3"><div class="skeleton h-4 w-3/4"></div></div>
-        <div class="px-5 py-3"><div class="skeleton h-4 w-2/3"></div></div>
-      </div>
-    </div>
-
     <!-- 주간 베스트 + 최근 댓글 (2열) -->
     <div class="grid md:grid-cols-2 gap-5">
       <!-- 주간 베스트 -->
@@ -412,16 +396,18 @@ fetch('/api/seo-verify').then(r=>r.json()).then(d=>{
 
     <div class="ad-slot h-[260px]" data-ad-slot="side1">300 × 260  ·  SIDEBAR AD</div>
 
-    <div class="card p-5">
-      <div class="text-sm font-bold mb-4 flex items-center gap-2">
-        <i data-lucide="bar-chart-3" class="w-4 h-4 text-black/60"></i>
-        커뮤니티 현황
+    <div class="card overflow-hidden">
+      <div class="flex items-center justify-between px-4 py-3 border-b border-black/5">
+        <div class="flex items-center gap-2">
+          <i data-lucide="newspaper" class="w-4 h-4 text-brand-500"></i>
+          <h2 class="font-bold text-[14px]">마케팅 뉴스</h2>
+          <span class="text-[10px] text-black/35">AI 분석</span>
+        </div>
       </div>
-      <div class="grid grid-cols-2 gap-3 text-sm">
-        <div class="rounded-lg bg-paper p-3"><div class="text-[11px] text-black/50">총 회원</div><div class="font-extrabold text-lg" id="stat-members">…</div></div>
-        <div class="rounded-lg bg-paper p-3"><div class="text-[11px] text-black/50">총 게시글</div><div class="font-extrabold text-lg" id="stat-total-posts">…</div></div>
-        <div class="rounded-lg bg-paper p-3"><div class="text-[11px] text-black/50">총 댓글</div><div class="font-extrabold text-lg" id="stat-total-comments">…</div></div>
-        <div class="rounded-lg bg-paper p-3"><div class="text-[11px] text-black/50">접속 중</div><div class="font-extrabold text-lg text-emerald-600" id="stat-online-2">…</div></div>
+      <div id="news-list" class="divide-y divide-black/5">
+        <div class="px-4 py-2.5"><div class="skeleton h-3 w-3/4"></div></div>
+        <div class="px-4 py-2.5"><div class="skeleton h-3 w-2/3"></div></div>
+        <div class="px-4 py-2.5"><div class="skeleton h-3 w-4/5"></div></div>
       </div>
     </div>
 
@@ -968,17 +954,16 @@ fetch('/api/seo-verify').then(r=>r.json()).then(d=>{
   // ============== NEWS / WEEKLY / RECENT COMMENTS ==============
   async function loadNews() {
     try {
-      const { posts } = await fetchJson('/api/posts/news?limit=4');
+      const { posts } = await fetchJson('/api/posts/news?limit=5');
       const list = $('#news-list');
       if (!posts || posts.length === 0) {
-        list.innerHTML = '<div class="px-5 py-6 text-center text-sm text-black/40">아직 뉴스가 없습니다. AI가 곧 분석 리포트를 올립니다.</div>';
+        list.innerHTML = '<div class="px-4 py-5 text-center text-[12px] text-black/40">AI가 곧 뉴스 브리핑을 올립니다</div>';
         return;
       }
       list.innerHTML = posts.map(p => `
-        <a href="/post.html?id=${p.id}" class="row-hover flex items-center gap-3 px-5 py-3 text-sm">
-          ${p.platform && p.platform !== 'none' ? `<span class="text-[10px] font-bold text-brand-500 bg-brand-50 px-1.5 py-0.5 rounded">${escapeHtml(p.platform)}</span>` : ''}
-          <span class="flex-1 truncate font-semibold">${escapeHtml(p.title)}</span>
-          <span class="text-[11px] text-black/40">${timeAgo(p.published_at)}</span>
+        <a href="/post.html?id=${p.id}" class="row-hover block px-4 py-2.5">
+          <div class="text-[13px] font-semibold leading-snug line-clamp-1">${escapeHtml(p.title)}</div>
+          <div class="text-[11px] text-black/40 mt-0.5">${timeAgo(p.published_at)}</div>
         </a>
       `).join('');
     } catch {}
