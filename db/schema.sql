@@ -206,6 +206,17 @@ CREATE TABLE IF NOT EXISTS post_images (
 );
 CREATE INDEX IF NOT EXISTS idx_post_images_post ON post_images(post_id, sort_order);
 
+-- ── password_resets: 비밀번호 재설정 토큰 ────────
+CREATE TABLE IF NOT EXISTS password_resets (
+  id          BIGSERIAL PRIMARY KEY,
+  user_id     BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  token       VARCHAR(128) UNIQUE NOT NULL,
+  expires_at  TIMESTAMPTZ NOT NULL,
+  used        BOOLEAN DEFAULT FALSE,
+  created_at  TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_pw_reset_token ON password_resets(token) WHERE used = FALSE;
+
 -- ── likes: 좋아요 (게시글 + 댓글 겸용) ──────────
 -- 유저당 한 번만. target_type + target_id로 다형성.
 CREATE TABLE IF NOT EXISTS likes (

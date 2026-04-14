@@ -6,6 +6,7 @@
  * - 세션: JWT httpOnly cookie 30일
  */
 const express = require('express');
+const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const { query } = require('../db');
 const {
@@ -14,7 +15,7 @@ const {
   clearSessionCookie,
   requireAuth,
 } = require('../middleware/auth');
-const { notifyNewUser } = require('../worker/discord');
+const { notifyNewUser, notifyError } = require('../worker/discord');
 
 const router = express.Router();
 
@@ -125,6 +126,114 @@ router.post('/logout', (req, res) => {
 router.get('/me', (req, res) => {
   if (!req.user) return res.json({ user: null });
   res.json({ user: req.user });
+});
+
+// ─────────────────────────────────────────────
+// POST /api/auth/find-email — 아이디(이메일) 찾기
+// 닉네임으로 마스킹된 이메일 반환
+// ─────────────────────────────────────────────
+router.post('/find-email', async (req, res) => {
+  const { nickname } = req.body || {};
+  if (!nickname) return res.status(400).json({ error: 'missing_nickname' });
+
+  try {
+    const { rows } = await query(
+      'SELECT email FROM users WHERE nickname = $1 AND is_active = TRUE',
+      [nickname]
+    );
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'not_found', message: '해당 닉네임의 계정을 찾을 수 없습니다.' });
+    }
+    // 이메일 마스킹: sun1735@naver.com → s***35@naver.com
+    const email = rows[0].email;
+    const [local, domain] = email.split('@');
+    const masked = local.length <= 3
+      ? local[0] + '***'
+      : local[0] + '***' + local.slice(-2);
+    res.json({ masked_email: masked + '@' + domain });
+  } catch (err) {
+    res.status(500).json({ error: 'server_error' });
+  }
+});
+
+// ─────────────────────────────────────────────
+// POST /api/auth/forgot-password — 비밀번호 재설정 요청
+// 이메일 입력 → 토큰 생성 → Discord 관리자 알림 (이메일 미설정 시)
+// ─────────────────────────────────────────────
+router.post('/forgot-password', async (req, res) => {
+  const { email } = req.body || {};
+  if (!email) return res.status(400).json({ error: 'missing_email' });
+
+  try {
+    const { rows } = await query(
+      'SELECT id, nickname FROM users WHERE email = $1 AND is_active = TRUE',
+      [email.toLowerCase()]
+    );
+    // 보안: 계정이 없어도 같은 응답 (이메일 존재 여부 노출 방지)
+    if (rows.length === 0) {
+      return res.json({ ok: true, message: '해당 이메일로 재설정 안내가 발송되었습니다.' });
+    }
+
+    const user = rows[0];
+    const token = crypto.randomBytes(48).toString('hex');
+    const expiresAt = new Date(Date.now() + 30 * 60 * 1000); // 30분
+
+    // 기존 미사용 토큰 무효화
+    await query(
+      'UPDATE password_resets SET used = TRUE WHERE user_id = $1 AND used = FALSE',
+      [user.id]
+    );
+    // 새 토큰 저장
+    await query(
+      'INSERT INTO password_resets (user_id, token, expires_at) VALUES ($1, $2, $3)',
+      [user.id, token, expiresAt]
+    );
+
+    const resetUrl = `https://www.grovel.kr/reset-password.html?token=${token}`;
+
+    // Discord 관리자 알림으로 전송 (이메일 대체)
+    notifyError({
+      title: '🔑 비밀번호 재설정 요청',
+      message: `닉네임: ${user.nickname}\n이메일: ${email}\n\n재설정 링크 (30분 유효):\n${resetUrl}\n\n이 링크를 해당 회원에게 전달하세요.`,
+    }).catch(() => {});
+
+    console.log('[auth] password reset requested for:', email, '→', resetUrl);
+
+    res.json({ ok: true, message: '재설정 안내가 발송되었습니다. 관리자가 확인 후 안내드립니다.' });
+  } catch (err) {
+    console.error('[auth/forgot-password]', err);
+    res.status(500).json({ error: 'server_error' });
+  }
+});
+
+// ─────────────────────────────────────────────
+// POST /api/auth/reset-password — 비밀번호 재설정 실행
+// 토큰 + 새 비밀번호
+// ─────────────────────────────────────────────
+router.post('/reset-password', async (req, res) => {
+  const { token, new_password } = req.body || {};
+  if (!token || !new_password) return res.status(400).json({ error: 'missing_fields' });
+  if (new_password.length < PWD_MIN) return res.status(400).json({ error: 'weak_password', message: `비밀번호는 ${PWD_MIN}자 이상` });
+
+  try {
+    const { rows } = await query(
+      `SELECT pr.id, pr.user_id FROM password_resets pr
+       WHERE pr.token = $1 AND pr.used = FALSE AND pr.expires_at > NOW()`,
+      [token]
+    );
+    if (rows.length === 0) {
+      return res.status(400).json({ error: 'invalid_token', message: '유효하지 않거나 만료된 링크입니다. 다시 요청해 주세요.' });
+    }
+
+    const hash = await bcrypt.hash(new_password, 12);
+    await query('UPDATE users SET password_hash = $2 WHERE id = $1', [rows[0].user_id, hash]);
+    await query('UPDATE password_resets SET used = TRUE WHERE id = $1', [rows[0].id]);
+
+    res.json({ ok: true, message: '비밀번호가 변경되었습니다. 새 비밀번호로 로그인하세요.' });
+  } catch (err) {
+    console.error('[auth/reset-password]', err);
+    res.status(500).json({ error: 'server_error' });
+  }
 });
 
 // ─────────────────────────────────────────────
