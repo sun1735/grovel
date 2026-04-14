@@ -142,6 +142,96 @@ router.get('/me', (req, res) => {
 });
 
 // ─────────────────────────────────────────────
+// 카카오 로그인
+// ─────────────────────────────────────────────
+const KAKAO_REST_KEY = process.env.KAKAO_REST_API_KEY;
+const KAKAO_REDIRECT = 'https://www.grovel.kr/api/auth/kakao/callback';
+
+// GET /api/auth/kakao — 카카오 OAuth 페이지로 리다이렉트
+router.get('/kakao', (req, res) => {
+  if (!KAKAO_REST_KEY) return res.status(500).json({ error: 'kakao_not_configured' });
+  const url = `https://kauth.kakao.com/oauth/authorize?client_id=${KAKAO_REST_KEY}&redirect_uri=${encodeURIComponent(KAKAO_REDIRECT)}&response_type=code`;
+  res.redirect(url);
+});
+
+// GET /api/auth/kakao/callback — 카카오에서 돌아온 후 처리
+router.get('/kakao/callback', async (req, res) => {
+  const { code } = req.query;
+  if (!code) return res.redirect('/login.html?error=kakao_failed');
+
+  try {
+    // 1. 인가 코드 → 액세스 토큰
+    const tokenRes = await fetch('https://kauth.kakao.com/oauth/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        grant_type: 'authorization_code',
+        client_id: KAKAO_REST_KEY,
+        redirect_uri: KAKAO_REDIRECT,
+        code,
+      }),
+    });
+    const tokenData = await tokenRes.json();
+    if (!tokenData.access_token) {
+      console.error('[kakao] token failed:', tokenData);
+      return res.redirect('/login.html?error=kakao_token');
+    }
+
+    // 2. 액세스 토큰 → 사용자 정보
+    const profileRes = await fetch('https://kapi.kakao.com/v2/user/me', {
+      headers: { Authorization: `Bearer ${tokenData.access_token}` },
+    });
+    const profile = await profileRes.json();
+
+    const kakaoId = String(profile.id);
+    const nickname = profile.kakao_account?.profile?.nickname || '카카오유저' + kakaoId.slice(-4);
+    const email = profile.kakao_account?.email || `kakao_${kakaoId}@kakao.local`;
+
+    // 3. 기존 회원 찾기 (이메일 기준)
+    let { rows } = await query(
+      'SELECT id, email, nickname, role FROM users WHERE email = $1',
+      [email.toLowerCase()]
+    );
+
+    if (rows.length === 0) {
+      // 신규 가입
+      const { rows: countRows } = await query('SELECT COUNT(*)::int AS c FROM users');
+      const role = countRows[0].c === 0 ? 'admin' : 'user';
+
+      // 닉네임 중복 체크 + 자동 번호 추가
+      let finalNick = nickname;
+      const { rows: nickDup } = await query('SELECT id FROM users WHERE nickname = $1', [finalNick]);
+      if (nickDup.length > 0) finalNick = nickname + '_' + kakaoId.slice(-4);
+
+      const randomPw = require('crypto').randomBytes(32).toString('hex');
+      const hash = await bcrypt.hash(randomPw, 12);
+
+      const insertResult = await query(
+        `INSERT INTO users (email, nickname, password_hash, role)
+         VALUES ($1, $2, $3, $4)
+         RETURNING id, email, nickname, role`,
+        [email.toLowerCase(), finalNick, hash, role]
+      );
+      rows = insertResult.rows;
+
+      // 디스코드 알림
+      notifyNewUser({ nickname: finalNick, email, role }).catch(() => {});
+    }
+
+    // 4. JWT 발급 + 쿠키 설정
+    const user = rows[0];
+    await query('UPDATE users SET last_login_at = NOW() WHERE id = $1', [user.id]);
+    const token = signToken(user);
+    setSessionCookie(res, token);
+
+    res.redirect('/');
+  } catch (err) {
+    console.error('[kakao] callback error:', err);
+    res.redirect('/login.html?error=kakao_error');
+  }
+});
+
+// ─────────────────────────────────────────────
 // POST /api/auth/find-email — 아이디(이메일) 찾기
 // 닉네임으로 마스킹된 이메일 반환
 // ─────────────────────────────────────────────
