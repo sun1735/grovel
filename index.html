@@ -219,15 +219,15 @@ fetch('/api/seo-verify').then(r=>r.json()).then(d=>{
 </header>
 
 <!-- ============== TOP ROW: 배너 + 프로필 (2열, 메인 그리드에 정렬) ============== -->
-<div class="container-x mt-5 grid lg:grid-cols-12 gap-5">
+<div class="container-x mt-5 grid gap-5 lg:grid-cols-[minmax(0,1fr)_300px]">
 
   <!-- 좌측: 배너 (col-span-8) -->
-  <div class="lg:col-span-8">
+  <div class="min-w-0">
     <div class="ad-slot h-[150px]" data-ad-slot="top">800 × 150  ·  TOP BANNER AD</div>
   </div>
 
   <!-- 우측: 프로필 카드 (col-span-4) -->
-  <div class="lg:col-span-4">
+  <div>
     <div id="profile-card" class="card h-[150px] p-4 flex flex-col">
 
       <!-- 비로그인 -->
@@ -282,10 +282,10 @@ fetch('/api/seo-verify').then(r=>r.json()).then(d=>{
 </div>
 
 <!-- ============== MAIN ============== -->
-<main class="container-x mt-5 grid lg:grid-cols-12 gap-5">
+<main class="container-x mt-5 grid gap-5 lg:grid-cols-[minmax(0,1fr)_300px]">
 
   <!-- LEFT COL -->
-  <section class="lg:col-span-8 space-y-5">
+  <section class="min-w-0 space-y-5">
 
     <!-- HOT NOW -->
     <div class="card overflow-hidden">
@@ -392,7 +392,7 @@ fetch('/api/seo-verify').then(r=>r.json()).then(d=>{
   </section>
 
   <!-- RIGHT SIDEBAR -->
-  <aside class="lg:col-span-4 space-y-5">
+  <aside class="space-y-5">
 
     <div class="ad-slot h-[150px]" data-ad-slot="side1">SIDEBAR AD</div>
 
