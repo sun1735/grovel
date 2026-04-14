@@ -46,6 +46,7 @@
   .b-qna   { background:#f3e8ff; color:#7e22ce; }
   .b-job   { background:#ffe4e6; color:#be123c; }
   .b-event { background:#ccfbf1; color:#0f766e; }
+  .b-news  { background:#fef3c7; color:#92400e; }
   .hot { color:#ed1f43; }
   .new-dot { display:inline-block; width:6px; height:6px; border-radius:9999px; background:#ed1f43; margin-left:4px; vertical-align:middle; }
   .pin { color:#f59e0b; }
@@ -299,21 +300,81 @@
     <!-- INLINE BANNER AD -->
     <div class="ad-slot h-[110px]" data-ad-slot="inline">1200 × 110  ·  INLINE BANNER AD</div>
 
-    <!-- CATEGORIES GRID -->
-    <div class="card p-5">
-      <div class="flex items-center justify-between mb-4">
-        <h2 class="font-extrabold text-[15px] flex items-center gap-2">
-          <i data-lucide="layout-grid" class="w-4 h-4 text-black/60"></i>
-          전체 게시판
-        </h2>
-        <span class="text-xs text-black/40" id="board-count-label">…</span>
+    <!-- 마케팅 뉴스 브리핑 -->
+    <div class="card overflow-hidden">
+      <div class="flex items-center justify-between px-5 py-3 border-b border-black/5">
+        <div class="flex items-center gap-2">
+          <i data-lucide="newspaper" class="w-4 h-4 text-brand-500"></i>
+          <h2 class="font-extrabold text-[15px]">마케팅 뉴스 브리핑</h2>
+          <span class="text-[11px] text-black/40">AI 분석</span>
+        </div>
+        <a href="#" data-board-link="news" class="text-xs text-black/50 hover:text-black">더보기 →</a>
       </div>
-      <div class="grid sm:grid-cols-2 gap-3" id="boards-grid">
-        <div class="skeleton h-16"></div>
-        <div class="skeleton h-16"></div>
-        <div class="skeleton h-16"></div>
-        <div class="skeleton h-16"></div>
+      <div id="news-list" class="divide-y divide-black/5">
+        <div class="px-5 py-3"><div class="skeleton h-4 w-3/4"></div></div>
+        <div class="px-5 py-3"><div class="skeleton h-4 w-2/3"></div></div>
       </div>
+    </div>
+
+    <!-- 주간 베스트 + 최근 댓글 (2열) -->
+    <div class="grid md:grid-cols-2 gap-5">
+      <!-- 주간 베스트 -->
+      <div class="card overflow-hidden">
+        <div class="flex items-center justify-between px-5 py-3 border-b border-black/5">
+          <div class="flex items-center gap-2">
+            <i data-lucide="trophy" class="w-4 h-4 text-amber-500"></i>
+            <h2 class="font-extrabold text-[15px]">주간 베스트</h2>
+          </div>
+        </div>
+        <ol id="weekly-best" class="divide-y divide-black/5">
+          <li class="px-5 py-2.5"><div class="skeleton h-4 w-3/4"></div></li>
+          <li class="px-5 py-2.5"><div class="skeleton h-4 w-2/3"></div></li>
+          <li class="px-5 py-2.5"><div class="skeleton h-4 w-4/5"></div></li>
+        </ol>
+      </div>
+
+      <!-- 최근 댓글 -->
+      <div class="card overflow-hidden">
+        <div class="flex items-center justify-between px-5 py-3 border-b border-black/5">
+          <div class="flex items-center gap-2">
+            <i data-lucide="message-circle" class="w-4 h-4 text-emerald-500"></i>
+            <h2 class="font-extrabold text-[15px]">최근 댓글</h2>
+          </div>
+        </div>
+        <div id="recent-comments" class="divide-y divide-black/5">
+          <div class="px-5 py-2.5"><div class="skeleton h-4 w-full"></div></div>
+          <div class="px-5 py-2.5"><div class="skeleton h-4 w-5/6"></div></div>
+          <div class="px-5 py-2.5"><div class="skeleton h-4 w-4/6"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 서비스 카드 3열 -->
+    <div class="grid md:grid-cols-3 gap-5">
+      <a href="/resources.html" class="card p-5 hover:border-brand-500/30 transition-colors group">
+        <div class="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center mb-3">
+          <i data-lucide="library" class="w-5 h-5 text-blue-600"></i>
+        </div>
+        <h3 class="font-extrabold">마케팅 자료실</h3>
+        <p class="text-[12px] text-black/55 mt-1">카피 템플릿, 체크리스트, 워크북 무료 다운로드</p>
+        <div class="text-[11px] text-brand-500 font-bold mt-3 group-hover:underline">바로가기 →</div>
+      </a>
+      <a href="/copy-generator.html" class="card p-5 hover:border-brand-500/30 transition-colors group">
+        <div class="w-10 h-10 rounded-xl bg-brand-50 flex items-center justify-center mb-3">
+          <i data-lucide="sparkles" class="w-5 h-5 text-brand-600"></i>
+        </div>
+        <h3 class="font-extrabold">AI 카피 생성기</h3>
+        <p class="text-[12px] text-black/55 mt-1">네이버·메타·카카오·구글 카피를 동시에 생성</p>
+        <div class="text-[11px] text-brand-500 font-bold mt-3 group-hover:underline">카피 만들기 →</div>
+      </a>
+      <a href="/agencies.html" class="card p-5 hover:border-brand-500/30 transition-colors group">
+        <div class="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center mb-3">
+          <i data-lucide="building-2" class="w-5 h-5 text-emerald-600"></i>
+        </div>
+        <h3 class="font-extrabold">광고대행사 디렉토리</h3>
+        <p class="text-[12px] text-black/55 mt-1">검증된 마케팅 대행사를 한곳에서 비교</p>
+        <div class="text-[11px] text-brand-500 font-bold mt-3 group-hover:underline">둘러보기 →</div>
+      </a>
     </div>
 
   </section>
@@ -524,47 +585,6 @@
         loadLatestPosts();
       });
 
-      // Categories grid
-      const grid = $('#boards-grid');
-      grid.innerHTML = '';
-      const icons = {
-        free: ['message-circle','indigo'],
-        ad:   ['megaphone','amber'],
-        seo:  ['search','emerald'],
-        sns:  ['instagram','pink'],
-        side: ['wallet','blue'],
-        tool: ['wrench','violet'],
-        qna:  ['help-circle','purple'],
-        job:  ['briefcase','rose'],
-        event:['gift','teal'],
-      };
-      for (const b of boards.filter(b => b.slug !== 'notice')) {
-        const [icon, color] = icons[b.slug] || ['hash','gray'];
-        const el = document.createElement('a');
-        el.href = '#';
-        el.dataset.board = b.slug;
-        el.className = 'row-hover flex items-center gap-3 p-3 rounded-lg border border-black/5';
-        el.innerHTML = `
-          <div class="w-10 h-10 rounded-lg bg-${color}-50 flex items-center justify-center">
-            <i data-lucide="${icon}" class="w-5 h-5 text-${color}-600"></i>
-          </div>
-          <div class="flex-1">
-            <div class="font-bold text-sm">${escapeHtml(b.name)}</div>
-            <div class="text-[11px] text-black/50">${escapeHtml(b.description || '')}</div>
-          </div>
-          <div class="text-[11px] text-black/40 text-right">
-            <div class="font-bold text-black/60">${fmt.format(b.post_count)}</div>
-            <div>글</div>
-          </div>`;
-        el.addEventListener('click', (e) => {
-          e.preventDefault();
-          const tab = document.querySelector(`.board-tab[data-board="${b.slug}"]`);
-          tab?.click();
-          window.scrollTo({ top: 0, behavior: 'smooth' });
-        });
-        grid.appendChild(el);
-      }
-      $('#board-count-label').textContent = `${boards.length}개 게시판 운영 중`;
       lucide.createIcons();
     } catch (e) { console.warn(e); }
   }
@@ -911,6 +931,64 @@
     }
   }
 
+  // ============== NEWS / WEEKLY / RECENT COMMENTS ==============
+  async function loadNews() {
+    try {
+      const { posts } = await fetchJson('/api/posts/news?limit=4');
+      const list = $('#news-list');
+      if (!posts || posts.length === 0) {
+        list.innerHTML = '<div class="px-5 py-6 text-center text-sm text-black/40">아직 뉴스가 없습니다. AI가 곧 분석 리포트를 올립니다.</div>';
+        return;
+      }
+      list.innerHTML = posts.map(p => `
+        <a href="/post.html?id=${p.id}" class="row-hover flex items-center gap-3 px-5 py-3 text-sm">
+          ${p.platform && p.platform !== 'none' ? `<span class="text-[10px] font-bold text-brand-500 bg-brand-50 px-1.5 py-0.5 rounded">${escapeHtml(p.platform)}</span>` : ''}
+          <span class="flex-1 truncate font-semibold">${escapeHtml(p.title)}</span>
+          <span class="text-[11px] text-black/40">${timeAgo(p.published_at)}</span>
+        </a>
+      `).join('');
+    } catch {}
+  }
+
+  async function loadWeeklyBest() {
+    try {
+      const { posts } = await fetchJson('/api/posts/weekly?limit=5');
+      const ol = $('#weekly-best');
+      if (!posts || posts.length === 0) {
+        ol.innerHTML = '<li class="px-5 py-4 text-sm text-black/40 text-center">이번 주 데이터 수집 중</li>';
+        return;
+      }
+      ol.innerHTML = posts.map((p, i) => `
+        <li class="row-hover px-5 py-2.5 flex items-center gap-3 text-sm">
+          <span class="w-5 text-center font-extrabold ${i < 3 ? 'text-amber-500' : 'text-black/40'}">${i + 1}</span>
+          <a href="/post.html?id=${p.id}" class="flex-1 truncate hover:underline">${escapeHtml(p.title)}</a>
+          <span class="text-[11px] text-black/40">❤${p.like_count || 0}</span>
+        </li>
+      `).join('');
+    } catch {}
+  }
+
+  async function loadRecentComments() {
+    try {
+      const { comments } = await fetchJson('/api/posts/recent-comments?limit=5');
+      const div = $('#recent-comments');
+      if (!comments || comments.length === 0) {
+        div.innerHTML = '<div class="px-5 py-4 text-sm text-black/40 text-center">아직 댓글이 없습니다</div>';
+        return;
+      }
+      div.innerHTML = comments.map(c => `
+        <a href="/post.html?id=${c.post_id}" class="row-hover block px-5 py-2.5 text-sm">
+          <div class="flex items-center gap-1.5 text-[11px] text-black/45">
+            <span class="font-semibold text-black/70">${escapeHtml(c.author_nickname)}</span>
+            <span>·</span>
+            <span>${timeAgo(c.created_at)}</span>
+          </div>
+          <div class="text-[13px] text-black/75 truncate mt-0.5">${escapeHtml(c.body?.slice(0, 60))}</div>
+        </a>
+      `).join('');
+    } catch {}
+  }
+
   // ============== TRENDING ==============
   async function loadTrending() {
     try {
@@ -944,6 +1022,9 @@
   loadBoards().then(() => loadLatestPosts());
   loadHotPosts();
   loadTrending();
+  loadNews();
+  loadWeeklyBest();
+  loadRecentComments();
   loadBanners();
 
   // 30초마다 통계 갱신 (살아있는 느낌)

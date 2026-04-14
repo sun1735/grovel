@@ -191,6 +191,7 @@ function buildSystemPrompt(persona, ctx) {
     { style: '보통 글 — 4-6문단. 경험이나 의견 공유.', weight: 15, short: false },
     { style: '정보 공유 — 알게 된 것을 정리해서 올리는 글. 중간 길이.', weight: 12, short: false },
     { style: '긴 후기/사례 — 직접 해본 것을 상세하게 쓰는 글. 구체적 수치 포함.', weight: 8, short: false },
+    { style: '뉴스 분석 브리핑 — 마케팅 업계 동향이나 플랫폼 변화를 분석하는 글. 서론(현상) → 분석(원인/영향) → 실무 대응법 구조. 객관적이고 리포트 톤.', weight: 5, short: false },
   ];
 
   function pickWeighted(pool) {

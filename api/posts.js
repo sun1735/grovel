@@ -61,6 +61,65 @@ router.get('/hot', async (req, res) => {
 });
 
 // ─────────────────────────────────────────────
+// GET /api/posts/weekly — 주간 베스트 Top N
+// ─────────────────────────────────────────────
+router.get('/weekly', async (req, res) => {
+  const limit = Math.min(parseInt(req.query.limit) || 5, 10);
+  try {
+    const { rows } = await query(`
+      SELECT p.id, p.title, p.comment_count, p.view_count, p.like_count, p.published_at,
+             b.slug AS board_slug, b.name AS board_name
+      FROM posts p JOIN boards b ON b.id = p.board_id
+      WHERE p.published_at > NOW() - INTERVAL '7 days' AND p.is_pinned = FALSE
+      ORDER BY (p.view_count + p.comment_count * 30 + p.like_count * 50) DESC
+      LIMIT $1
+    `, [limit]);
+    res.json({ posts: rows });
+  } catch (err) {
+    res.status(500).json({ error: 'failed' });
+  }
+});
+
+// ─────────────────────────────────────────────
+// GET /api/posts/recent-comments — 최근 댓글 (메인용)
+// ─────────────────────────────────────────────
+router.get('/recent-comments', async (req, res) => {
+  const limit = Math.min(parseInt(req.query.limit) || 5, 10);
+  try {
+    const { rows } = await query(`
+      SELECT c.id, c.body, c.author_nickname, c.created_at,
+             p.id AS post_id, p.title AS post_title
+      FROM comments c JOIN posts p ON p.id = c.post_id
+      ORDER BY c.created_at DESC
+      LIMIT $1
+    `, [limit]);
+    res.json({ comments: rows });
+  } catch (err) {
+    res.status(500).json({ error: 'failed' });
+  }
+});
+
+// ─────────────────────────────────────────────
+// GET /api/posts/news — 뉴스 브리핑 최신 N개
+// ─────────────────────────────────────────────
+router.get('/news', async (req, res) => {
+  const limit = Math.min(parseInt(req.query.limit) || 5, 10);
+  try {
+    const { rows } = await query(`
+      SELECT p.id, p.title, p.platform, p.published_at, p.view_count, p.comment_count,
+             SUBSTRING(p.body, 1, 120) AS excerpt
+      FROM posts p JOIN boards b ON b.id = p.board_id
+      WHERE b.slug = 'news'
+      ORDER BY p.published_at DESC
+      LIMIT $1
+    `, [limit]);
+    res.json({ posts: rows });
+  } catch (err) {
+    res.status(500).json({ error: 'failed' });
+  }
+});
+
+// ─────────────────────────────────────────────
 // GET /api/posts?board=ad&page=1&limit=20
 // 게시글 목록. 공지(is_pinned)는 항상 상단.
 // ─────────────────────────────────────────────

@@ -52,9 +52,9 @@ async function pickBoard(forceSlug) {
     if (!rows[0]) throw new Error(`존재하지 않는 보드: ${forceSlug}`);
     return rows[0];
   }
-  // 가중치: 마케팅 콘텐츠 중심, 자유게시판은 적당히
+  // 가중치: 마케팅 콘텐츠 중심
   const weights = {
-    free: 15, ad: 25, sns: 20, side: 14, qna: 12, seo: 10, tool: 8, job: 5, event: 1, notice: 0,
+    free: 14, ad: 24, sns: 18, side: 13, qna: 11, seo: 9, tool: 7, news: 6, job: 4, event: 1, notice: 0,
   };
   const { rows } = await query('SELECT id, slug, name FROM boards WHERE slug != $1', ['notice']);
   const pool = rows.map(b => ({ b, w: weights[b.slug] || 5 }));
