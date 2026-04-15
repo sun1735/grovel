@@ -233,9 +233,9 @@
 
     function addFiles(files) {
       for (const f of files) {
-        if (imageFiles.length >= MAX_IMAGES) { alert('이미지는 최대 ' + MAX_IMAGES + '장입니다.'); break; }
-        if (f.size > MAX_SIZE) { alert(f.name + ': 5MB를 초과합니다.'); continue; }
-        if (!/^image\/(jpeg|png|webp|gif)$/.test(f.type)) { alert(f.name + ': 지원하지 않는 형식입니다.'); continue; }
+        if (imageFiles.length >= MAX_IMAGES) { mtToast('이미지는 최대 ' + MAX_IMAGES + '장입니다.', 'warn'); break; }
+        if (f.size > MAX_SIZE) { mtToast(f.name + ': 5MB를 초과합니다.', 'error'); continue; }
+        if (!/^image\/(jpeg|png|webp|gif)$/.test(f.type)) { mtToast(f.name + ': 지원하지 않는 형식입니다.', 'error'); continue; }
         imageFiles.push(f);
       }
       renderPreviews();
@@ -315,5 +315,6 @@
 
   init();
 </script>
+<script src="/ui.js"></script>
 </body>
 </html>

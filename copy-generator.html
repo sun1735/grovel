@@ -208,7 +208,7 @@
       btn.classList.remove('active');
     } else {
       if (selectedPlats.size >= 4) {
-        alert('최대 4개 플랫폼까지 선택 가능합니다.');
+        mtToast('최대 4개 플랫폼까지 선택 가능합니다.', 'warn');
         return;
       }
       selectedPlats.add(p);
@@ -326,5 +326,6 @@
     $('#result-card').scrollIntoView({ behavior:'smooth', block:'start' });
   }
 </script>
+<script src="/ui.js"></script>
 </body>
 </html>
