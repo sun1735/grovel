@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 48" fill="none">
+  <!-- Symbol: 말풍선 + 상승 그래프 결합 -->
+  <g transform="translate(0, 4)">
+    <!-- 말풍선 외곽 -->
+    <rect x="2" y="2" width="36" height="28" rx="8" fill="#ff3e5f"/>
+    <!-- 말풍선 꼬리 -->
+    <polygon points="10,30 16,38 20,30" fill="#ff3e5f"/>
+    <!-- 상승 바 차트 (말풍선 안) -->
+    <rect x="9" y="18" width="5" height="8" rx="1" fill="rgba(255,255,255,0.5)"/>
+    <rect x="17" y="13" width="5" height="13" rx="1" fill="rgba(255,255,255,0.7)"/>
+    <rect x="25" y="7" width="5" height="19" rx="1" fill="white"/>
+  </g>
+  <!-- Wordmark: 마케톡 -->
+  <text x="48" y="34" font-family="'Pretendard Variable', 'Pretendard', system-ui, sans-serif" font-weight="900" font-size="30" fill="#15171c" letter-spacing="-0.5">마케톡</text>
+</svg>
