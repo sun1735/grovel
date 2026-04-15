@@ -145,6 +145,7 @@ router.get('/me', (req, res) => {
 // 카카오 로그인
 // ─────────────────────────────────────────────
 const KAKAO_REST_KEY = process.env.KAKAO_REST_API_KEY;
+const KAKAO_SECRET = process.env.KAKAO_CLIENT_SECRET;
 const KAKAO_REDIRECT = 'https://www.grovel.kr/api/auth/kakao/callback';
 
 // GET /api/auth/kakao — 카카오 OAuth 페이지로 리다이렉트
@@ -161,15 +162,18 @@ router.get('/kakao/callback', async (req, res) => {
 
   try {
     // 1. 인가 코드 → 액세스 토큰
+    const tokenParams = {
+      grant_type: 'authorization_code',
+      client_id: KAKAO_REST_KEY,
+      redirect_uri: KAKAO_REDIRECT,
+      code,
+    };
+    if (KAKAO_SECRET) tokenParams.client_secret = KAKAO_SECRET;
+
     const tokenRes = await fetch('https://kauth.kakao.com/oauth/token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        grant_type: 'authorization_code',
-        client_id: KAKAO_REST_KEY,
-        redirect_uri: KAKAO_REDIRECT,
-        code,
-      }),
+      body: new URLSearchParams(tokenParams),
     });
     const tokenData = await tokenRes.json();
     if (!tokenData.access_token) {
