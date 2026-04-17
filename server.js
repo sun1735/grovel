@@ -1,6 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const cookieParser = require('cookie-parser');
+const helmet = require('helmet');
 const path = require('path');
 
 const boardsApi = require('./api/boards');
@@ -17,6 +18,17 @@ const { attachUser } = require('./middleware/auth');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// Railway 리버스 프록시 뒤에서 req.secure·req.ip 정상 인식
+app.set('trust proxy', 1);
+
+// 보안 헤더 — HSTS, X-Frame-Options, X-Content-Type-Options, Referrer-Policy 등
+// CSP/COEP/CORP은 외부 CDN(tailwind/jsdelivr/unpkg/쿠팡파트너스) 호환성 문제로 비활성
+app.use(helmet({
+  contentSecurityPolicy: false,
+  crossOriginEmbedderPolicy: false,
+  crossOriginResourcePolicy: false,
+}));
 
 // 미들웨어
 app.use(express.json({ limit: '256kb' }));
