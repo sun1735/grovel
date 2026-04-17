@@ -30,6 +30,7 @@ const BOARDS = [
   { slug: 'qna',    name: '질문답변',   description: '막힐 땐 여기에', badge_class: 'b-qna', sort: 7 },
   { slug: 'job',    name: '구인/협업',  description: '함께할 사람', badge_class: 'b-job', sort: 8 },
   { slug: 'event',  name: '이벤트',     description: '이벤트/혜택', badge_class: 'b-event', sort: 9 },
+  { slug: 'news',   name: '뉴스/동향',  description: '마케팅 업계 뉴스 브리핑', badge_class: 'b-news', sort: 10 },
 ];
 
 async function seedBoards() {
