@@ -436,7 +436,8 @@
     `).join('');
     lucide.createIcons();
     $$('.del-post').forEach(b => b.addEventListener('click', async () => {
-      mtConfirm('이 글을 삭제하시겠습니까?',{title:'삭제',okText:'삭제',danger:true}).then(ok=>{if(!ok)return;
+      const ok = await mtConfirm('이 글을 삭제하시겠습니까?',{title:'삭제',okText:'삭제',danger:true});
+      if (!ok) return;
       await fetch('/api/admin/posts/' + b.dataset.id, { method:'DELETE', credentials:'same-origin' });
       loadPosts(); loadOverview();
     }));
@@ -564,7 +565,8 @@
         const id = btn.dataset.id;
         const act = btn.dataset.act;
         if (act === 'delete') {
-          mtConfirm('이 배너를 삭제하시겠습니까?',{title:'삭제',okText:'삭제',danger:true}).then(ok=>{if(!ok)return;
+          const ok = await mtConfirm('이 배너를 삭제하시겠습니까?',{title:'삭제',okText:'삭제',danger:true});
+          if (!ok) return;
           await fetch('/api/admin/banners/' + id, { method:'DELETE', credentials:'same-origin' });
         } else if (act === 'toggle') {
           const current = btn.dataset.active === 'true';
@@ -720,7 +722,8 @@
     `).join('');
 
     document.querySelectorAll('.ag-del').forEach(b => b.addEventListener('click', async () => {
-      mtConfirm('이 대행사를 삭제하시겠습니까?',{title:'삭제',okText:'삭제',danger:true}).then(ok=>{if(!ok)return;
+      const ok = await mtConfirm('이 대행사를 삭제하시겠습니까?',{title:'삭제',okText:'삭제',danger:true});
+      if (!ok) return;
       await fetch('/api/admin/agencies/' + b.dataset.id, { method:'DELETE', credentials:'same-origin' });
       loadAgencies();
     }));
