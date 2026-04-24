@@ -206,7 +206,7 @@ ${validPlat.map(p => `    "${p}": [
     });
   } catch (err) {
     console.error('[copy/generate]', err);
-    res.status(500).json({ error: 'llm_failed', message: err.message });
+    res.status(500).json({ error: 'llm_failed' });
   }
 });
 

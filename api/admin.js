@@ -282,7 +282,7 @@ router.post('/banners', upload.single('image'), async (req, res) => {
     res.status(201).json({ banner: rows[0] });
   } catch (err) {
     console.error('[admin/banners/create]', err);
-    res.status(500).json({ error: 'failed', message: err.message });
+    res.status(500).json({ error: 'failed' });
   }
 });
 
@@ -390,7 +390,7 @@ router.post('/agencies', async (req, res) => {
   } catch (err) {
     if (err.code === '23505') return res.status(409).json({ error: 'duplicate_slug' });
     console.error('[admin/agencies/create]', err);
-    res.status(500).json({ error: 'failed', message: err.message });
+    res.status(500).json({ error: 'failed' });
   }
 });
 
