@@ -579,26 +579,32 @@ router.post('/:id/like', requireAuth, async (req, res) => {
   const id = parseInt(req.params.id);
   if (!id) return res.status(400).json({ error: 'invalid_id' });
   try {
-    // 이미 좋아요 했는지 확인
-    const { rows: existing } = await query(
-      `SELECT id FROM likes WHERE user_id=$1 AND target_type='post' AND target_id=$2`,
+    // 1) INSERT 시도 → conflict면 nothing (likes 테이블 UNIQUE 제약 활용)
+    const { rowCount: inserted } = await query(
+      `INSERT INTO likes (user_id, target_type, target_id)
+       VALUES ($1, 'post', $2)
+       ON CONFLICT (user_id, target_type, target_id) DO NOTHING`,
       [req.user.id, id]
     );
-    if (existing.length > 0) {
-      // 좋아요 취소
-      await query(`DELETE FROM likes WHERE id=$1`, [existing[0].id]);
-      await query(`UPDATE posts SET like_count = GREATEST(0, like_count - 1) WHERE id=$1`, [id]);
-      return res.json({ liked: false });
+    if (inserted > 0) {
+      // 새로 추가 → 카운트 +1 (같은 쿼리로 새 값 RETURNING)
+      const { rows } = await query(
+        `UPDATE posts SET like_count = like_count + 1 WHERE id = $1 RETURNING like_count`,
+        [id]
+      );
+      return res.json({ liked: true, like_count: rows[0]?.like_count });
     }
-    // 좋아요 추가
+    // 이미 있었음 → 취소 + 카운트 -1
     await query(
-      `INSERT INTO likes (user_id, target_type, target_id) VALUES ($1,'post',$2)`,
+      `DELETE FROM likes WHERE user_id = $1 AND target_type = 'post' AND target_id = $2`,
       [req.user.id, id]
     );
-    await query(`UPDATE posts SET like_count = like_count + 1 WHERE id=$1`, [id]);
-    res.json({ liked: true });
+    const { rows } = await query(
+      `UPDATE posts SET like_count = GREATEST(0, like_count - 1) WHERE id = $1 RETURNING like_count`,
+      [id]
+    );
+    res.json({ liked: false, like_count: rows[0]?.like_count });
   } catch (err) {
-    if (err.code === '23505') return res.json({ liked: true }); // duplicate
     console.error('[like/post]', err);
     res.status(500).json({ error: 'failed' });
   }
@@ -611,23 +617,30 @@ router.post('/:postId/comments/:commentId/like', requireAuth, async (req, res) =
   const commentId = parseInt(req.params.commentId);
   if (!commentId) return res.status(400).json({ error: 'invalid_id' });
   try {
-    const { rows: existing } = await query(
-      `SELECT id FROM likes WHERE user_id=$1 AND target_type='comment' AND target_id=$2`,
+    const { rowCount: inserted } = await query(
+      `INSERT INTO likes (user_id, target_type, target_id)
+       VALUES ($1, 'comment', $2)
+       ON CONFLICT (user_id, target_type, target_id) DO NOTHING`,
       [req.user.id, commentId]
     );
-    if (existing.length > 0) {
-      await query(`DELETE FROM likes WHERE id=$1`, [existing[0].id]);
-      await query(`UPDATE comments SET like_count = GREATEST(0, like_count - 1) WHERE id=$1`, [commentId]);
-      return res.json({ liked: false });
+    if (inserted > 0) {
+      const { rows } = await query(
+        `UPDATE comments SET like_count = like_count + 1 WHERE id = $1 RETURNING like_count`,
+        [commentId]
+      );
+      return res.json({ liked: true, like_count: rows[0]?.like_count });
     }
     await query(
-      `INSERT INTO likes (user_id, target_type, target_id) VALUES ($1,'comment',$2)`,
+      `DELETE FROM likes WHERE user_id = $1 AND target_type = 'comment' AND target_id = $2`,
       [req.user.id, commentId]
     );
-    await query(`UPDATE comments SET like_count = like_count + 1 WHERE id=$1`, [commentId]);
-    res.json({ liked: true });
+    const { rows } = await query(
+      `UPDATE comments SET like_count = GREATEST(0, like_count - 1) WHERE id = $1 RETURNING like_count`,
+      [commentId]
+    );
+    res.json({ liked: false, like_count: rows[0]?.like_count });
   } catch (err) {
-    if (err.code === '23505') return res.json({ liked: true });
+    console.error('[like/comment]', err);
     res.status(500).json({ error: 'failed' });
   }
 });
