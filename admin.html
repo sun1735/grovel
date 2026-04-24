@@ -364,6 +364,17 @@
     if (d<86400) return Math.floor(d/3600)+'시간';
     return Math.floor(d/86400)+'일';
   }
+  // KST 절대 시각 (YYYY-MM-DD HH:MM) — 회원 가입일/로그인 같이 정확한 값이 필요할 때
+  function fmtDateTime(iso){
+    if(!iso) return '-';
+    const kst = new Date(new Date(iso).getTime() + 9*60*60*1000);
+    const y = kst.getUTCFullYear();
+    const m = String(kst.getUTCMonth()+1).padStart(2,'0');
+    const d = String(kst.getUTCDate()).padStart(2,'0');
+    const h = String(kst.getUTCHours()).padStart(2,'0');
+    const mi = String(kst.getUTCMinutes()).padStart(2,'0');
+    return `${y}-${m}-${d} ${h}:${mi}`;
+  }
 
   // ─── 권한 체크 ───
   async function init() {
@@ -445,8 +456,8 @@
         <td>${u.role === 'admin' ? '<span class="badge b-warn">admin</span>' : '<span class="badge b-user">user</span>'}</td>
         <td>${u.post_count}</td>
         <td>${u.comment_count}</td>
-        <td>${timeAgo(u.created_at)}</td>
-        <td>${u.last_login_at ? timeAgo(u.last_login_at) : '-'}</td>
+        <td class="tabular-nums whitespace-nowrap">${fmtDateTime(u.created_at)}</td>
+        <td class="tabular-nums whitespace-nowrap">${fmtDateTime(u.last_login_at)}</td>
       </tr>
     `).join('');
   }
