@@ -8,5 +8,6 @@ npm-debug.log*
 .claude/
 *.log
 
-# Tailwind build output
+# 빌드 산출물
 /tailwind.css
+/lucide.min.js
