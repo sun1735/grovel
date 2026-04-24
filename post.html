@@ -765,6 +765,13 @@
     if (!form || !inp || !drop) return;
     let timer, activeIdx = -1;
 
+    function highlight(text, q) {
+      const esc = escapeHtml(text || '');
+      if (!q) return esc;
+      const re = new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+      return esc.replace(re, m => `<mark>${m}</mark>`);
+    }
+
     form.addEventListener('submit', (e) => {
       e.preventDefault();
       const v = inp.value.trim();
@@ -784,7 +791,7 @@
             ${suggestions.map((s, i) => `
               <a href="/post.html?id=${s.id}" data-i="${i}" class="suggest-item flex items-center gap-2 px-4 py-2.5 hover:bg-paper text-sm border-b border-black/5 last:border-b-0">
                 <span class="text-[10px] font-bold text-brand-500 px-1.5 py-0.5 bg-brand-50 rounded">${escapeHtml(s.board_name)}</span>
-                <span class="flex-1 truncate">${escapeHtml(s.title)}</span>
+                <span class="flex-1 truncate">${highlight(s.title, v)}</span>
               </a>
             `).join('')}
             <a href="/search.html?q=${encodeURIComponent(v)}" class="block px-4 py-2.5 text-center text-[12px] font-bold text-brand-500 hover:bg-brand-50 bg-paper">"${escapeHtml(v)}" 전체 검색 결과 →</a>

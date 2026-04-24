@@ -9,3 +9,11 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* 검색 결과 하이라이트 — 모든 페이지에서 일관되게 */
+mark {
+  background: #fef08a;
+  color: inherit;
+  padding: 0 1px;
+  border-radius: 2px;
+}
