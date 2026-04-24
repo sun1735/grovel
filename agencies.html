@@ -5,15 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>광고대행사 디렉토리 — 마케톡</title>
 <meta name="description" content="검증된 마케팅 대행사를 한곳에서. 네이버·카카오·메타·구글 광고부터 콘텐츠·디자인·데이터 컨설팅까지." />
-<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="/tailwind.css" />
 <script src="https://unpkg.com/lucide@latest"></script>
 <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css" />
-<script>
-  tailwind.config = { theme: { extend: {
-    fontFamily: { sans: ['Pretendard Variable','Pretendard','system-ui','sans-serif'] },
-    colors: { paper:'#f6f7f9', ink:'#15171c', brand:{50:'#fff1f3',100:'#ffe1e6',500:'#ff3e5f',600:'#ed1f43',700:'#c41635'} }
-  }}}
-</script>
 <style>
   body { background:#f6f7f9; color:#15171c; }
   .container-x { max-width:1240px; margin:0 auto; padding:0 1rem; }
@@ -127,7 +121,12 @@
   <div class="card p-5 bg-gradient-to-br from-paper to-white text-center">
     <div class="text-sm font-bold mb-2">우리 대행사도 등록하고 싶어요</div>
     <p class="text-[12px] text-black/55">관리자 인증 후 등록 가능합니다. 현재는 수동 검토 중입니다.</p>
-    <a href="mailto:sun1735@naver.com" class="inline-block mt-3 px-4 py-2 bg-ink text-white rounded-md text-[12px] font-bold hover:bg-black/85">등록 문의 →</a>
+    <a href="https://pf.kakao.com/_Yxnwxfn/chat" target="_blank" rel="noopener"
+       class="inline-flex items-center gap-1.5 mt-3 px-4 py-2 rounded-md text-[12px] font-bold hover:opacity-95 transition"
+       style="background:#FEE500;color:#191919">
+      <svg width="13" height="13" viewBox="0 0 20 20"><path fill="#191919" d="M10 1C5.03 1 1 4.17 1 8.09c0 2.54 1.66 4.77 4.17 6.05l-1.06 3.88c-.09.34.28.61.58.43l4.5-2.96c.27.03.54.04.81.04 4.97 0 9-3.17 9-7.09S14.97 1 10 1"/></svg>
+      카카오톡으로 등록 문의 →
+    </a>
   </div>
 </main>
 

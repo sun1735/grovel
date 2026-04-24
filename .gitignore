@@ -7,3 +7,6 @@ npm-debug.log*
 .idea/
 .claude/
 *.log
+
+# Tailwind build output
+/tailwind.css

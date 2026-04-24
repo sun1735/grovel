@@ -45,24 +45,9 @@ fetch('/api/seo-verify').then(r=>r.json()).then(d=>{
   if(d.google){const m=document.createElement('meta');m.name='google-site-verification';m.content=d.google;document.head.appendChild(m);}
 }).catch(()=>{});
 </script>
-<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="/tailwind.css" />
 <script src="https://unpkg.com/lucide@latest"></script>
 <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css" />
-
-<script>
-  tailwind.config = {
-    theme: {
-      extend: {
-        fontFamily: { sans: ['Pretendard Variable', 'Pretendard', 'system-ui', 'sans-serif'] },
-        colors: {
-          paper: '#f6f7f9',
-          ink: '#15171c',
-          brand: { 50:'#fff1f3', 100:'#ffe1e6', 500:'#ff3e5f', 600:'#ed1f43', 700:'#c41635' }
-        }
-      }
-    }
-  }
-</script>
 
 <style>
   body { background:#f6f7f9; color:#15171c; font-feature-settings:"ss01","cv11"; -webkit-font-smoothing:antialiased; }
@@ -451,7 +436,7 @@ fetch('/api/seo-verify').then(r=>r.json()).then(d=>{
         <ul class="space-y-1.5 text-black/65">
           <li><a href="/guide.html" class="hover:text-black">커뮤니티 가이드</a></li>
           <li><a href="/contact.html" class="hover:text-black">문의하기</a></li>
-          <li><a href="mailto:sun1735@naver.com" class="hover:text-black">광고 문의</a></li>
+          <li><a href="https://pf.kakao.com/_Yxnwxfn/chat" target="_blank" rel="noopener" class="hover:text-black">카카오톡 문의</a></li>
         </ul>
       </div>
       <div>
@@ -830,11 +815,11 @@ fetch('/api/seo-verify').then(r=>r.json()).then(d=>{
       </a>`,
     },
     side1: {
-      html: `<a href="mailto:sun1735@naver.com" class="promo-banner promo-vertical" style="background:linear-gradient(135deg,#0f172a,#334155)">
-        <div class="promo-icon" style="font-size:28px">📢</div>
-        <div class="promo-title" style="font-size:15px;margin-top:12px">광고주를 찾고 계신가요?</div>
-        <div class="promo-desc" style="margin-top:6px">마케톡 배너 광고<br/>문의하기</div>
-        <div class="promo-cta" style="margin-top:14px">sun1735@naver.com</div>
+      html: `<a href="https://pf.kakao.com/_Yxnwxfn/chat" target="_blank" rel="noopener" class="promo-banner promo-vertical" style="background:linear-gradient(135deg,#FFEB3B,#FEE500);color:#191919">
+        <div class="promo-icon" style="font-size:28px">💬</div>
+        <div class="promo-title" style="font-size:15px;margin-top:12px;color:#191919">광고주를 찾고 계신가요?</div>
+        <div class="promo-desc" style="margin-top:6px;color:rgba(25,25,25,.7)">마케톡 배너 광고<br/>카카오톡으로 바로 문의</div>
+        <div class="promo-cta" style="margin-top:14px;background:rgba(25,25,25,.12);color:#191919">카카오톡 채널 →</div>
       </a>`,
     },
     side2: {

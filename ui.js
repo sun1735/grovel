@@ -58,6 +58,35 @@
     @keyframes mt-fade-out { from { opacity:1; } to { opacity:0; } }
     @keyframes mt-modal-in { from { opacity:0; transform:scale(.95); } to { opacity:1; transform:scale(1); } }
     @keyframes mt-modal-out { from { opacity:1; transform:scale(1); } to { opacity:0; transform:scale(.95); } }
+
+    /* 플로팅 카카오톡 문의 버튼 */
+    .mt-kakao-fab {
+      position:fixed; right:20px; bottom:24px; z-index:9990;
+      width:56px; height:56px; border-radius:999px;
+      background:#FEE500; color:#191919;
+      display:flex; align-items:center; justify-content:center;
+      box-shadow: 0 10px 28px -8px rgba(0,0,0,.28), 0 2px 6px rgba(0,0,0,.08);
+      transition: transform .15s ease, box-shadow .15s ease;
+      text-decoration:none;
+    }
+    .mt-kakao-fab:hover { transform: translateY(-2px); box-shadow: 0 14px 32px -8px rgba(0,0,0,.32), 0 2px 6px rgba(0,0,0,.1); }
+    .mt-kakao-fab:active { transform: translateY(0); }
+    .mt-kakao-fab .mt-kakao-tip {
+      position:absolute; right:calc(100% + 10px); top:50%; transform:translateY(-50%);
+      background:#15171c; color:#fff; font-size:12px; font-weight:600;
+      padding:7px 11px; border-radius:8px; white-space:nowrap;
+      opacity:0; pointer-events:none; transition: opacity .15s ease;
+      font-family:'Pretendard Variable', system-ui, sans-serif;
+    }
+    .mt-kakao-fab .mt-kakao-tip::after {
+      content:''; position:absolute; left:100%; top:50%; transform:translateY(-50%);
+      border:5px solid transparent; border-left-color:#15171c;
+    }
+    .mt-kakao-fab:hover .mt-kakao-tip { opacity:1; }
+    @media (max-width:640px) {
+      .mt-kakao-fab { width:52px; height:52px; right:16px; bottom:20px; }
+      .mt-kakao-fab .mt-kakao-tip { display:none; }
+    }
   `;
   document.head.appendChild(style);
 
@@ -118,4 +147,23 @@
   window.alert = function(msg) {
     mtToast(msg, 'info', 3500);
   };
+
+  // ── 플로팅 카카오톡 문의 버튼 ──
+  // data-no-kakao-fab 속성이 <body> 또는 <html>에 있으면 렌더하지 않음
+  if (!document.documentElement.hasAttribute('data-no-kakao-fab') &&
+      !document.body.hasAttribute('data-no-kakao-fab')) {
+    const fab = document.createElement('a');
+    fab.className = 'mt-kakao-fab';
+    fab.href = 'https://pf.kakao.com/_Yxnwxfn/chat';
+    fab.target = '_blank';
+    fab.rel = 'noopener';
+    fab.setAttribute('aria-label', '카카오톡으로 문의');
+    fab.innerHTML = `
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <path fill="#191919" d="M12 3C6.48 3 2 6.58 2 11c0 2.86 1.88 5.36 4.69 6.77-.2.72-.73 2.66-.84 3.08-.13.52.19.51.4.37.17-.11 2.66-1.82 3.73-2.56.67.1 1.35.15 2.02.15 5.52 0 10-3.58 10-8C22 6.58 17.52 3 12 3Z"/>
+      </svg>
+      <span class="mt-kakao-tip">카카오톡으로 문의</span>
+    `;
+    document.body.appendChild(fab);
+  }
 })();
