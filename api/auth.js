@@ -8,6 +8,7 @@
 const express = require('express');
 const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
+const rateLimit = require('express-rate-limit');
 const { query, withTransaction } = require('../db');
 const {
   signToken,
@@ -34,9 +35,35 @@ function isBlockedNickname(nick) {
 }
 
 // ─────────────────────────────────────────────
+// Rate limiters — IP 기준 (trust proxy=1 로 Railway Fastly 뒤에서도 실제 클라이언트 IP 추출)
+// 공격자가 brute force / 스팸 가입으로 악용 못 하게.
+// ─────────────────────────────────────────────
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,  // 15분
+  max: 10,                    // IP당 로그인 시도 10회
+  message: { error: 'too_many_attempts', message: '로그인 시도가 너무 많습니다. 15분 후 다시 시도해 주세요.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+const registerLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,  // 1시간
+  max: 5,                     // IP당 가입 5회 (봇 대량 가입 방어)
+  message: { error: 'too_many_attempts', message: '가입 시도가 너무 많습니다. 잠시 후 다시 시도해 주세요.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+const forgotLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,  // 1시간
+  max: 3,                     // IP당 비번 찾기 3회 (디스코드 알림 스팸 방어)
+  message: { error: 'too_many_attempts', message: '요청이 너무 많습니다. 1시간 후 다시 시도해 주세요.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// ─────────────────────────────────────────────
 // POST /api/auth/register
 // ─────────────────────────────────────────────
-router.post('/register', async (req, res) => {
+router.post('/register', registerLimiter, async (req, res) => {
   const { email, nickname, password } = req.body || {};
 
   // 검증
@@ -95,7 +122,7 @@ router.post('/register', async (req, res) => {
 // ─────────────────────────────────────────────
 // POST /api/auth/login
 // ─────────────────────────────────────────────
-router.post('/login', async (req, res) => {
+router.post('/login', loginLimiter, async (req, res) => {
   const { email, password } = req.body || {};
   if (!email || !password) return res.status(400).json({ error: 'missing_fields' });
 
@@ -267,7 +294,7 @@ router.post('/find-email', async (req, res) => {
 // POST /api/auth/forgot-password — 비밀번호 재설정 요청
 // 이메일 입력 → 토큰 생성 → Discord 관리자 알림 (이메일 미설정 시)
 // ─────────────────────────────────────────────
-router.post('/forgot-password', async (req, res) => {
+router.post('/forgot-password', forgotLimiter, async (req, res) => {
   const { email } = req.body || {};
   if (!email) return res.status(400).json({ error: 'missing_email' });
 
