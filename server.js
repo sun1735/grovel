@@ -16,6 +16,7 @@ const { router: bannersApi } = require('./api/banners');
 const { router: agenciesApi } = require('./api/agencies');
 const { router: resourcesApi } = require('./api/resources');
 const copyApi = require('./api/copy');
+const { router: notificationsApi } = require('./api/notifications');
 const { attachUser } = require('./middleware/auth');
 
 const app = express();
@@ -96,6 +97,7 @@ app.use('/api/banners',   bannersApi);
 app.use('/api/agencies',  agenciesApi);
 app.use('/api/resources', resourcesApi);
 app.use('/api/copy',      copyApi);
+app.use('/api/notifications', notificationsApi);
 
 // 헬스체크
 app.get('/healthz', (_req, res) => {
@@ -253,6 +255,21 @@ if (sentryInit.enabled) {
   sentryInit.Sentry.setupExpressErrorHandler(app);
 }
 
-app.listen(PORT, () => {
-  console.log(`🚀 마케톡 listening on :${PORT}`);
+// 기동 시 schema.sql 자동 적용 — IF NOT EXISTS 기반 멱등. 새 테이블/컬럼이 배포될 때마다 보장됨.
+// 비활성화하려면 SKIP_AUTO_MIGRATE=1 env.
+async function autoMigrate() {
+  if (process.env.SKIP_AUTO_MIGRATE === '1') return;
+  try {
+    const schemaSql = fs.readFileSync(path.join(__dirname, 'db/schema.sql'), 'utf-8');
+    await require('./db').query(schemaSql);
+    console.log('[auto-migrate] schema 검증 완료');
+  } catch (err) {
+    console.error('[auto-migrate] 실패 (앱은 계속 기동):', err.message);
+  }
+}
+
+autoMigrate().finally(() => {
+  app.listen(PORT, () => {
+    console.log(`🚀 마케톡 listening on :${PORT}`);
+  });
 });

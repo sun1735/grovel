@@ -109,6 +109,24 @@
       .mt-write-fab { width:52px; height:52px; right:16px; bottom:84px; }
     }
 
+    /* 알림 벨 + 드롭다운 — 헤더 주입용 */
+    .mt-notif-dropdown {
+      position:absolute; right:0; top:calc(100% + 6px);
+      width:340px; max-width:calc(100vw - 32px);
+      background:#fff; border:1px solid rgba(0,0,0,0.06);
+      border-radius:14px; box-shadow: 0 20px 50px -18px rgba(0,0,0,.22), 0 2px 6px rgba(0,0,0,.06);
+      z-index:50; overflow:hidden;
+      font-family:'Pretendard Variable', system-ui, sans-serif;
+    }
+    html.dark .mt-notif-dropdown { background:#181a21; border-color:rgba(255,255,255,0.08); }
+    .mt-notif-item { text-decoration:none; color:inherit; display:block; }
+    .mt-notif-unread { background:rgba(255,62,95,0.04); position:relative; }
+    .mt-notif-unread::before {
+      content:''; position:absolute; left:8px; top:50%; transform:translateY(-50%);
+      width:6px; height:6px; border-radius:999px; background:#ff3e5f;
+    }
+    html.dark .mt-notif-unread { background:rgba(255,62,95,0.08); }
+
     /* 다크 모드 토글 — 왼쪽 하단 */
     .mt-theme-fab {
       position:fixed; left:20px; bottom:24px; z-index:9988;
@@ -207,6 +225,123 @@
     `;
     document.body.appendChild(fab);
   }
+
+  // ── 알림 벨 (헤더 placeholder 기반) ──
+  // 각 페이지의 <button id="mt-notif-bell">에 바인딩. 미로그인 시 숨김.
+  (function initNotifBell() {
+    const bell = document.getElementById('mt-notif-bell');
+    if (!bell) return;
+
+    const dot   = bell.querySelector('.mt-notif-dot');
+    const badge = bell.querySelector('.mt-notif-badge');
+
+    function escHtml(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+    function timeAgo(iso) {
+      const d = (Date.now() - new Date(iso).getTime()) / 1000;
+      if (d < 60) return '방금';
+      if (d < 3600) return Math.floor(d/60) + '분 전';
+      if (d < 86400) return Math.floor(d/3600) + '시간 전';
+      if (d < 86400*7) return Math.floor(d/86400) + '일 전';
+      return new Date(iso).toLocaleDateString('ko-KR');
+    }
+
+    async function updateUnreadCount() {
+      try {
+        const r = await fetch('/api/notifications/unread-count', { credentials: 'same-origin' });
+        if (!r.ok) return;
+        const { count } = await r.json();
+        if (count > 0) {
+          if (badge) { badge.textContent = count > 99 ? '99+' : count; badge.classList.remove('hidden'); }
+          if (dot && !badge) dot.classList.remove('hidden');
+        } else {
+          if (badge) badge.classList.add('hidden');
+          if (dot) dot.classList.add('hidden');
+        }
+      } catch {}
+    }
+
+    // 로그인 상태 체크 — 미로그인이면 bell 숨김
+    fetch('/api/auth/me', { credentials: 'same-origin' })
+      .then(r => r.json())
+      .then(({ user }) => {
+        if (!user) { bell.style.display = 'none'; return; }
+        bell.style.display = '';
+        updateUnreadCount();
+        setInterval(updateUnreadCount, 30000);
+      })
+      .catch(() => {});
+
+    let dropdown = null;
+    function closeDropdown() {
+      if (dropdown) { dropdown.remove(); dropdown = null; }
+      document.removeEventListener('click', onDocClick);
+    }
+    function onDocClick(e) {
+      if (dropdown && !dropdown.contains(e.target) && !bell.contains(e.target)) closeDropdown();
+    }
+
+    function render(notifs) {
+      if (!dropdown) return;
+      if (!notifs || notifs.length === 0) {
+        dropdown.innerHTML = '<div class="p-8 text-center text-sm text-black/40">아직 알림이 없어요</div>';
+        return;
+      }
+      dropdown.innerHTML = `
+        <div class="flex items-center justify-between px-4 py-2.5 border-b border-black/5">
+          <span class="text-[12.5px] font-bold">알림</span>
+          <button id="mt-notif-readall" class="text-[11px] text-brand-500 font-semibold hover:text-brand-600">모두 읽음</button>
+        </div>
+        <div class="max-h-[420px] overflow-y-auto">
+          ${notifs.map(n => {
+            const href = n.post_id
+              ? `/post.html?id=${n.post_id}${n.comment_id ? '#c' + n.comment_id : ''}`
+              : '#';
+            return `
+              <a href="${href}" data-id="${n.id}"
+                 class="mt-notif-item px-4 py-3 border-b border-black/5 hover:bg-paper ${!n.is_read ? 'mt-notif-unread pl-6' : ''}">
+                <div class="text-[13px] leading-snug">${escHtml(n.message)}</div>
+                <div class="text-[10.5px] text-black/40 mt-1">${timeAgo(n.created_at)}</div>
+              </a>`;
+          }).join('')}
+        </div>
+      `;
+      dropdown.querySelectorAll('.mt-notif-item').forEach(item => {
+        item.addEventListener('click', () => {
+          const id = item.dataset.id;
+          if (id) fetch(`/api/notifications/${id}/read`, { method: 'POST', credentials: 'same-origin' }).catch(() => {});
+        });
+      });
+      dropdown.querySelector('#mt-notif-readall')?.addEventListener('click', async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        try {
+          await fetch('/api/notifications/read-all', { method: 'POST', credentials: 'same-origin' });
+          dropdown.querySelectorAll('.mt-notif-unread').forEach(el => {
+            el.classList.remove('mt-notif-unread', 'pl-6');
+          });
+          updateUnreadCount();
+        } catch {}
+      });
+    }
+
+    bell.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      if (dropdown) { closeDropdown(); return; }
+      // bell은 position:relative 필요 — 페이지 마크업에서 relative 클래스 부여
+      dropdown = document.createElement('div');
+      dropdown.className = 'mt-notif-dropdown';
+      dropdown.innerHTML = '<div class="p-6 text-center text-sm text-black/40">불러오는 중…</div>';
+      bell.appendChild(dropdown);
+      setTimeout(() => document.addEventListener('click', onDocClick), 0);
+      try {
+        const r = await fetch('/api/notifications?limit=15', { credentials: 'same-origin' });
+        const { notifications } = await r.json();
+        render(notifications);
+      } catch {
+        if (dropdown) dropdown.innerHTML = '<div class="p-6 text-center text-sm text-rose-500">불러오기 실패</div>';
+      }
+    });
+  })();
 
   // ── 다크 모드 토글 FAB ──
   // preload script가 <head>에서 이미 class를 적용하므로 FOUC 없음.

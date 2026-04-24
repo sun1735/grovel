@@ -3,6 +3,7 @@ const multer = require('multer');
 const { query } = require('../db');
 const { requireAuth } = require('../middleware/auth');
 const { notifyNewPost, notifyNewComment } = require('../worker/discord');
+const { createNotification } = require('./notifications');
 
 const router = express.Router();
 
@@ -408,13 +409,55 @@ router.post('/:id/comments', requireAuth, async (req, res) => {
        RETURNING id, created_at`,
       [postId, parent_id || null, req.user.id, req.user.nickname, body.trim()]
     );
+    const newCommentId = rows[0].id;
 
     await query('UPDATE posts SET comment_count = comment_count + 1 WHERE id = $1', [postId]);
 
-    // 원글 제목 가져와서 디스코드 알림
-    const { rows: postInfo } = await query('SELECT title FROM posts WHERE id = $1', [postId]);
+    // 원글 정보 (title·user_id) + 답글이면 부모 댓글 작성자 정보 동시에
+    const { rows: postInfo } = await query(
+      'SELECT title, user_id AS author_user_id FROM posts WHERE id = $1',
+      [postId]
+    );
+    const postTitle = postInfo[0]?.title || '';
+    const postAuthorId = postInfo[0]?.author_user_id || null;
+    const excerpt = body.trim().slice(0, 80);
+
+    // 원글 작성자에게 알림 (자기 글 자기 댓글은 createNotification 내부 필터)
+    if (postAuthorId) {
+      createNotification({
+        userId: postAuthorId,
+        type: parent_id ? 'reply_on_my_post' : 'comment',
+        actorNickname: req.user.nickname,
+        actorUserId: req.user.id,
+        postId,
+        commentId: newCommentId,
+        message: `${req.user.nickname}님이 회원님 글 "${postTitle.slice(0, 40)}${postTitle.length > 40 ? '…' : ''}"에 댓글을 달았어요: ${excerpt}`,
+      }).catch(() => {});
+    }
+
+    // 답글이면 부모 댓글 작성자에게도 알림 (원글 작성자와 겹치면 중복)
+    if (parent_id) {
+      const { rows: parentRows } = await query(
+        'SELECT user_id FROM comments WHERE id = $1',
+        [parent_id]
+      );
+      const parentAuthorId = parentRows[0]?.user_id || null;
+      if (parentAuthorId && parentAuthorId !== postAuthorId) {
+        createNotification({
+          userId: parentAuthorId,
+          type: 'reply',
+          actorNickname: req.user.nickname,
+          actorUserId: req.user.id,
+          postId,
+          commentId: newCommentId,
+          message: `${req.user.nickname}님이 회원님 댓글에 답글을 달았어요: ${excerpt}`,
+        }).catch(() => {});
+      }
+    }
+
+    // 디스코드 알림 (기존 유지)
     notifyNewComment({
-      postId, postTitle: postInfo[0]?.title || '',
+      postId, postTitle,
       author: req.user.nickname, body: body.trim().slice(0, 150),
     }).catch(() => {});
 

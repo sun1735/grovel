@@ -243,6 +243,23 @@ CREATE TABLE IF NOT EXISTS likes (
 CREATE INDEX IF NOT EXISTS idx_likes_target ON likes(target_type, target_id);
 CREATE INDEX IF NOT EXISTS idx_likes_user   ON likes(user_id, created_at DESC);
 
+-- ── notifications: 유저 알림 ──────────────────
+-- 내 글/댓글에 반응(댓글·답글·좋아요)이 달리면 쌓임. AI 액션은 알림 생성하지 않음.
+CREATE TABLE IF NOT EXISTS notifications (
+  id             BIGSERIAL PRIMARY KEY,
+  user_id        BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,  -- 수신자
+  type           VARCHAR(32) NOT NULL,                                    -- 'comment' | 'reply' | 'like_post' | 'like_comment'
+  actor_nickname VARCHAR(64),                                             -- 반응한 사람 닉네임 (스냅샷)
+  actor_user_id  BIGINT REFERENCES users(id) ON DELETE SET NULL,
+  post_id        BIGINT REFERENCES posts(id) ON DELETE CASCADE,
+  comment_id     BIGINT REFERENCES comments(id) ON DELETE CASCADE,
+  message        TEXT NOT NULL,
+  is_read        BOOLEAN DEFAULT FALSE,
+  created_at     TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_notif_user_unread ON notifications(user_id, created_at DESC) WHERE is_read = FALSE;
+CREATE INDEX IF NOT EXISTS idx_notif_user_all    ON notifications(user_id, created_at DESC);
+
 -- ── resources: 다운로드 가능한 마케팅 자료 ─────
 CREATE TABLE IF NOT EXISTS resources (
   id             BIGSERIAL PRIMARY KEY,
