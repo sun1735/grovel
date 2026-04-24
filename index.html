@@ -314,7 +314,13 @@ fetch('/api/seo-verify').then(r=>r.json()).then(d=>{
         <li class="px-5 py-3"><div class="skeleton h-4 w-full"></div></li>
         <li class="px-5 py-3"><div class="skeleton h-4 w-3/4"></div></li>
       </ul>
-      <div class="flex items-center justify-center gap-1 py-5 text-sm" id="pagination"></div>
+      <!-- 무한 스크롤 sentinel + 상태 표시 -->
+      <div id="latest-foot" class="py-5 flex items-center justify-center text-[12px] text-black/40">
+        <span id="latest-loading" class="hidden flex items-center gap-2">
+          <i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> 불러오는 중…
+        </span>
+        <span id="latest-end" class="hidden">모든 게시글을 봤어요</span>
+      </div>
     </div>
 
     <!-- INLINE BANNER AD -->
@@ -556,7 +562,7 @@ fetch('/api/seo-verify').then(r=>r.json()).then(d=>{
           ptabs.classList.add('hidden');
           ptabs.classList.remove('flex');
         }
-        loadLatestPosts();
+        loadLatestPosts({ reset: true });
       });
 
       // 플랫폼 서브탭 클릭
@@ -564,14 +570,13 @@ fetch('/api/seo-verify').then(r=>r.json()).then(d=>{
         const btn = e.target.closest('.ptab');
         if (!btn) return;
         currentPlatform = btn.dataset.platform;
-        currentPage = 1;
         document.querySelectorAll('.ptab').forEach(p => {
           p.classList.remove('bg-ink','text-white');
           p.classList.add('bg-paper','text-black/60');
         });
         btn.classList.add('bg-ink','text-white');
         btn.classList.remove('bg-paper','text-black/60');
-        loadLatestPosts();
+        loadLatestPosts({ reset: true });
       });
 
       lucide.createIcons();
@@ -607,19 +612,39 @@ fetch('/api/seo-verify').then(r=>r.json()).then(d=>{
   }
 
   // ============== LATEST POSTS ==============
-  async function loadLatestPosts() {
+  // 무한 스크롤 상태
+  let isLoadingMore = false;
+  let hasMore = true;
+  let latestObserver = null;
+
+  function resetLatest() {
+    currentPage = 1;
+    hasMore = true;
+    isLoadingMore = false;
+    $('#latest-list').innerHTML = '';
+    $('#latest-end').classList.add('hidden');
+    $('#latest-loading').classList.add('hidden');
+  }
+
+  async function loadLatestPosts({ reset = false } = {}) {
+    if (reset) resetLatest();
+    if (!hasMore || isLoadingMore) return;
+
+    isLoadingMore = true;
+    $('#latest-loading').classList.remove('hidden');
     try {
       const url = `/api/posts?board=${currentBoard}&platform=${currentPlatform}&page=${currentPage}&limit=20`;
       const data = await fetchJson(url);
       const ul = $('#latest-list');
 
-      if (data.posts.length === 0) {
+      // 첫 페이지가 비어있으면 빈 상태 표시
+      if (currentPage === 1 && (!data.posts || data.posts.length === 0)) {
         ul.innerHTML = '<li class="px-5 py-12 text-sm text-black/40 text-center">아직 게시글이 없습니다</li>';
-        $('#pagination').innerHTML = '';
+        hasMore = false;
         return;
       }
 
-      ul.innerHTML = data.posts.map((p) => {
+      const chunk = data.posts.map((p) => {
         const isNew = (Date.now() - new Date(p.published_at).getTime()) < 30 * 60 * 1000;
         const pinned = p.is_pinned
           ? `<i data-lucide="pin" class="w-3.5 h-3.5 pin"></i>`
@@ -641,33 +666,36 @@ fetch('/api/seo-verify').then(r=>r.json()).then(d=>{
             <span class="text-xs text-black/40 w-14 text-right">${timeAgo(p.published_at)}</span>
           </li>`;
       }).join('');
+      ul.insertAdjacentHTML('beforeend', chunk);
 
-      // pagination
+      // 마지막 페이지 도달 판정
       const totalPages = Math.max(1, Math.ceil(data.total / data.limit));
-      const pag = $('#pagination');
-      let html = '';
-      const prev = currentPage > 1 ? currentPage - 1 : null;
-      const next = currentPage < totalPages ? currentPage + 1 : null;
-      html += `<button data-page="${prev || ''}" class="w-8 h-8 rounded-md ${prev ? 'hover:bg-paper' : 'text-black/20'}">‹</button>`;
-      const start = Math.max(1, currentPage - 2);
-      const end = Math.min(totalPages, start + 4);
-      for (let i = start; i <= end; i++) {
-        html += `<button data-page="${i}" class="w-8 h-8 rounded-md ${i === currentPage ? 'bg-ink text-white font-bold' : 'hover:bg-paper'}">${i}</button>`;
+      if (currentPage >= totalPages) {
+        hasMore = false;
+        $('#latest-end').classList.remove('hidden');
       }
-      html += `<button data-page="${next || ''}" class="w-8 h-8 rounded-md ${next ? 'hover:bg-paper' : 'text-black/20'}">›</button>`;
-      pag.innerHTML = html;
-      pag.querySelectorAll('button').forEach(btn => {
-        btn.addEventListener('click', () => {
-          const p = parseInt(btn.dataset.page);
-          if (!p) return;
-          currentPage = p;
-          loadLatestPosts();
-          window.scrollTo({ top: 0, behavior: 'smooth' });
-        });
-      });
+      currentPage++;
 
       lucide.createIcons();
-    } catch (e) { console.warn(e); }
+    } catch (e) {
+      console.warn(e);
+    } finally {
+      isLoadingMore = false;
+      $('#latest-loading').classList.add('hidden');
+    }
+  }
+
+  // IntersectionObserver — 최초 한 번만 세팅. 옵션으로 root margin 둬서 미리 로드.
+  function setupInfiniteScroll() {
+    if (latestObserver) return;
+    const sentinel = $('#latest-foot');
+    if (!sentinel) return;
+    latestObserver = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting && hasMore && !isLoadingMore) {
+        loadLatestPosts();
+      }
+    }, { rootMargin: '400px 0px' });
+    latestObserver.observe(sentinel);
   }
 
   // ============== AUTH (프로필 strip) ==============
@@ -1024,7 +1052,10 @@ fetch('/api/seo-verify').then(r=>r.json()).then(d=>{
   lucide.createIcons();
   loadAuth();
   loadStats();
-  loadBoards().then(() => loadLatestPosts());
+  loadBoards().then(() => {
+    loadLatestPosts({ reset: true });
+    setupInfiniteScroll();
+  });
   loadHotPosts();
   loadTrending();
   loadNews();
