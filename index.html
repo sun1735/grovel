@@ -141,27 +141,10 @@ fetch('/api/seo-verify').then(r=>r.json()).then(d=>{
 </head>
 <body class="antialiased">
 
-<!-- ============== TOP BAR ============== -->
-<div class="bg-ink text-white text-xs">
-  <div class="container-x flex items-center justify-between h-9">
-    <div class="flex items-center gap-4">
-      <span class="flex items-center gap-1.5"><span class="live-dot"></span> 지금 <b class="text-emerald-300" id="stat-online">…</b> 접속 중</span>
-      <span class="hidden md:inline text-white/60">오늘 게시글 <b class="text-white" id="stat-posts-today">…</b> · 오늘 댓글 <b class="text-white" id="stat-comments-today">…</b></span>
-    </div>
-    <div class="flex items-center gap-3 text-white/70" id="topbar-auth">
-      <a href="/login.html" class="hover:text-white">로그인</a>
-      <span class="text-white/30">|</span>
-      <a href="/login.html#register" class="hover:text-white">회원가입</a>
-      <span class="text-white/30">|</span>
-      <a href="/contact.html" class="hover:text-white">고객센터</a>
-    </div>
-  </div>
-</div>
-
 <!-- ============== HEADER ============== -->
-<header class="bg-white border-b border-black/5 sticky top-0 z-40">
+<header class="bg-white/80 backdrop-blur-md border-b border-black/5 sticky top-0 z-40">
   <div class="container-x flex items-center gap-6 h-16">
-    <a href="/" class="flex items-center gap-1">
+    <a href="/" class="flex items-center gap-1 shrink-0">
       <img src="/logo.svg" alt="마케톡" class="h-9" />
     </a>
 
@@ -175,7 +158,7 @@ fetch('/api/seo-verify').then(r=>r.json()).then(d=>{
       <div id="search-suggest" class="hidden absolute top-full left-0 right-0 mt-1 card overflow-hidden shadow-lg z-50"></div>
     </form>
 
-    <nav class="hidden lg:flex items-center gap-5 text-sm text-black/70">
+    <nav class="hidden lg:flex items-center gap-5 text-[14px] text-black/70">
       <a href="/resources.html" class="hover:text-black font-bold flex items-center gap-1">
         <i data-lucide="library" class="w-3.5 h-3.5"></i> 자료실
       </a>
@@ -187,7 +170,13 @@ fetch('/api/seo-verify').then(r=>r.json()).then(d=>{
       </a>
     </nav>
 
-    <a href="/compose.html" id="btn-write" class="hidden sm:inline-flex items-center gap-1.5 rounded-xl bg-brand-500 hover:bg-brand-600 text-white px-4 h-11 text-[14px] font-bold">
+    <!-- 로그인 상태 표시 (JS가 채움) -->
+    <div id="topbar-auth" class="hidden sm:flex items-center gap-3 text-[13px] text-black/65">
+      <a href="/login.html" class="hover:text-black font-semibold">로그인</a>
+      <a href="/login.html#register" class="hover:text-black font-semibold">회원가입</a>
+    </div>
+
+    <a href="/compose.html" id="btn-write" class="hidden sm:inline-flex items-center gap-1.5 rounded-xl bg-brand-500 hover:bg-brand-600 text-white px-4 h-11 text-[14px] font-bold shrink-0">
       <i data-lucide="pencil" class="w-4 h-4"></i> 글쓰기
     </a>
     <!-- 모바일 햄버거 -->
@@ -230,23 +219,17 @@ fetch('/api/seo-verify').then(r=>r.json()).then(d=>{
 
       <!-- 비로그인 -->
       <div id="strip-anon" class="flex flex-col h-full justify-center">
-        <a href="/api/auth/kakao" class="flex items-center justify-center gap-1.5 w-full h-10 rounded-lg font-bold text-[13px] mb-2" style="background:#FEE500;color:#191919">
-          <svg width="16" height="16" viewBox="0 0 20 20"><path fill="#191919" d="M10 1C5.03 1 1 4.17 1 8.09c0 2.54 1.66 4.77 4.17 6.05l-1.06 3.88c-.09.34.28.61.58.43l4.5-2.96c.27.03.54.04.81.04 4.97 0 9-3.17 9-7.09S14.97 1 10 1"/></svg>
-          카카오로 간편 가입/로그인
+        <div class="mb-2.5">
+          <div class="text-[14px] font-extrabold">마케터들의 익명 수다방</div>
+          <div class="text-[12px] text-black/50 mt-0.5">3초 가입하고 바로 글쓰기</div>
+        </div>
+        <a href="/api/auth/kakao" class="flex items-center justify-center gap-2 w-full h-11 rounded-xl font-bold text-[14px]" style="background:#FEE500;color:#191919">
+          <svg width="18" height="18" viewBox="0 0 20 20"><path fill="#191919" d="M10 1C5.03 1 1 4.17 1 8.09c0 2.54 1.66 4.77 4.17 6.05l-1.06 3.88c-.09.34.28.61.58.43l4.5-2.96c.27.03.54.04.81.04 4.97 0 9-3.17 9-7.09S14.97 1 10 1"/></svg>
+          카카오로 3초 시작
         </a>
-        <form id="strip-login" class="space-y-1.5">
-          <div class="flex gap-1.5">
-            <input type="email" name="email" placeholder="이메일" required
-                   class="flex-1 min-w-0 h-9 px-3 rounded-lg bg-paper border border-black/10 text-[13px] focus:outline-none focus:ring-2 focus:ring-brand-500/20" />
-            <input type="password" name="password" placeholder="비밀번호" required
-                   class="flex-1 min-w-0 h-9 px-3 rounded-lg bg-paper border border-black/10 text-[13px] focus:outline-none focus:ring-2 focus:ring-brand-500/20" />
-          </div>
-          <div class="flex gap-1.5">
-            <button type="submit" class="flex-1 h-9 bg-ink text-white rounded-lg text-[13px] font-bold hover:bg-black/85">로그인</button>
-            <a href="/login.html#register" class="flex-1 h-9 leading-9 text-center bg-brand-50 text-brand-600 hover:bg-brand-100 rounded-lg text-[13px] font-bold">회원가입</a>
-          </div>
-        </form>
-        <div id="strip-login-err" class="hidden text-[11px] text-rose-600 mt-1"></div>
+        <a href="/login.html" class="mt-2 text-center text-[12px] text-black/55 hover:text-black font-semibold">
+          이메일로 로그인 →
+        </a>
       </div>
 
       <!-- 로그인 -->
@@ -287,12 +270,15 @@ fetch('/api/seo-verify').then(r=>r.json()).then(d=>{
 
     <!-- HOT NOW -->
     <div class="card overflow-hidden">
-      <div class="flex items-center justify-between px-5 py-3 border-b border-black/5">
+      <div class="flex items-center justify-between px-5 py-3.5 border-b border-black/5">
         <div class="flex items-center gap-2">
           <i data-lucide="flame" class="w-4 h-4 text-brand-500"></i>
           <h2 class="font-extrabold text-[17px]">실시간 인기글</h2>
-          <span class="text-[11px] text-black/40">방금 업데이트</span>
         </div>
+        <span class="flex items-center gap-1.5 text-[12px] text-black/50">
+          <span class="live-dot"></span>
+          <b class="text-emerald-600" id="stat-online">…</b> 접속 중
+        </span>
       </div>
       <ol class="divide-y divide-black/5" id="hot-list">
         <li class="px-5 py-3"><div class="skeleton h-4 w-3/4"></div></li>
@@ -530,13 +516,14 @@ fetch('/api/seo-verify').then(r=>r.json()).then(d=>{
   async function loadStats() {
     try {
       const s = await fetchJson('/api/stats');
-      $('#stat-online').textContent          = fmt.format(s.online_now) + '명';
-      $('#stat-online-2').textContent        = fmt.format(s.online_now);
-      $('#stat-posts-today').textContent     = fmt.format(s.posts_today);
-      $('#stat-comments-today').textContent  = fmt.format(s.comments_today);
-      $('#stat-members').textContent         = fmt.format(s.total_members);
-      $('#stat-total-posts').textContent     = fmt.format(s.total_posts);
-      $('#stat-total-comments').textContent  = fmt.format(s.total_comments);
+      const set = (id, v) => { const el = $(id); if (el) el.textContent = v; };
+      set('#stat-online',          fmt.format(s.online_now));
+      set('#stat-online-2',        fmt.format(s.online_now));
+      set('#stat-posts-today',     fmt.format(s.posts_today));
+      set('#stat-comments-today',  fmt.format(s.comments_today));
+      set('#stat-members',         fmt.format(s.total_members));
+      set('#stat-total-posts',     fmt.format(s.total_posts));
+      set('#stat-total-comments',  fmt.format(s.total_comments));
     } catch (e) { console.warn(e); }
   }
 
@@ -615,18 +602,25 @@ fetch('/api/seo-verify').then(r=>r.json()).then(d=>{
       const { posts } = await fetchJson('/api/posts/hot?limit=5');
       const ol = $('#hot-list');
       if (posts.length === 0) {
-        ol.innerHTML = '<li class="px-5 py-4 text-sm text-black/40 text-center">아직 인기글이 없습니다</li>';
+        ol.innerHTML = '<li class="px-5 py-5 text-sm text-black/40 text-center">아직 인기글이 없습니다</li>';
         return;
       }
-      ol.innerHTML = posts.map((p, i) => `
-        <li class="row-hover px-5 py-3 flex items-center gap-3 text-sm">
-          <span class="w-5 text-center font-extrabold ${i < 3 ? 'hot' : 'text-black/40'}">${i + 1}</span>
-          <a href="/post.html?id=${p.id}" class="flex-1 truncate hover:underline">
-            ${escapeHtml(p.title)}
-            ${p.comment_count > 0 ? `<span class="text-brand-500 font-bold">[${p.comment_count}]</span>` : ''}
+      ol.innerHTML = posts.map((p, i) => {
+        const meta = [];
+        if (p.author_nickname) meta.push(`<span>${escapeHtml(p.author_nickname)}</span>`);
+        if (p.comment_count > 0) meta.push(`<span class="text-brand-500 font-bold">${p.comment_count}개 댓글</span>`);
+        meta.push(`<span>${timeAgo(p.published_at)}</span>`);
+        return `
+        <li class="row-hover px-5 py-3 flex items-start gap-3.5">
+          <span class="shrink-0 w-6 text-center font-black text-[20px] leading-[1.4] ${i < 3 ? 'hot' : 'text-black/25'}">${i + 1}</span>
+          <a href="/post.html?id=${p.id}" class="flex-1 min-w-0 block">
+            <div class="truncate text-[14px] font-semibold hover:text-brand-600">${escapeHtml(p.title)}</div>
+            <div class="flex items-center gap-1.5 mt-1 text-[11px] text-black/45 truncate">
+              ${meta.join('<span class="text-black/20">·</span>')}
+            </div>
           </a>
-          <span class="text-[11px] text-black/40">${timeAgo(p.published_at)}</span>
-        </li>`).join('');
+        </li>`;
+      }).join('');
     } catch (e) { console.warn(e); }
   }
 
@@ -716,15 +710,19 @@ fetch('/api/seo-verify').then(r=>r.json()).then(d=>{
     av.textContent = user.nickname[0];
     if (user.role === 'admin') $('#strip-admin-link').classList.remove('hidden');
 
-    // 다크 톱바도 갱신
+    // 헤더 우측 인증 영역 갱신
     const tb = $('#topbar-auth');
-    tb.innerHTML = `
-      <span class="text-white/80">${user.nickname}님</span>
-      <span class="text-white/30">|</span>
-      ${user.role === 'admin' ? '<a href="/admin.html" class="text-emerald-300 hover:text-emerald-200">관리자</a><span class="text-white/30">|</span>' : ''}
-      <button id="topbar-logout" class="hover:text-white">로그아웃</button>
-    `;
-    document.getElementById('topbar-logout').addEventListener('click', logout);
+    if (tb) {
+      tb.innerHTML = `
+        <a href="/profile.html" class="flex items-center gap-2 hover:opacity-80">
+          <span class="av ${avatarClass(user.nickname)}" style="width:28px;height:28px;font-size:11px;">${escapeHtml(user.nickname[0])}</span>
+          <span class="font-semibold text-black/80">${escapeHtml(user.nickname)}</span>
+        </a>
+        ${user.role === 'admin' ? '<a href="/admin.html" class="text-brand-600 hover:text-brand-700 font-semibold">관리자</a>' : ''}
+        <button id="topbar-logout" class="text-black/50 hover:text-black">로그아웃</button>
+      `;
+      document.getElementById('topbar-logout').addEventListener('click', logout);
+    }
   }
 
   function renderAnon() {
@@ -740,27 +738,9 @@ fetch('/api/seo-verify').then(r=>r.json()).then(d=>{
     location.reload();
   }
 
-  // strip 로그인 폼
-  $('#strip-login').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    $('#strip-login-err').classList.add('hidden');
-    const data = Object.fromEntries(new FormData(e.target));
-    const r = await fetch('/api/auth/login', {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      credentials:'same-origin',
-      body: JSON.stringify(data),
-    });
-    if (r.ok) location.reload();
-    else {
-      const j = await r.json();
-      const err = $('#strip-login-err');
-      err.textContent = j.message || '이메일/비밀번호를 확인하세요';
-      err.classList.remove('hidden');
-    }
-  });
+  // (strip-login 인라인 폼은 제거됨 — /login.html로 유도)
 
-  $('#strip-logout').addEventListener('click', logout);
+  $('#strip-logout')?.addEventListener('click', logout);
 
   // 글쓰기 버튼은 비로그인이면 로그인 페이지로
   $('#btn-write').addEventListener('click', async (e) => {
