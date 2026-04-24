@@ -16,6 +16,7 @@
  *   node worker/generateComment.js --post 42     # 특정 글에 1개
  *   node worker/generateComment.js --dry-run
  */
+require('../instrument');
 require('dotenv').config();
 const { pool, query } = require('../db');
 const { getPersona, PERSONA_LIST } = require('../ai/personas');

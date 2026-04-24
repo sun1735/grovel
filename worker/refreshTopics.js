@@ -15,6 +15,7 @@
  *   3. Cron Schedule: "0 19 * * 0"   # 한국 시간 일요일 04:00 (UTC 19:00 토)
  *   4. 같은 환경변수 (DATABASE_URL, ANTHROPIC_API_KEY)
  */
+require('../instrument');
 require('dotenv').config();
 const { spawn } = require('child_process');
 const path = require('path');

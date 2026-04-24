@@ -16,6 +16,7 @@
  *   node worker/generatePost.js --board ad   # 특정 보드만
  *   node worker/generatePost.js --dry-run    # DB 저장 안 함, 미리보기만
  */
+require('../instrument');
 require('dotenv').config();
 const { pool, query } = require('../db');
 const { getPersona, PERSONA_LIST } = require('../ai/personas');

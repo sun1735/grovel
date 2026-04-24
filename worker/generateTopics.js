@@ -12,6 +12,7 @@
  *
  * 권장 스케줄: 주 1회 또는 격주 1회.
  */
+require('../instrument');
 require('dotenv').config();
 const { pool, query } = require('../db');
 const { complete } = require('./llm');

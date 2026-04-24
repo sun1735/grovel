@@ -17,6 +17,7 @@
  *   하루 중 단 1번이라도 성공하면 브리핑이 올라감.
  *   Start Command: "node worker/generateNews.js"
  */
+require('../instrument');
 require('dotenv').config();
 const Parser = require('rss-parser');
 const { pool, query } = require('../db');

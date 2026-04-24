@@ -1,3 +1,5 @@
+// Sentry는 어떤 모듈보다도 먼저 로드되어야 instrumentation이 정상 동작
+const sentryInit = require('./instrument');
 require('dotenv').config();
 const express = require('express');
 const cookieParser = require('cookie-parser');
@@ -244,6 +246,11 @@ app.get('*', (req, res) => {
   }
   res.sendFile(path.join(__dirname, 'index.html'));
 });
+
+// Sentry Express 에러 핸들러 — 모든 라우트 뒤, app.listen 전
+if (sentryInit.enabled) {
+  sentryInit.Sentry.setupExpressErrorHandler(app);
+}
 
 app.listen(PORT, () => {
   console.log(`🚀 마케톡 listening on :${PORT}`);
