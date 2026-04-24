@@ -91,6 +91,23 @@
     /* 읽은 글 표시 — 방문 이력 기반으로 제목 흐리게 */
     a.mt-read { color: rgba(0,0,0,0.42); }
     a.mt-read:hover { color: rgba(0,0,0,0.62); }
+
+    /* 플로팅 글쓰기 버튼 — 모바일 전용, 카카오 FAB 위에 스택 */
+    .mt-write-fab {
+      position:fixed; right:20px; bottom:92px; z-index:9989;
+      width:56px; height:56px; border-radius:999px;
+      background:#ff3e5f; color:#fff;
+      display:flex; align-items:center; justify-content:center;
+      box-shadow: 0 10px 28px -8px rgba(237,31,67,.38), 0 2px 6px rgba(0,0,0,.08);
+      transition: transform .15s ease, box-shadow .15s ease;
+      text-decoration:none;
+    }
+    .mt-write-fab:hover { transform: translateY(-2px); }
+    .mt-write-fab:active { transform: translateY(0); }
+    @media (min-width:641px) { .mt-write-fab { display:none; } }
+    @media (max-width:640px) {
+      .mt-write-fab { width:52px; height:52px; right:16px; bottom:84px; }
+    }
   `;
   document.head.appendChild(style);
 
@@ -169,6 +186,25 @@
       <span class="mt-kakao-tip">카카오톡으로 문의</span>
     `;
     document.body.appendChild(fab);
+  }
+
+  // ── 플로팅 글쓰기 버튼 (모바일 전용) ──
+  // data-no-write-fab 있으면 비활성. 글쓰기 페이지 자체에선 자동 숨김.
+  const isComposePage = /\/compose\.html$/.test(location.pathname);
+  if (!isComposePage &&
+      !document.documentElement.hasAttribute('data-no-write-fab') &&
+      !document.body.hasAttribute('data-no-write-fab')) {
+    const writeFab = document.createElement('a');
+    writeFab.className = 'mt-write-fab';
+    writeFab.href = '/compose.html';
+    writeFab.setAttribute('aria-label', '글쓰기');
+    writeFab.innerHTML = `
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M12 20h9"/>
+        <path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4 12.5-12.5z"/>
+      </svg>
+    `;
+    document.body.appendChild(writeFab);
   }
 
   // ── 읽은 글 표시 (localStorage + MutationObserver) ──
