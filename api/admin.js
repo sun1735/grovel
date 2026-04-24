@@ -64,6 +64,76 @@ router.get('/overview', async (_req, res) => {
 });
 
 // ─────────────────────────────────────────────
+// GET /api/admin/dashboard-extra — 7일 추이 + 대기 + Top 유저 + 최근 가입
+// ─────────────────────────────────────────────
+router.get('/dashboard-extra', async (_req, res) => {
+  try {
+    // KST 기준 최근 7일 일별 신규 가입/게시글/댓글
+    const { rows: daily } = await query(`
+      WITH days AS (
+        SELECT generate_series(
+          (NOW() AT TIME ZONE 'Asia/Seoul')::date - INTERVAL '6 days',
+          (NOW() AT TIME ZONE 'Asia/Seoul')::date,
+          '1 day'
+        )::date AS d
+      )
+      SELECT
+        TO_CHAR(days.d, 'MM-DD') AS label,
+        (SELECT COUNT(*)::int FROM users
+          WHERE (created_at AT TIME ZONE 'Asia/Seoul')::date = days.d) AS signups,
+        (SELECT COUNT(*)::int FROM posts
+          WHERE (published_at AT TIME ZONE 'Asia/Seoul')::date = days.d) AS posts,
+        (SELECT COUNT(*)::int FROM comments
+          WHERE (created_at AT TIME ZONE 'Asia/Seoul')::date = days.d) AS comments
+      FROM days ORDER BY days.d
+    `);
+
+    // 신고 처리 대기
+    const { rows: reports } = await query(
+      `SELECT COUNT(*)::int AS c FROM reports WHERE status = 'pending'`
+    );
+
+    // 최근 7일 Top 5 유저 (글·댓글 합산)
+    const { rows: topUsers } = await query(`
+      SELECT u.id, u.nickname, u.role,
+             COALESCE(p.c, 0)::int AS post_count,
+             COALESCE(c.c, 0)::int AS comment_count,
+             (COALESCE(p.c, 0) + COALESCE(c.c, 0))::int AS total
+      FROM users u
+      LEFT JOIN (
+        SELECT user_id, COUNT(*) AS c FROM posts
+        WHERE user_id IS NOT NULL AND published_at > NOW() - INTERVAL '7 days'
+        GROUP BY user_id
+      ) p ON p.user_id = u.id
+      LEFT JOIN (
+        SELECT user_id, COUNT(*) AS c FROM comments
+        WHERE user_id IS NOT NULL AND created_at > NOW() - INTERVAL '7 days'
+        GROUP BY user_id
+      ) c ON c.user_id = u.id
+      WHERE COALESCE(p.c, 0) + COALESCE(c.c, 0) > 0
+      ORDER BY total DESC
+      LIMIT 5
+    `);
+
+    // 최근 가입 5명
+    const { rows: newUsers } = await query(`
+      SELECT id, email, nickname, role, created_at
+      FROM users ORDER BY created_at DESC LIMIT 5
+    `);
+
+    res.json({
+      daily,
+      pending_reports: reports[0].c,
+      top_users: topUsers,
+      new_users: newUsers,
+    });
+  } catch (err) {
+    console.error('[admin/dashboard-extra]', err);
+    res.status(500).json({ error: 'failed' });
+  }
+});
+
+// ─────────────────────────────────────────────
 // GET /api/admin/recent-posts — 최근 글 (관리/삭제용)
 // ─────────────────────────────────────────────
 router.get('/recent-posts', async (req, res) => {

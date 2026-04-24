@@ -108,6 +108,56 @@
     </div>
   </section>
 
+  <!-- 한눈에 보기 — 7일 추이 + 대기 + Top·최근 -->
+  <section class="grid gap-4 lg:grid-cols-3">
+    <!-- 7일 추이 (2/3 너비) -->
+    <div class="card p-5 lg:col-span-2">
+      <div class="flex items-center justify-between mb-4">
+        <div class="font-extrabold text-[14px]">최근 7일 추이</div>
+        <div class="flex gap-1 text-[11px]">
+          <button data-trend="signups"  class="trend-tab px-2.5 py-1 rounded-md bg-brand-500 text-white font-bold">가입</button>
+          <button data-trend="posts"    class="trend-tab px-2.5 py-1 rounded-md bg-paper hover:bg-black/5 text-black/60 font-bold">글</button>
+          <button data-trend="comments" class="trend-tab px-2.5 py-1 rounded-md bg-paper hover:bg-black/5 text-black/60 font-bold">댓글</button>
+        </div>
+      </div>
+      <div id="trend-chart" class="h-[140px] flex items-end gap-1.5">
+        <!-- JS가 채움 -->
+      </div>
+    </div>
+
+    <!-- 처리 대기 -->
+    <div class="card p-5 flex flex-col">
+      <div class="text-[11px] font-bold text-black/45 uppercase">처리 대기</div>
+      <div class="mt-3 flex-1 space-y-2">
+        <a data-tab-switch="reports" class="flex items-center justify-between p-3 rounded-lg bg-rose-50 hover:bg-rose-100 cursor-pointer transition">
+          <div class="flex items-center gap-2">
+            <i data-lucide="flag" class="w-4 h-4 text-rose-600"></i>
+            <span class="text-[13px] font-bold text-rose-700">신고</span>
+          </div>
+          <span id="pending-reports" class="text-lg font-extrabold text-rose-600">0</span>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <section class="grid gap-4 md:grid-cols-2">
+    <!-- Top 5 활동 유저 -->
+    <div class="card p-5">
+      <div class="font-extrabold text-[14px] mb-3">이번 주 활발한 유저</div>
+      <ol id="top-users" class="space-y-2 text-[13px]">
+        <li class="text-black/40 text-center py-6">데이터 없음</li>
+      </ol>
+    </div>
+
+    <!-- 최근 가입자 -->
+    <div class="card p-5">
+      <div class="font-extrabold text-[14px] mb-3">최근 가입자</div>
+      <ol id="recent-signups" class="space-y-2 text-[13px]">
+        <li class="text-black/40 text-center py-6">데이터 없음</li>
+      </ol>
+    </div>
+  </section>
+
   <!-- 탭 -->
   <div class="flex gap-1 border-b border-black/10 overflow-x-auto">
     <button data-tab="posts"    class="tab px-4 py-2.5 text-sm font-bold border-b-2 border-brand-500 text-brand-600 whitespace-nowrap">최근 게시글</button>
@@ -390,6 +440,7 @@
       $('#me').textContent = `${user.nickname} (admin)`;
       $('#dashboard').classList.remove('hidden');
       loadOverview();
+      loadDashboardExtra();
       loadPosts();
     } catch {
       $('#auth-guard').classList.remove('hidden');
@@ -419,6 +470,92 @@
       $('#m-tokens-in').textContent       = fmt.format(e.in_tokens || 0);
       $('#m-tokens-out').textContent      = fmt.format(e.out_tokens || 0);
     } catch (err) { console.error(err); }
+  }
+
+  // 7일 추이 + 처리 대기 + Top 유저 + 최근 가입
+  let dashExtra = null;
+  let currentTrend = 'signups';
+
+  async function loadDashboardExtra() {
+    try {
+      const r = await fetch('/api/admin/dashboard-extra', { credentials:'same-origin' });
+      dashExtra = await r.json();
+      renderTrend(currentTrend);
+      renderPending();
+      renderTopUsers();
+      renderRecentSignups();
+      lucide.createIcons();
+    } catch (err) { console.error(err); }
+  }
+
+  function renderTrend(key) {
+    currentTrend = key;
+    const data = (dashExtra?.daily || []).map(d => ({ label: d.label, value: d[key] || 0 }));
+    const max = Math.max(...data.map(d => d.value), 1);
+    const color = key === 'signups' ? 'bg-brand-500' : key === 'posts' ? 'bg-indigo-500' : 'bg-emerald-500';
+    $('#trend-chart').innerHTML = data.map(d => `
+      <div class="flex-1 flex flex-col items-center gap-1 h-full justify-end">
+        <div class="text-[10px] font-bold tabular-nums">${d.value}</div>
+        <div class="w-full ${color} rounded-t-sm transition-all" style="height: ${Math.max((d.value / max) * 100, 2)}px"></div>
+        <div class="text-[10px] text-black/45 tabular-nums">${d.label}</div>
+      </div>
+    `).join('');
+    $$('.trend-tab').forEach(btn => {
+      const active = btn.dataset.trend === key;
+      btn.classList.toggle('bg-brand-500', active && key === 'signups');
+      btn.classList.toggle('bg-indigo-500', active && key === 'posts');
+      btn.classList.toggle('bg-emerald-500', active && key === 'comments');
+      btn.classList.toggle('text-white', active);
+      btn.classList.toggle('bg-paper', !active);
+      btn.classList.toggle('text-black/60', !active);
+    });
+  }
+  $$('.trend-tab').forEach(btn => btn.addEventListener('click', () => renderTrend(btn.dataset.trend)));
+
+  function renderPending() {
+    $('#pending-reports').textContent = fmt.format(dashExtra?.pending_reports || 0);
+  }
+  // "신고 처리 대기" 카드 클릭 시 신고 탭으로
+  document.querySelectorAll('[data-tab-switch]').forEach(el => {
+    el.addEventListener('click', () => {
+      const target = el.dataset.tabSwitch;
+      const btn = document.querySelector(`.tab[data-tab="${target}"]`);
+      if (btn) btn.click();
+      window.scrollTo({ top: document.querySelector('.tab').getBoundingClientRect().top + window.scrollY - 20, behavior:'smooth' });
+    });
+  });
+
+  function renderTopUsers() {
+    const users = dashExtra?.top_users || [];
+    if (users.length === 0) {
+      $('#top-users').innerHTML = '<li class="text-black/40 text-center py-6 text-[12px]">이번 주 활동 없음</li>';
+      return;
+    }
+    $('#top-users').innerHTML = users.map((u, i) => `
+      <li class="flex items-center gap-3 p-2 rounded-md hover:bg-paper">
+        <span class="w-5 text-center font-extrabold ${i < 3 ? 'text-amber-500' : 'text-black/40'}">${i+1}</span>
+        <span class="flex-1 font-bold truncate">${escapeHtml(u.nickname)}</span>
+        <span class="text-[11px] text-black/50">글 ${u.post_count} · 댓글 ${u.comment_count}</span>
+      </li>
+    `).join('');
+  }
+
+  function renderRecentSignups() {
+    const users = dashExtra?.new_users || [];
+    if (users.length === 0) {
+      $('#recent-signups').innerHTML = '<li class="text-black/40 text-center py-6 text-[12px]">가입자 없음</li>';
+      return;
+    }
+    $('#recent-signups').innerHTML = users.map(u => `
+      <li class="flex items-center gap-3 p-2 rounded-md hover:bg-paper">
+        <div class="w-8 h-8 rounded-full bg-brand-50 text-brand-600 flex items-center justify-center font-extrabold text-[13px]">${escapeHtml(u.nickname[0])}</div>
+        <div class="flex-1 min-w-0">
+          <div class="font-bold truncate">${escapeHtml(u.nickname)} ${u.role === 'admin' ? '<span class="badge b-warn">admin</span>' : ''}</div>
+          <div class="text-[10.5px] text-black/45 truncate">${escapeHtml(u.email)}</div>
+        </div>
+        <span class="text-[10.5px] text-black/45 tabular-nums whitespace-nowrap">${fmtDateTime(u.created_at)}</span>
+      </li>
+    `).join('');
   }
 
   async function loadPosts() {
