@@ -8,7 +8,7 @@
 const express = require('express');
 const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
-const { query } = require('../db');
+const { query, withTransaction } = require('../db');
 const {
   signToken,
   setSessionCookie,
@@ -401,6 +401,71 @@ router.put('/profile', requireAuth, async (req, res) => {
     res.json({ ok: true, message: '프로필이 수정되었습니다.' });
   } catch (err) {
     console.error('[auth/profile]', err);
+    res.status(500).json({ error: 'server_error' });
+  }
+});
+
+// ─────────────────────────────────────────────
+// DELETE /api/auth/account — 계정 탈퇴
+// 본인 식별정보(users row)는 즉시 삭제,
+// 작성한 게시글·댓글의 author_nickname은 '탈퇴한 회원'으로 익명화.
+// user_id는 schema FK의 ON DELETE SET NULL로 자동 NULL 처리됨.
+// ─────────────────────────────────────────────
+router.delete('/account', requireAuth, async (req, res) => {
+  const { password, confirmation } = req.body || {};
+
+  if (confirmation !== '탈퇴합니다') {
+    return res.status(400).json({
+      error: 'invalid_confirmation',
+      message: '"탈퇴합니다"를 정확히 입력해 주세요.',
+    });
+  }
+
+  try {
+    const { rows } = await query(
+      'SELECT email, nickname, password_hash FROM users WHERE id = $1',
+      [req.user.id]
+    );
+    if (rows.length === 0) return res.status(404).json({ error: 'user_not_found' });
+    const user = rows[0];
+
+    // 카카오 로그인 유저는 랜덤 비번이라 검증 스킵 (email 이 @kakao.local 로 끝남)
+    const isKakaoAccount = /@kakao\.local$/.test(user.email);
+    if (!isKakaoAccount) {
+      if (!password) {
+        return res.status(400).json({ error: 'password_required', message: '비밀번호를 입력해 주세요.' });
+      }
+      const ok = await bcrypt.compare(password, user.password_hash);
+      if (!ok) {
+        return res.status(401).json({ error: 'wrong_password', message: '비밀번호가 일치하지 않습니다.' });
+      }
+    }
+
+    await withTransaction(async (client) => {
+      // 익명화 — FK는 SET NULL이지만 snapshot 닉네임은 별도 컬럼
+      await client.query(
+        `UPDATE posts    SET author_nickname = '탈퇴한 회원' WHERE user_id = $1`,
+        [req.user.id]
+      );
+      await client.query(
+        `UPDATE comments SET author_nickname = '탈퇴한 회원' WHERE user_id = $1`,
+        [req.user.id]
+      );
+      // 사용자 row 삭제 — FK로 likes·engine_log 등 CASCADE / posts·comments.user_id 는 SET NULL
+      await client.query('DELETE FROM users WHERE id = $1', [req.user.id]);
+    });
+
+    clearSessionCookie(res);
+
+    // 운영자 알림 (이메일 전송 대체로 디스코드 사용)
+    notifyError({
+      title: '👋 회원 탈퇴',
+      message: `닉네임: ${user.nickname}\n이메일: ${user.email}`,
+    }).catch(() => {});
+
+    res.json({ ok: true, message: '계정이 삭제되었습니다.' });
+  } catch (err) {
+    console.error('[auth/account/delete]', err);
     res.status(500).json({ error: 'server_error' });
   }
 });

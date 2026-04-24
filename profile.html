@@ -111,6 +111,39 @@
       <div id="edit-msg" class="hidden text-sm"></div>
       <button type="submit" class="h-11 px-6 bg-brand-500 hover:bg-brand-600 text-white rounded-lg text-sm font-bold">저장</button>
     </form>
+
+    <!-- 위험 영역 — 계정 탈퇴 -->
+    <div class="mt-10 pt-6 border-t border-rose-200 max-w-lg">
+      <h3 class="font-extrabold text-rose-700 text-[14px]">위험 영역</h3>
+      <p class="text-[12px] text-black/55 mt-1 leading-relaxed">
+        계정을 탈퇴하면 이메일·닉네임 등 개인정보가 즉시 삭제됩니다.<br/>
+        작성하신 글과 댓글은 <b>"탈퇴한 회원"</b>으로 익명 처리되어 남습니다. 이 작업은 되돌릴 수 없어요.
+      </p>
+
+      <button id="btn-show-delete" class="mt-3 px-4 h-10 border border-rose-300 text-rose-600 hover:bg-rose-50 rounded-lg text-[13px] font-bold">
+        계정 탈퇴하기
+      </button>
+
+      <div id="delete-section" class="hidden mt-4 p-4 rounded-lg bg-rose-50/60 border border-rose-200 space-y-3">
+        <div id="delete-password-wrap">
+          <label class="text-[11px] font-bold text-black/60 block mb-1.5">비밀번호 확인</label>
+          <input type="password" id="delete-password" autocomplete="current-password"
+                 class="w-full h-10 px-3 rounded-md border border-black/15 text-sm bg-white" placeholder="현재 비밀번호" />
+        </div>
+        <div>
+          <label class="text-[11px] font-bold text-black/60 block mb-1.5">
+            확인을 위해 <span class="text-rose-600 font-black">탈퇴합니다</span>를 입력해 주세요
+          </label>
+          <input type="text" id="delete-confirm"
+                 class="w-full h-10 px-3 rounded-md border border-black/15 text-sm bg-white" placeholder="탈퇴합니다" />
+        </div>
+        <div id="delete-msg" class="hidden text-[12px]"></div>
+        <div class="flex gap-2 pt-1">
+          <button id="btn-cancel-delete" class="h-10 px-4 rounded-md bg-white hover:bg-paper border border-black/10 text-[13px] font-bold">취소</button>
+          <button id="btn-do-delete" class="h-10 px-4 rounded-md bg-rose-600 hover:bg-rose-700 text-white text-[13px] font-bold">영구 탈퇴</button>
+        </div>
+      </div>
+    </div>
   </section>
 
   <!-- 내 글 탭 -->
@@ -323,6 +356,85 @@
       `).join('');
     } catch {}
   }
+
+  // 계정 탈퇴
+  (() => {
+    const showBtn = $('#btn-show-delete');
+    const section = $('#delete-section');
+    const cancelBtn = $('#btn-cancel-delete');
+    const doBtn = $('#btn-do-delete');
+    const passwordWrap = $('#delete-password-wrap');
+    const passwordInput = $('#delete-password');
+    const confirmInput = $('#delete-confirm');
+    const msg = $('#delete-msg');
+
+    showBtn.addEventListener('click', () => {
+      section.classList.remove('hidden');
+      showBtn.classList.add('hidden');
+      // 카카오 로그인이면 비번 입력 숨김
+      const isKakao = me && /@kakao\.local$/.test(me.email);
+      if (isKakao) passwordWrap.classList.add('hidden');
+    });
+    cancelBtn.addEventListener('click', () => {
+      section.classList.add('hidden');
+      showBtn.classList.remove('hidden');
+      passwordInput.value = '';
+      confirmInput.value = '';
+      msg.classList.add('hidden');
+    });
+
+    doBtn.addEventListener('click', async () => {
+      msg.classList.add('hidden');
+      const confirmation = confirmInput.value.trim();
+      if (confirmation !== '탈퇴합니다') {
+        msg.textContent = '"탈퇴합니다"를 정확히 입력해 주세요.';
+        msg.className = 'text-[12px] text-rose-600';
+        msg.classList.remove('hidden');
+        return;
+      }
+
+      const ok = await mtConfirm('정말 탈퇴하시겠어요? 이 작업은 되돌릴 수 없습니다.', {
+        title: '계정 탈퇴 확인',
+        okText: '탈퇴',
+        cancelText: '취소',
+        danger: true,
+      });
+      if (!ok) return;
+
+      const body = { confirmation };
+      const isKakao = me && /@kakao\.local$/.test(me.email);
+      if (!isKakao) body.password = passwordInput.value;
+
+      doBtn.disabled = true;
+      doBtn.textContent = '처리 중…';
+
+      try {
+        const r = await fetch('/api/auth/account', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'same-origin',
+          body: JSON.stringify(body),
+        });
+        const j = await r.json();
+        if (!r.ok) {
+          msg.textContent = j.message || '탈퇴 처리 실패';
+          msg.className = 'text-[12px] text-rose-600';
+          msg.classList.remove('hidden');
+          doBtn.disabled = false;
+          doBtn.textContent = '영구 탈퇴';
+          return;
+        }
+        mtToast('탈퇴가 완료되었습니다', 'success', 2500);
+        setTimeout(() => { location.href = '/'; }, 1500);
+      } catch (err) {
+        msg.textContent = '네트워크 오류';
+        msg.className = 'text-[12px] text-rose-600';
+        msg.classList.remove('hidden');
+        doBtn.disabled = false;
+        doBtn.textContent = '영구 탈퇴';
+      }
+    });
+  })();
 
   init();
 </script>
