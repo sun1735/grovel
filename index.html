@@ -931,6 +931,22 @@ fetch('/api/seo-verify').then(r=>r.json()).then(d=>{
     }
   }
 
+  // KST 기준 M/D 포맷
+  function kstMonthDay(iso) {
+    const d = new Date(iso);
+    const utc = d.getTime() + d.getTimezoneOffset() * 60000;
+    const kst = new Date(utc + 9 * 3600 * 1000);
+    return `${kst.getMonth() + 1}/${kst.getDate()}`;
+  }
+
+  // 제목에 이미 날짜 프리픽스([4/24], 4월 24일 등)가 있으면 중복 방지 위해 제거
+  function stripTitleDatePrefix(title) {
+    return String(title || '')
+      .replace(/^\s*\[?\d{1,2}\/\d{1,2}\]?\s*[-—·]?\s*/, '')
+      .replace(/^\s*\d{1,2}월\s*\d{1,2}일\s*[-—·]?\s*/, '')
+      .trim();
+  }
+
   // ============== NEWS / WEEKLY / RECENT COMMENTS ==============
   async function loadNews() {
     try {
@@ -942,7 +958,8 @@ fetch('/api/seo-verify').then(r=>r.json()).then(d=>{
       }
       list.innerHTML = posts.map(p => `
         <a href="/post.html?id=${p.id}" class="row-hover flex items-center gap-3 px-5 py-3 text-sm">
-          <span class="flex-1 truncate font-semibold">${escapeHtml(p.title)}</span>
+          <span class="shrink-0 text-[11px] font-black text-brand-500 w-10 tabular-nums">${kstMonthDay(p.published_at)}</span>
+          <span class="flex-1 truncate font-semibold">${escapeHtml(stripTitleDatePrefix(p.title))}</span>
           <span class="text-[11px] text-black/40 whitespace-nowrap">${timeAgo(p.published_at)}</span>
         </a>
       `).join('');
