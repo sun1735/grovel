@@ -10,6 +10,7 @@
     "watch:css": "tailwindcss -i ./src/tailwind.css -o ./tailwind.css --watch",
     "db:migrate": "node db/migrate.js",
     "db:seed": "node db/seed.js",
+    "db:clear-agencies": "node db/clearAgencies.js",
     "worker:post": "node worker/generatePost.js",
     "worker:comment": "node worker/generateComment.js",
     "worker:topics": "node worker/generateTopics.js",
