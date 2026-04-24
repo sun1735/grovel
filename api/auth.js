@@ -27,6 +27,21 @@ const EMAIL_RE    = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const NICK_RE     = /^[가-힣a-zA-Z0-9_]{2,20}$/;
 const PWD_MIN     = 8;
 
+// 비밀번호 강도: 8자 이상 + 영문·숫자·특수문자 중 2종 이상 포함
+function checkPasswordStrength(pw) {
+  if (!pw || pw.length < PWD_MIN) {
+    return `비밀번호는 ${PWD_MIN}자 이상이어야 합니다.`;
+  }
+  const hasLetter = /[a-zA-Z]/.test(pw);
+  const hasDigit  = /[0-9]/.test(pw);
+  const hasSymbol = /[^a-zA-Z0-9]/.test(pw);
+  const classes = [hasLetter, hasDigit, hasSymbol].filter(Boolean).length;
+  if (classes < 2) {
+    return '영문, 숫자, 특수문자 중 2종 이상을 포함해 주세요.';
+  }
+  return null;
+}
+
 // 마케톡 관련 닉네임 금지 (운영자 사칭 방지)
 const BLOCKED_NICKS = [
   '마케톡', 'marketalk', 'marketok', '마켓톡', '관리자', '운영자', '운영팀',
@@ -90,8 +105,9 @@ router.post('/register', registerLimiter, async (req, res) => {
   if (isBlockedNickname(nickname)) {
     return res.status(400).json({ error: 'blocked_nickname', message: '마케톡/관리자 관련 닉네임은 사용할 수 없습니다.' });
   }
-  if (password.length < PWD_MIN) {
-    return res.status(400).json({ error: 'weak_password', message: `비밀번호는 ${PWD_MIN}자 이상` });
+  const pwdError = checkPasswordStrength(password);
+  if (pwdError) {
+    return res.status(400).json({ error: 'weak_password', message: pwdError });
   }
 
   try {
@@ -358,7 +374,8 @@ router.post('/forgot-password', forgotLimiter, async (req, res) => {
 router.post('/reset-password', async (req, res) => {
   const { token, new_password } = req.body || {};
   if (!token || !new_password) return res.status(400).json({ error: 'missing_fields' });
-  if (new_password.length < PWD_MIN) return res.status(400).json({ error: 'weak_password', message: `비밀번호는 ${PWD_MIN}자 이상` });
+  const resetPwdError = checkPasswordStrength(new_password);
+  if (resetPwdError) return res.status(400).json({ error: 'weak_password', message: resetPwdError });
 
   try {
     const { rows } = await query(
@@ -414,7 +431,8 @@ router.put('/profile', requireAuth, async (req, res) => {
     // 비밀번호 변경
     if (new_password) {
       if (!current_password) return res.status(400).json({ error: 'missing_current_password', message: '현재 비밀번호를 입력하세요.' });
-      if (new_password.length < PWD_MIN) return res.status(400).json({ error: 'weak_password', message: `새 비밀번호는 ${PWD_MIN}자 이상` });
+      const newPwdError = checkPasswordStrength(new_password);
+      if (newPwdError) return res.status(400).json({ error: 'weak_password', message: newPwdError });
 
       const { rows: userRows } = await query('SELECT password_hash FROM users WHERE id = $1', [req.user.id]);
       const ok = await bcrypt.compare(current_password, userRows[0].password_hash);
