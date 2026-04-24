@@ -12,6 +12,9 @@ const { query } = require('../db');
 const PRIMARY_MODEL  = process.env.LLM_MODEL || 'claude-sonnet-4-6';
 const FALLBACK_MODEL = 'claude-haiku-4-5-20251001';
 const MAX_TOKENS     = parseInt(process.env.LLM_MAX_TOKENS || '2000');
+const REQUEST_TIMEOUT_MS = parseInt(process.env.LLM_TIMEOUT_MS || '30000');     // 요청당 30초
+const HOURLY_LIMIT       = parseInt(process.env.LLM_HOURLY_LIMIT || '60');       // 시간당 60회
+const DAILY_LIMIT        = parseInt(process.env.LLM_DAILY_LIMIT || '500');       // 일 500회
 
 if (!process.env.ANTHROPIC_API_KEY) {
   console.warn('⚠️  ANTHROPIC_API_KEY가 설정되지 않았습니다. .env 파일에 추가하세요.');
@@ -19,7 +22,34 @@ if (!process.env.ANTHROPIC_API_KEY) {
 
 const client = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
+  timeout: REQUEST_TIMEOUT_MS,  // 요청당 timeout
+  maxRetries: 0,                // SDK 자체 재시도 비활성 — 우리가 명시적 제어
 });
+
+// 시간당·일일 호출 한도 확인 (비용 폭주 방어)
+async function checkQuota() {
+  const { rows } = await query(
+    `SELECT
+       (SELECT COUNT(*)::int FROM engine_log WHERE created_at > NOW() - INTERVAL '1 hour') AS hourly,
+       (SELECT COUNT(*)::int FROM engine_log WHERE created_at > NOW() - INTERVAL '24 hours') AS daily`
+  );
+  const { hourly, daily } = rows[0];
+  if (hourly >= HOURLY_LIMIT) {
+    throw new Error(`LLM 시간당 한도 초과 (${hourly}/${HOURLY_LIMIT}). 1시간 후 재시도.`);
+  }
+  if (daily >= DAILY_LIMIT) {
+    throw new Error(`LLM 일일 한도 초과 (${daily}/${DAILY_LIMIT}). 24시간 후 재시도.`);
+  }
+}
+
+// Anthropic rate/overload 에러는 재시도해도 즉시 실패 (429/529/overload_error)
+function isRateLimitError(err) {
+  if (!err) return false;
+  const status = err.status || err.response?.status;
+  if (status === 429 || status === 529) return true;
+  const name = err.error?.type || err.name || '';
+  return /overload|rate_limit/i.test(name);
+}
 
 /**
  * LLM에 메시지 전송 후 텍스트 응답 반환
@@ -32,6 +62,9 @@ const client = new Anthropic({
  * @returns {Promise<{text: string, model: string, usage: object}>}
  */
 async function complete({ system, user, model = PRIMARY_MODEL, maxTokens, logCtx = {} }) {
+  // 호출 전 quota 체크 — 초과 시 즉시 예외
+  await checkQuota();
+
   const start = Date.now();
   let usedModel = model;
   const tokens = maxTokens || MAX_TOKENS;
@@ -45,18 +78,24 @@ async function complete({ system, user, model = PRIMARY_MODEL, maxTokens, logCtx
       messages: [{ role: 'user', content: user }],
     });
   } catch (err) {
-    // 1차 실패 → 폴백 모델로 재시도
-    console.warn(`[llm] ${usedModel} 실패: ${err.message} → ${FALLBACK_MODEL}로 폴백`);
-    usedModel = FALLBACK_MODEL;
-    try {
-      result = await client.messages.create({
-        model: usedModel,
-        max_tokens: tokens,
-        system,
-        messages: [{ role: 'user', content: user }],
-      });
-    } catch (err2) {
-      error = err2;
+    // Rate limit/overload는 폴백 호출 안 함 (똑같이 실패할 것)
+    if (isRateLimitError(err)) {
+      console.warn(`[llm] ${usedModel} rate/overload (${err.status || err.name}), 폴백 스킵`);
+      error = err;
+    } else {
+      // 그 외 일반 실패 → 폴백 모델로 1회 재시도
+      console.warn(`[llm] ${usedModel} 실패: ${err.message} → ${FALLBACK_MODEL}로 폴백`);
+      usedModel = FALLBACK_MODEL;
+      try {
+        result = await client.messages.create({
+          model: usedModel,
+          max_tokens: tokens,
+          system,
+          messages: [{ role: 'user', content: user }],
+        });
+      } catch (err2) {
+        error = err2;
+      }
     }
   }
 
