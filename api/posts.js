@@ -286,13 +286,43 @@ router.post('/', requireAuth, upload.array('images', 5), async (req, res) => {
     const { rows: boardRows } = await query('SELECT id FROM boards WHERE slug = $1', [board_slug]);
     if (boardRows.length === 0) return res.status(400).json({ error: 'invalid_board' });
 
-    // 도배 방지
+    // 도배 방지 (60초 쿨다운)
     const { rows: recent } = await query(
       `SELECT id FROM posts WHERE user_id = $1 AND published_at > NOW() - INTERVAL '60 seconds' LIMIT 1`,
       [req.user.id]
     );
     if (recent.length > 0) {
       return res.status(429).json({ error: 'too_fast', message: '잠시 후 다시 시도해 주세요.' });
+    }
+
+    // 신규 계정 쓰로틀링 (관리자 제외, 봇·스팸 방어)
+    if (req.user.role !== 'admin') {
+      const { rows: userRows } = await query('SELECT created_at FROM users WHERE id = $1', [req.user.id]);
+      if (userRows.length > 0) {
+        const ageMs = Date.now() - new Date(userRows[0].created_at).getTime();
+        const ONE_HOUR = 60 * 60 * 1000;
+
+        // 가입 후 1시간 이내: 글쓰기 차단 (댓글만 가능)
+        if (ageMs < ONE_HOUR) {
+          return res.status(403).json({
+            error: 'account_too_new',
+            message: '가입 후 1시간이 지나면 글쓰기가 가능합니다. 그동안 댓글로 활동해 주세요.',
+          });
+        }
+        // 가입 후 24시간 이내: 시간당 1건 제한
+        if (ageMs < 24 * ONE_HOUR) {
+          const { rows: hourly } = await query(
+            `SELECT COUNT(*)::int AS c FROM posts WHERE user_id = $1 AND published_at > NOW() - INTERVAL '1 hour'`,
+            [req.user.id]
+          );
+          if (hourly[0].c >= 1) {
+            return res.status(429).json({
+              error: 'new_account_hourly_limit',
+              message: '신규 계정은 시간당 1건만 글쓰기가 가능합니다. 1시간 후 다시 시도해 주세요.',
+            });
+          }
+        }
+      }
     }
 
     // 구인/협업 보드면 metadata 검증

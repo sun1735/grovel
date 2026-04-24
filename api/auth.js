@@ -10,6 +10,9 @@ const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const rateLimit = require('express-rate-limit');
 const { query, withTransaction } = require('../db');
+
+// 디스포저블(임시) 이메일 도메인 차단 — Set으로 O(1) 조회
+const DISPOSABLE_DOMAINS = new Set(require('disposable-email-domains'));
 const {
   signToken,
   setSessionCookie,
@@ -72,6 +75,14 @@ router.post('/register', registerLimiter, async (req, res) => {
   }
   if (!EMAIL_RE.test(email)) {
     return res.status(400).json({ error: 'invalid_email' });
+  }
+  // 임시 이메일 도메인 차단 (봇·스팸 방어)
+  const emailDomain = email.split('@')[1]?.toLowerCase();
+  if (emailDomain && DISPOSABLE_DOMAINS.has(emailDomain)) {
+    return res.status(400).json({
+      error: 'disposable_email',
+      message: '임시 이메일 주소는 사용할 수 없습니다. 실제 이메일로 가입해 주세요.',
+    });
   }
   if (!NICK_RE.test(nickname)) {
     return res.status(400).json({ error: 'invalid_nickname', message: '닉네임은 한글/영문/숫자/_ 2-20자' });
