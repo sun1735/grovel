@@ -87,6 +87,10 @@
       .mt-kakao-fab { width:52px; height:52px; right:16px; bottom:20px; }
       .mt-kakao-fab .mt-kakao-tip { display:none; }
     }
+
+    /* 읽은 글 표시 — 방문 이력 기반으로 제목 흐리게 */
+    a.mt-read { color: rgba(0,0,0,0.42); }
+    a.mt-read:hover { color: rgba(0,0,0,0.62); }
   `;
   document.head.appendChild(style);
 
@@ -166,4 +170,53 @@
     `;
     document.body.appendChild(fab);
   }
+
+  // ── 읽은 글 표시 (localStorage + MutationObserver) ──
+  // 게시글 링크 <a href="/post.html?id=N">에 mt-read 클래스 부여 → 제목 흐리게.
+  // 현재 페이지가 /post.html이면 해당 id를 읽음 처리.
+  const READ_KEY = 'mt_read_posts';
+  const READ_MAX = 2000;
+
+  function getReadSet() {
+    try { return new Set(JSON.parse(localStorage.getItem(READ_KEY) || '[]')); }
+    catch { return new Set(); }
+  }
+  function markPostRead(id) {
+    if (!id) return;
+    const s = getReadSet();
+    s.delete(id); s.add(id); // LRU 유지
+    let arr = [...s];
+    if (arr.length > READ_MAX) arr = arr.slice(-READ_MAX);
+    try { localStorage.setItem(READ_KEY, JSON.stringify(arr)); } catch {}
+  }
+  function applyReadStyles() {
+    const read = getReadSet();
+    if (read.size === 0) return;
+    const links = document.querySelectorAll('a[href*="/post.html?id="]');
+    for (const a of links) {
+      if (a.classList.contains('mt-read')) continue;
+      const m = a.getAttribute('href').match(/[?&]id=(\d+)/);
+      if (m && read.has(m[1])) a.classList.add('mt-read');
+    }
+  }
+  window.mtMarkPostRead = markPostRead;
+
+  // 현재 페이지가 글 상세면 id 기록
+  if (/\/post\.html$/.test(location.pathname)) {
+    const m = location.search.match(/[?&]id=(\d+)/);
+    if (m) markPostRead(m[1]);
+  }
+
+  // 초기 + 동적 렌더 감지 (fetch 후 innerHTML 주입 대응)
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', applyReadStyles);
+  } else {
+    applyReadStyles();
+  }
+  let readScanTimer;
+  const readObserver = new MutationObserver(() => {
+    clearTimeout(readScanTimer);
+    readScanTimer = setTimeout(applyReadStyles, 120);
+  });
+  readObserver.observe(document.documentElement, { childList: true, subtree: true });
 })();
