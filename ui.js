@@ -108,6 +108,26 @@
     @media (max-width:640px) {
       .mt-write-fab { width:52px; height:52px; right:16px; bottom:84px; }
     }
+
+    /* 다크 모드 토글 — 왼쪽 하단 */
+    .mt-theme-fab {
+      position:fixed; left:20px; bottom:24px; z-index:9988;
+      width:44px; height:44px; border-radius:999px;
+      background:#fff; color:#15171c;
+      border:1px solid rgba(0,0,0,0.08);
+      display:flex; align-items:center; justify-content:center;
+      box-shadow: 0 6px 18px -6px rgba(0,0,0,.18);
+      cursor:pointer; transition: transform .15s ease, background .15s ease;
+    }
+    .mt-theme-fab:hover { transform: translateY(-1px); }
+    html.dark .mt-theme-fab { background:#181a21; color:#edeef2; border-color:rgba(255,255,255,0.08); }
+    html.dark .mt-theme-fab .icon-sun { display:block; }
+    html.dark .mt-theme-fab .icon-moon { display:none; }
+    .mt-theme-fab .icon-sun { display:none; }
+    .mt-theme-fab .icon-moon { display:block; }
+    @media (max-width:640px) {
+      .mt-theme-fab { width:40px; height:40px; left:16px; bottom:20px; }
+    }
   `;
   document.head.appendChild(style);
 
@@ -186,6 +206,31 @@
       <span class="mt-kakao-tip">카카오톡으로 문의</span>
     `;
     document.body.appendChild(fab);
+  }
+
+  // ── 다크 모드 토글 FAB ──
+  // preload script가 <head>에서 이미 class를 적용하므로 FOUC 없음.
+  // data-no-theme-fab 있으면 숨김.
+  if (!document.documentElement.hasAttribute('data-no-theme-fab') &&
+      !document.body.hasAttribute('data-no-theme-fab')) {
+    const themeFab = document.createElement('button');
+    themeFab.type = 'button';
+    themeFab.className = 'mt-theme-fab';
+    themeFab.setAttribute('aria-label', '테마 전환');
+    themeFab.innerHTML = `
+      <svg class="icon-moon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+      </svg>
+      <svg class="icon-sun" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="12" cy="12" r="4"/>
+        <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+      </svg>
+    `;
+    themeFab.addEventListener('click', () => {
+      const isDark = document.documentElement.classList.toggle('dark');
+      try { localStorage.setItem('mt-theme', isDark ? 'dark' : 'light'); } catch {}
+    });
+    document.body.appendChild(themeFab);
   }
 
   // ── 플로팅 글쓰기 버튼 (모바일 전용) ──

@@ -17,3 +17,65 @@ mark {
   padding: 0 1px;
   border-radius: 2px;
 }
+
+/* ═════════ 다크 모드 ═════════
+   페이지별 <style> 블록 수정 없이 공통 변환.
+   html.dark 클래스가 붙으면 전체 사이트가 다크 팔레트로 변환.
+*/
+html.dark {
+  color-scheme: dark;
+  background: #0f1115;
+}
+html.dark body { background: #0f1115 !important; color: #edeef2 !important; }
+
+/* 카드/패널 배경 */
+html.dark .bg-white { background-color: #181a21 !important; }
+html.dark .bg-paper { background-color: #141519 !important; }
+html.dark .card { background-color: #181a21 !important; border-color: rgba(255,255,255,0.08) !important; }
+
+/* 헤더 투명 배경 */
+html.dark .bg-white\/80 { background-color: rgba(24,26,33,0.85) !important; }
+
+/* 테두리 */
+html.dark .border-black\/5  { border-color: rgba(255,255,255,0.06) !important; }
+html.dark .border-black\/10 { border-color: rgba(255,255,255,0.1)  !important; }
+html.dark .border-black\/20 { border-color: rgba(255,255,255,0.18) !important; }
+html.dark .divide-black\/5 > :not([hidden]) ~ :not([hidden]) { border-color: rgba(255,255,255,0.06) !important; }
+
+/* 텍스트 — 투명도 기반 */
+html.dark .text-black         { color: #edeef2 !important; }
+html.dark .text-black\/70     { color: rgba(237,238,242,0.85) !important; }
+html.dark .text-black\/65     { color: rgba(237,238,242,0.78) !important; }
+html.dark .text-black\/60     { color: rgba(237,238,242,0.72) !important; }
+html.dark .text-black\/55     { color: rgba(237,238,242,0.68) !important; }
+html.dark .text-black\/50     { color: rgba(237,238,242,0.6) !important; }
+html.dark .text-black\/45     { color: rgba(237,238,242,0.55) !important; }
+html.dark .text-black\/40     { color: rgba(237,238,242,0.5) !important; }
+html.dark .text-black\/35     { color: rgba(237,238,242,0.45) !important; }
+html.dark .text-ink           { color: #edeef2 !important; }
+
+/* hover 면 유지 (배경도) */
+html.dark .hover\:bg-paper:hover { background-color: #1f2128 !important; }
+html.dark .hover\:bg-black\/5:hover { background-color: rgba(255,255,255,0.06) !important; }
+html.dark .hover\:text-black:hover  { color: #edeef2 !important; }
+
+/* ink 배경 버튼 — 라이트에서 검정이었지만 다크에선 밝은 카드 느낌 */
+html.dark .bg-ink { background-color: #edeef2 !important; color: #0f1115 !important; }
+html.dark .bg-ink\/90 { background-color: rgba(237,238,242,0.9) !important; color: #0f1115 !important; }
+
+/* 스켈레톤 */
+html.dark .skeleton {
+  background: linear-gradient(90deg, #1f2128 0%, #282a33 50%, #1f2128 100%) !important;
+  background-size: 200% 100% !important;
+}
+
+/* 입력 요소 */
+html.dark input, html.dark textarea, html.dark select {
+  background-color: #141519;
+  color: #edeef2;
+  border-color: rgba(255,255,255,0.1);
+}
+html.dark input::placeholder, html.dark textarea::placeholder { color: rgba(237,238,242,0.4); }
+
+/* mark 하이라이트 — 다크에서 대비 조정 */
+html.dark mark { background: #b98c00; color: #fff; }
