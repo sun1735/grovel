@@ -21,8 +21,9 @@ const { attachUser } = require('./middleware/auth');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Railway 리버스 프록시 뒤에서 req.secure·req.ip 정상 인식
-app.set('trust proxy', 1);
+// Railway + Fastly CDN 뒤에 있으므로 모든 XFF hop 신뢰 필요.
+// (trust proxy=1 이면 Fastly edge IP로만 rate-limit 집계되어 실패함)
+app.set('trust proxy', true);
 
 // 보안 헤더 — HSTS, X-Frame-Options, X-Content-Type-Options, Referrer-Policy 등
 // CSP/COEP/CORP은 외부 CDN(tailwind/jsdelivr/unpkg/쿠팡파트너스) 호환성 문제로 비활성
