@@ -65,17 +65,17 @@ fetch('/api/seo-verify').then(r=>r.json()).then(d=>{
 </script>
 
 <style>
-  body { background:#f6f7f9; color:#15171c; font-feature-settings:"ss01","cv11"; }
-  .container-x { max-width:1240px; margin:0 auto; padding-left:1rem; padding-right:1rem; }
-  .card { background:#fff; border:1px solid #eaecef; border-radius:12px; }
+  body { background:#f6f7f9; color:#15171c; font-feature-settings:"ss01","cv11"; -webkit-font-smoothing:antialiased; }
+  .container-x { max-width:1280px; margin:0 auto; padding-left:1rem; padding-right:1rem; }
+  .card { background:#fff; border:1px solid #eff1f4; border-radius:16px; box-shadow:0 1px 2px rgba(15,23,42,0.03); }
   .row-hover:hover { background:#fafbfc; }
   .ad-slot {
     background:repeating-linear-gradient(45deg,#f4f5f7,#f4f5f7 10px,#eef0f3 10px,#eef0f3 20px);
     border:1px dashed #c9cdd4; color:#98a0aa; font-size:11px; letter-spacing:.15em;
     text-transform:uppercase; display:flex; align-items:center; justify-content:center;
-    border-radius:12px;
+    border-radius:16px;
   }
-  .badge-cat { display:inline-flex; align-items:center; gap:.35rem; padding:.15rem .5rem; border-radius:6px; font-size:11px; font-weight:600; }
+  .badge-cat { display:inline-flex; align-items:center; gap:.35rem; padding:.2rem .55rem; border-radius:6px; font-size:12px; font-weight:600; }
   .b-free  { background:#eef2ff; color:#4338ca; }
   .b-ad    { background:#fef3c7; color:#b45309; }
   .b-seo   { background:#d1fae5; color:#047857; }
@@ -89,7 +89,7 @@ fetch('/api/seo-verify').then(r=>r.json()).then(d=>{
   .hot { color:#ed1f43; }
   .new-dot { display:inline-block; width:6px; height:6px; border-radius:9999px; background:#ed1f43; margin-left:4px; vertical-align:middle; }
   .pin { color:#f59e0b; }
-  .av { width:28px; height:28px; border-radius:999px; display:inline-flex; align-items:center; justify-content:center; color:white; font-weight:700; font-size:11px; flex-shrink:0; }
+  .av { width:32px; height:32px; border-radius:999px; display:inline-flex; align-items:center; justify-content:center; color:white; font-weight:700; font-size:12px; flex-shrink:0; }
   .av-1 { background:linear-gradient(135deg,#ff6b9d,#c44569); }
   .av-2 { background:linear-gradient(135deg,#4facfe,#00f2fe); }
   .av-3 { background:linear-gradient(135deg,#43e97b,#38f9d7); }
@@ -168,8 +168,8 @@ fetch('/api/seo-verify').then(r=>r.json()).then(d=>{
     <form id="hdr-search" class="flex-1 max-w-xl hidden md:block relative">
       <div class="relative">
         <input id="hdr-q" type="text" autocomplete="off" placeholder="검색어를 입력하세요. 예) 인스타 광고 단가, 부업 추천"
-               class="w-full h-10 pl-10 pr-4 rounded-xl bg-paper border border-black/5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:bg-white" />
-        <i data-lucide="search" class="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-black/40"></i>
+               class="w-full h-11 pl-11 pr-4 rounded-xl bg-paper border border-black/5 text-[14px] focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:bg-white" />
+        <i data-lucide="search" class="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-black/40"></i>
       </div>
       <!-- 자동완성 dropdown -->
       <div id="search-suggest" class="hidden absolute top-full left-0 right-0 mt-1 card overflow-hidden shadow-lg z-50"></div>
@@ -187,7 +187,7 @@ fetch('/api/seo-verify').then(r=>r.json()).then(d=>{
       </a>
     </nav>
 
-    <a href="/compose.html" id="btn-write" class="hidden sm:inline-flex items-center gap-1.5 rounded-lg bg-brand-500 hover:bg-brand-600 text-white px-4 py-2 text-sm font-bold">
+    <a href="/compose.html" id="btn-write" class="hidden sm:inline-flex items-center gap-1.5 rounded-xl bg-brand-500 hover:bg-brand-600 text-white px-4 h-11 text-[14px] font-bold">
       <i data-lucide="pencil" class="w-4 h-4"></i> 글쓰기
     </a>
     <!-- 모바일 햄버거 -->
@@ -226,24 +226,24 @@ fetch('/api/seo-verify').then(r=>r.json()).then(d=>{
 
   <!-- 우측: 프로필 카드 (col-span-4) -->
   <div>
-    <div id="profile-card" class="card h-[150px] p-4 flex flex-col">
+    <div id="profile-card" class="card h-[150px] p-3 flex flex-col">
 
       <!-- 비로그인 -->
       <div id="strip-anon" class="flex flex-col h-full justify-center">
-        <a href="/api/auth/kakao" class="flex items-center justify-center gap-1.5 w-full h-9 rounded-md font-bold text-[12px] mb-2" style="background:#FEE500;color:#191919">
+        <a href="/api/auth/kakao" class="flex items-center justify-center gap-1.5 w-full h-10 rounded-lg font-bold text-[13px] mb-2" style="background:#FEE500;color:#191919">
           <svg width="16" height="16" viewBox="0 0 20 20"><path fill="#191919" d="M10 1C5.03 1 1 4.17 1 8.09c0 2.54 1.66 4.77 4.17 6.05l-1.06 3.88c-.09.34.28.61.58.43l4.5-2.96c.27.03.54.04.81.04 4.97 0 9-3.17 9-7.09S14.97 1 10 1"/></svg>
           카카오로 간편 가입/로그인
         </a>
         <form id="strip-login" class="space-y-1.5">
           <div class="flex gap-1.5">
             <input type="email" name="email" placeholder="이메일" required
-                   class="flex-1 min-w-0 h-8 px-2.5 rounded-md bg-paper border border-black/10 text-[12px] focus:outline-none focus:ring-2 focus:ring-brand-500/20" />
+                   class="flex-1 min-w-0 h-9 px-3 rounded-lg bg-paper border border-black/10 text-[13px] focus:outline-none focus:ring-2 focus:ring-brand-500/20" />
             <input type="password" name="password" placeholder="비밀번호" required
-                   class="flex-1 min-w-0 h-8 px-2.5 rounded-md bg-paper border border-black/10 text-[12px] focus:outline-none focus:ring-2 focus:ring-brand-500/20" />
+                   class="flex-1 min-w-0 h-9 px-3 rounded-lg bg-paper border border-black/10 text-[13px] focus:outline-none focus:ring-2 focus:ring-brand-500/20" />
           </div>
           <div class="flex gap-1.5">
-            <button type="submit" class="flex-1 h-8 bg-ink text-white rounded-md text-[12px] font-bold hover:bg-black/85">로그인</button>
-            <a href="/login.html#register" class="flex-1 h-8 leading-8 text-center bg-brand-50 text-brand-600 hover:bg-brand-100 rounded-md text-[12px] font-bold">회원가입</a>
+            <button type="submit" class="flex-1 h-9 bg-ink text-white rounded-lg text-[13px] font-bold hover:bg-black/85">로그인</button>
+            <a href="/login.html#register" class="flex-1 h-9 leading-9 text-center bg-brand-50 text-brand-600 hover:bg-brand-100 rounded-lg text-[13px] font-bold">회원가입</a>
           </div>
         </form>
         <div id="strip-login-err" class="hidden text-[11px] text-rose-600 mt-1"></div>
@@ -256,7 +256,7 @@ fetch('/api/seo-verify').then(r=>r.json()).then(d=>{
           <div id="strip-avatar" class="av av-1" style="width:48px;height:48px;border-radius:14px;font-size:18px;">·</div>
           <div class="min-w-0 flex-1">
             <div class="flex items-center gap-1.5">
-              <span class="font-extrabold text-[15px] truncate" id="strip-nickname">…</span>
+              <span class="font-extrabold text-[17px] truncate" id="strip-nickname">…</span>
               <i data-lucide="settings" class="w-3.5 h-3.5 text-black/30 hover:text-black/60"></i>
             </div>
             <div class="text-[11px] text-black/45" id="strip-role">멤버</div>
@@ -290,14 +290,14 @@ fetch('/api/seo-verify').then(r=>r.json()).then(d=>{
       <div class="flex items-center justify-between px-5 py-3 border-b border-black/5">
         <div class="flex items-center gap-2">
           <i data-lucide="flame" class="w-4 h-4 text-brand-500"></i>
-          <h2 class="font-extrabold text-[15px]">실시간 인기글</h2>
+          <h2 class="font-extrabold text-[17px]">실시간 인기글</h2>
           <span class="text-[11px] text-black/40">방금 업데이트</span>
         </div>
       </div>
       <ol class="divide-y divide-black/5" id="hot-list">
-        <li class="px-5 py-2.5"><div class="skeleton h-4 w-3/4"></div></li>
-        <li class="px-5 py-2.5"><div class="skeleton h-4 w-2/3"></div></li>
-        <li class="px-5 py-2.5"><div class="skeleton h-4 w-4/5"></div></li>
+        <li class="px-5 py-3"><div class="skeleton h-4 w-3/4"></div></li>
+        <li class="px-5 py-3"><div class="skeleton h-4 w-2/3"></div></li>
+        <li class="px-5 py-3"><div class="skeleton h-4 w-4/5"></div></li>
       </ol>
     </div>
 
@@ -306,13 +306,13 @@ fetch('/api/seo-verify').then(r=>r.json()).then(d=>{
       <div class="flex items-center justify-between px-5 py-3 bg-brand-50/50 border-b border-brand-100/50">
         <div class="flex items-center gap-2">
           <i data-lucide="newspaper" class="w-4 h-4 text-brand-500"></i>
-          <h2 class="font-extrabold text-[15px]">마케팅 뉴스 브리핑</h2>
+          <h2 class="font-extrabold text-[17px]">마케팅 뉴스 브리핑</h2>
           <span class="text-[10px] text-brand-500 font-bold">by 마케톡</span>
         </div>
       </div>
       <div id="news-list" class="divide-y divide-black/5">
-        <div class="px-5 py-2.5"><div class="skeleton h-4 w-3/4"></div></div>
-        <div class="px-5 py-2.5"><div class="skeleton h-4 w-2/3"></div></div>
+        <div class="px-5 py-3"><div class="skeleton h-4 w-3/4"></div></div>
+        <div class="px-5 py-3"><div class="skeleton h-4 w-2/3"></div></div>
       </div>
     </div>
 
@@ -321,7 +321,7 @@ fetch('/api/seo-verify').then(r=>r.json()).then(d=>{
       <div class="flex items-center justify-between px-5 py-3 border-b border-black/5">
         <div class="flex items-center gap-2">
           <i data-lucide="clock" class="w-4 h-4 text-black/60"></i>
-          <h2 class="font-extrabold text-[15px]">최신글</h2>
+          <h2 class="font-extrabold text-[17px]">최신글</h2>
           <span class="text-[11px] text-black/40" id="latest-board-label">전체</span>
         </div>
       </div>
@@ -357,13 +357,13 @@ fetch('/api/seo-verify').then(r=>r.json()).then(d=>{
         <div class="flex items-center justify-between px-5 py-3 border-b border-black/5">
           <div class="flex items-center gap-2">
             <i data-lucide="trophy" class="w-4 h-4 text-amber-500"></i>
-            <h2 class="font-extrabold text-[15px]">주간 베스트</h2>
+            <h2 class="font-extrabold text-[17px]">주간 베스트</h2>
           </div>
         </div>
         <ol id="weekly-best" class="divide-y divide-black/5">
-          <li class="px-5 py-2.5"><div class="skeleton h-4 w-3/4"></div></li>
-          <li class="px-5 py-2.5"><div class="skeleton h-4 w-2/3"></div></li>
-          <li class="px-5 py-2.5"><div class="skeleton h-4 w-4/5"></div></li>
+          <li class="px-5 py-3"><div class="skeleton h-4 w-3/4"></div></li>
+          <li class="px-5 py-3"><div class="skeleton h-4 w-2/3"></div></li>
+          <li class="px-5 py-3"><div class="skeleton h-4 w-4/5"></div></li>
         </ol>
       </div>
 
@@ -372,32 +372,32 @@ fetch('/api/seo-verify').then(r=>r.json()).then(d=>{
         <div class="flex items-center justify-between px-5 py-3 border-b border-black/5">
           <div class="flex items-center gap-2">
             <i data-lucide="message-circle" class="w-4 h-4 text-emerald-500"></i>
-            <h2 class="font-extrabold text-[15px]">최근 댓글</h2>
+            <h2 class="font-extrabold text-[17px]">최근 댓글</h2>
           </div>
         </div>
         <div id="recent-comments" class="divide-y divide-black/5">
-          <div class="px-5 py-2.5"><div class="skeleton h-4 w-full"></div></div>
-          <div class="px-5 py-2.5"><div class="skeleton h-4 w-5/6"></div></div>
-          <div class="px-5 py-2.5"><div class="skeleton h-4 w-4/6"></div></div>
+          <div class="px-5 py-3"><div class="skeleton h-4 w-full"></div></div>
+          <div class="px-5 py-3"><div class="skeleton h-4 w-5/6"></div></div>
+          <div class="px-5 py-3"><div class="skeleton h-4 w-4/6"></div></div>
         </div>
       </div>
     </div>
 
     <!-- 서비스 카드 3열 -->
     <div class="grid md:grid-cols-3 gap-5">
-      <a href="/resources.html" class="card px-6 py-6 hover:border-brand-500/30 hover:shadow-soft transition-all group">
-        <h3 class="font-extrabold text-[17px]">마케팅 자료실</h3>
-        <p class="text-[13px] text-black/55 mt-2 leading-relaxed">카피 템플릿, 체크리스트, 워크북 무료 다운로드</p>
+      <a href="/resources.html" class="card px-6 py-6 hover:-translate-y-0.5 transition-all group" style="transition-duration:.18s">
+        <h3 class="font-extrabold text-[18px]">마케팅 자료실</h3>
+        <p class="text-[14px] text-black/55 mt-2 leading-relaxed">카피 템플릿, 체크리스트, 워크북 무료 다운로드</p>
         <div class="text-[13px] text-brand-500 font-bold mt-4 group-hover:underline">바로가기 →</div>
       </a>
-      <a href="/copy-generator.html" class="card px-6 py-6 hover:border-brand-500/30 hover:shadow-soft transition-all group">
-        <h3 class="font-extrabold text-[17px]">AI 카피 생성기</h3>
-        <p class="text-[13px] text-black/55 mt-2 leading-relaxed">네이버·메타·카카오·구글 카피를 동시에 생성</p>
+      <a href="/copy-generator.html" class="card px-6 py-6 hover:-translate-y-0.5 transition-all group" style="transition-duration:.18s">
+        <h3 class="font-extrabold text-[18px]">AI 카피 생성기</h3>
+        <p class="text-[14px] text-black/55 mt-2 leading-relaxed">네이버·메타·카카오·구글 카피를 동시에 생성</p>
         <div class="text-[13px] text-brand-500 font-bold mt-4 group-hover:underline">카피 만들기 →</div>
       </a>
-      <a href="/agencies.html" class="card px-6 py-6 hover:border-brand-500/30 hover:shadow-soft transition-all group">
-        <h3 class="font-extrabold text-[17px]">광고대행사 디렉토리</h3>
-        <p class="text-[13px] text-black/55 mt-2 leading-relaxed">검증된 마케팅 대행사를 한곳에서 비교</p>
+      <a href="/agencies.html" class="card px-6 py-6 hover:-translate-y-0.5 transition-all group" style="transition-duration:.18s">
+        <h3 class="font-extrabold text-[18px]">광고대행사 디렉토리</h3>
+        <p class="text-[14px] text-black/55 mt-2 leading-relaxed">검증된 마케팅 대행사를 한곳에서 비교</p>
         <div class="text-[13px] text-brand-500 font-bold mt-4 group-hover:underline">둘러보기 →</div>
       </a>
     </div>
@@ -619,7 +619,7 @@ fetch('/api/seo-verify').then(r=>r.json()).then(d=>{
         return;
       }
       ol.innerHTML = posts.map((p, i) => `
-        <li class="row-hover px-5 py-2.5 flex items-center gap-3 text-sm">
+        <li class="row-hover px-5 py-3 flex items-center gap-3 text-sm">
           <span class="w-5 text-center font-extrabold ${i < 3 ? 'hot' : 'text-black/40'}">${i + 1}</span>
           <a href="/post.html?id=${p.id}" class="flex-1 truncate hover:underline">
             ${escapeHtml(p.title)}
@@ -978,7 +978,7 @@ fetch('/api/seo-verify').then(r=>r.json()).then(d=>{
         return;
       }
       ol.innerHTML = posts.map((p, i) => `
-        <li class="row-hover px-5 py-2.5 flex items-center gap-3 text-sm">
+        <li class="row-hover px-5 py-3 flex items-center gap-3 text-sm">
           <span class="w-5 text-center font-extrabold ${i < 3 ? 'text-amber-500' : 'text-black/40'}">${i + 1}</span>
           <a href="/post.html?id=${p.id}" class="flex-1 truncate hover:underline">${escapeHtml(p.title)}</a>
           <span class="text-[11px] text-black/40">❤${p.like_count || 0}</span>
@@ -996,7 +996,7 @@ fetch('/api/seo-verify').then(r=>r.json()).then(d=>{
         return;
       }
       div.innerHTML = comments.map(c => `
-        <a href="/post.html?id=${c.post_id}" class="row-hover block px-5 py-2.5 text-sm">
+        <a href="/post.html?id=${c.post_id}" class="row-hover block px-5 py-3 text-sm">
           <div class="flex items-center gap-1.5 text-[11px] text-black/45">
             <span class="font-semibold text-black/70">${escapeHtml(c.author_nickname)}</span>
             <span>·</span>
