@@ -3,6 +3,7 @@ const sentryInit = require('./instrument');
 require('dotenv').config();
 const express = require('express');
 const cookieParser = require('cookie-parser');
+const compression = require('compression');
 const helmet = require('helmet');
 const path = require('path');
 
@@ -33,6 +34,10 @@ app.use(helmet({
   crossOriginEmbedderPolicy: false,
   crossOriginResourcePolicy: false,
 }));
+
+// gzip/br 응답 압축 — HTML/JSON/CSS/JS. 이미지·이미 압축된 응답은 자동 제외.
+// 이미지 BYTEA 응답은 컨트롤러에서 별도 Cache-Control 설정됨.
+app.use(compression({ threshold: 1024 }));
 
 // 미들웨어
 app.use(express.json({ limit: '256kb' }));
@@ -160,11 +165,13 @@ app.get('/healthz', (_req, res) => {
   res.status(200).json({ status: 'ok', service: 'marketalk' });
 });
 
-// SEO 인증 메타태그 (네이버/구글)
+// SEO 인증 메타태그 (네이버/구글) + 분석 ID
 app.get('/api/seo-verify', (_req, res) => {
   res.json({
     naver: process.env.NAVER_VERIFY || null,
     google: process.env.GOOGLE_VERIFY || null,
+    ga: process.env.GA_MEASUREMENT_ID || null,        // G-XXXXXXXXXX
+    plausible: process.env.PLAUSIBLE_DOMAIN || null,  // 예: grovel.kr
   });
 });
 

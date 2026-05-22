@@ -684,6 +684,30 @@
     try { localStorage.setItem(DC_POST_KEY, '1'); } catch {}
   };
 
+  // ── 분석 스크립트 자동 주입 (GA4 / Plausible) ──
+  // env에 ID 있을 때만 주입. data-no-analytics 있으면 비활성 (admin 등).
+  if (!document.documentElement.hasAttribute('data-no-analytics') &&
+      !document.body.hasAttribute('data-no-analytics')) {
+    fetch('/api/seo-verify').then(r => r.json()).then(d => {
+      if (d.ga) {
+        const s1 = document.createElement('script');
+        s1.async = true;
+        s1.src = `https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(d.ga)}`;
+        document.head.appendChild(s1);
+        const s2 = document.createElement('script');
+        s2.textContent = `window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','${d.ga}',{anonymize_ip:true});`;
+        document.head.appendChild(s2);
+      }
+      if (d.plausible) {
+        const s = document.createElement('script');
+        s.defer = true;
+        s.dataset.domain = d.plausible;
+        s.src = 'https://plausible.io/js/script.js';
+        document.head.appendChild(s);
+      }
+    }).catch(() => {});
+  }
+
   // 자동 노출 로직
   if (!document.documentElement.hasAttribute('data-no-discord-modal') &&
       !document.body.hasAttribute('data-no-discord-modal')) {

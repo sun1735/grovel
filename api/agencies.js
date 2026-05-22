@@ -5,6 +5,29 @@ const router = express.Router();
 
 const VALID_SPECIALTIES = ['naver','kakao','meta','google','youtube','tiktok','coupang','smartstore','seo','content','design','data','brand'];
 
+// 조회수 디둡 캐시 (60초 IP+slug)
+const VIEW_WINDOW_MS = 60 * 1000;
+const viewCache = new Map();
+function clientIp(req) {
+  return (req.headers['x-forwarded-for'] || '').split(',')[0].trim()
+      || req.headers['x-real-ip']
+      || req.socket?.remoteAddress
+      || 'unknown';
+}
+function shouldCountView(key) {
+  const now = Date.now();
+  const exp = viewCache.get(key);
+  if (exp && exp > now) return false;
+  viewCache.set(key, now + VIEW_WINDOW_MS);
+  if (viewCache.size > 20000) {
+    for (const [k, v] of viewCache) {
+      if (v <= now) viewCache.delete(k);
+      if (viewCache.size <= 16000) break;
+    }
+  }
+  return true;
+}
+
 // ─────────────────────────────────────────────
 // GET /api/agencies — 공개 디렉토리 목록
 // 필터: ?specialty=naver&size=1-5&q=keyword
@@ -54,8 +77,11 @@ router.get('/:slug', async (req, res) => {
     );
     if (rows.length === 0) return res.status(404).json({ error: 'not_found' });
 
-    // 조회수 증가
-    await query('UPDATE agencies SET view_count = view_count + 1 WHERE id = $1', [rows[0].id]);
+    // 조회수 증가 (IP+slug 60초 디둡)
+    const subject = req.user ? `u${req.user.id}` : clientIp(req);
+    if (shouldCountView(`agency:${subject}:${rows[0].id}`)) {
+      await query('UPDATE agencies SET view_count = view_count + 1 WHERE id = $1', [rows[0].id]);
+    }
 
     res.json({ agency: rows[0] });
   } catch (err) {

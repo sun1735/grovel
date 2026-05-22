@@ -176,6 +176,35 @@ router.get('/users', async (_req, res) => {
 });
 
 // ─────────────────────────────────────────────
+// PUT /api/admin/users/:id/active — 활성/정지 토글
+// body: { is_active: boolean }
+// ─────────────────────────────────────────────
+router.put('/users/:id/active', async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (!id) return res.status(400).json({ error: 'invalid_id' });
+  const { is_active } = req.body || {};
+  if (typeof is_active !== 'boolean') return res.status(400).json({ error: 'missing_is_active' });
+
+  // 본인 정지 금지
+  if (id === req.user.id) return res.status(400).json({ error: 'cant_suspend_self' });
+
+  try {
+    // admin은 다른 admin을 정지 못함 (안전장치)
+    const { rows: target } = await query('SELECT role FROM users WHERE id = $1', [id]);
+    if (target.length === 0) return res.status(404).json({ error: 'not_found' });
+    if (target[0].role === 'admin' && !is_active) {
+      return res.status(403).json({ error: 'cant_suspend_admin', message: '관리자 계정은 정지할 수 없습니다.' });
+    }
+
+    await query('UPDATE users SET is_active = $2 WHERE id = $1', [id, is_active]);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[admin/users/active]', err);
+    res.status(500).json({ error: 'failed' });
+  }
+});
+
+// ─────────────────────────────────────────────
 // GET /api/admin/memories — 페르소나 메모리 검색
 // ─────────────────────────────────────────────
 router.get('/memories', async (req, res) => {

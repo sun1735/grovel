@@ -5,6 +5,29 @@ const router = express.Router();
 
 const VALID_CATEGORIES = ['copy-pack','checklist','cheatsheet','workbook','glossary'];
 
+// 조회수 디둡 (60초)
+const VIEW_WINDOW_MS = 60 * 1000;
+const viewCache = new Map();
+function clientIp(req) {
+  return (req.headers['x-forwarded-for'] || '').split(',')[0].trim()
+      || req.headers['x-real-ip']
+      || req.socket?.remoteAddress
+      || 'unknown';
+}
+function shouldCountView(key) {
+  const now = Date.now();
+  const exp = viewCache.get(key);
+  if (exp && exp > now) return false;
+  viewCache.set(key, now + VIEW_WINDOW_MS);
+  if (viewCache.size > 20000) {
+    for (const [k, v] of viewCache) {
+      if (v <= now) viewCache.delete(k);
+      if (viewCache.size <= 16000) break;
+    }
+  }
+  return true;
+}
+
 // ─────────────────────────────────────────────
 // GET /api/resources?category=checklist
 // ─────────────────────────────────────────────
@@ -41,8 +64,13 @@ router.get('/:slug', async (req, res) => {
       [req.params.slug]
     );
     if (rows.length === 0) return res.status(404).json({ error: 'not_found' });
-    // 조회수 +1
-    await query('UPDATE resources SET view_count = view_count + 1 WHERE id = $1', [rows[0].id]);
+
+    // 조회수 +1 (IP+slug 60초 디둡)
+    const subject = req.user ? `u${req.user.id}` : clientIp(req);
+    if (shouldCountView(`resource:${subject}:${rows[0].id}`)) {
+      await query('UPDATE resources SET view_count = view_count + 1 WHERE id = $1', [rows[0].id]);
+    }
+
     res.json({ resource: rows[0] });
   } catch (err) {
     res.status(500).json({ error: 'failed' });

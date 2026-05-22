@@ -27,7 +27,7 @@
   .scrollbox::-webkit-scrollbar-thumb { background:#d8dbe0; border-radius:999px; }
 </style>
 </head>
-<body class="antialiased" data-no-discord-modal>
+<body class="antialiased" data-no-discord-modal data-no-analytics>
 
 <header class="bg-ink text-white">
   <div class="container-x flex items-center justify-between h-14">
@@ -182,7 +182,7 @@
   <section id="tab-users" class="tab-pane card scrollbox hidden">
     <table class="w-full">
       <thead><tr>
-        <th>ID</th><th>이메일</th><th>닉네임</th><th>역할</th><th>글</th><th>댓글</th><th>가입일</th><th>최근 로그인</th>
+        <th>ID</th><th>이메일</th><th>닉네임</th><th>역할</th><th>상태</th><th>글</th><th>댓글</th><th>가입일</th><th>최근 로그인</th><th></th>
       </tr></thead>
       <tbody id="tbody-users"></tbody>
     </table>
@@ -592,12 +592,38 @@
         <td>${escapeHtml(u.email)}</td>
         <td><b>${escapeHtml(u.nickname)}</b></td>
         <td>${u.role === 'admin' ? '<span class="badge b-warn">admin</span>' : '<span class="badge b-user">user</span>'}</td>
+        <td>${u.is_active
+          ? '<span class="badge b-ok">활성</span>'
+          : '<span class="badge b-err">정지</span>'}</td>
         <td>${u.post_count}</td>
         <td>${u.comment_count}</td>
         <td class="tabular-nums whitespace-nowrap">${fmtDateTime(u.created_at)}</td>
         <td class="tabular-nums whitespace-nowrap">${fmtDateTime(u.last_login_at)}</td>
+        <td>
+          ${u.role === 'admin'
+            ? '<span class="text-[10px] text-black/30">—</span>'
+            : `<button data-uid="${u.id}" data-active="${u.is_active}"
+                       class="user-toggle text-[11px] px-2 py-1 rounded ${u.is_active
+                         ? 'bg-rose-50 text-rose-600 hover:bg-rose-100'
+                         : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'}">
+                ${u.is_active ? '정지' : '해제'}
+              </button>`}
+        </td>
       </tr>
     `).join('');
+    $$('.user-toggle').forEach(btn => btn.addEventListener('click', async () => {
+      const wasActive = btn.dataset.active === 'true';
+      const action = wasActive ? '정지' : '활성화';
+      const ok = await mtConfirm(`이 회원을 ${action}하시겠습니까?`, { title: `회원 ${action}`, okText: action, danger: wasActive });
+      if (!ok) return;
+      const r = await fetch(`/api/admin/users/${btn.dataset.uid}/active`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin',
+        body: JSON.stringify({ is_active: !wasActive }),
+      });
+      const j = await r.json();
+      if (r.ok) { mtToast('처리되었습니다.', 'success'); loadUsers(); }
+      else mtToast(j.message || '실패', 'error');
+    }));
   }
 
   async function loadMemories() {
