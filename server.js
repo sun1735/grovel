@@ -165,13 +165,14 @@ app.get('/healthz', (_req, res) => {
   res.status(200).json({ status: 'ok', service: 'marketalk' });
 });
 
-// SEO 인증 메타태그 (네이버/구글) + 분석 ID
+// SEO 인증 메타태그 (네이버/구글) + 분석 ID + 카카오 공유 키
 app.get('/api/seo-verify', (_req, res) => {
   res.json({
     naver: process.env.NAVER_VERIFY || null,
     google: process.env.GOOGLE_VERIFY || null,
     ga: process.env.GA_MEASUREMENT_ID || null,        // G-XXXXXXXXXX
     plausible: process.env.PLAUSIBLE_DOMAIN || null,  // 예: grovel.kr
+    kakao_js_key: process.env.KAKAO_JS_KEY || null,   // 카카오 공유 JS Key
   });
 });
 

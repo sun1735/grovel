@@ -1,9 +1,36 @@
 const express = require('express');
 const multer = require('multer');
+const sharp = require('sharp');
 const { query } = require('../db');
 const { requireAuth } = require('../middleware/auth');
 const { notifyNewPost } = require('../worker/discord');
 const { createNotification } = require('./notifications');
+
+// ── 이미지 압축 헬퍼 ──
+// 큰 이미지는 1600px로 리사이즈 + WebP 80% 변환.
+// SVG/GIF(애니메이션)는 원본 유지. 실패 시 원본 사용 (가용성 우선).
+async function compressImage(file) {
+  const mime = file.mimetype;
+  // SVG는 sharp가 raster로 변환할 수 있으나 의도 보존 위해 패스
+  if (mime === 'image/svg+xml') return { buffer: file.buffer, mime, name: file.originalname };
+  // GIF는 애니메이션일 수 있어 패스
+  if (mime === 'image/gif') return { buffer: file.buffer, mime, name: file.originalname };
+  try {
+    const buf = await sharp(file.buffer, { failOn: 'none' })
+      .rotate() // EXIF orientation 적용
+      .resize({ width: 1600, height: 1600, fit: 'inside', withoutEnlargement: true })
+      .webp({ quality: 80 })
+      .toBuffer();
+    // 원본보다 작아진 경우만 교체
+    if (buf.length < file.buffer.length) {
+      const newName = (file.originalname || 'image').replace(/\.[^.]+$/, '') + '.webp';
+      return { buffer: buf, mime: 'image/webp', name: newName };
+    }
+    return { buffer: file.buffer, mime, name: file.originalname };
+  } catch {
+    return { buffer: file.buffer, mime, name: file.originalname };
+  }
+}
 
 const router = express.Router();
 
@@ -381,14 +408,14 @@ router.post('/', requireAuth, upload.array('images', 5), async (req, res) => {
     );
     const postId = rows[0].id;
 
-    // 이미지 저장 (있으면)
+    // 이미지 저장 (있으면) — sharp로 WebP 80% / 1600px 리사이즈
     if (req.files && req.files.length > 0) {
       for (let i = 0; i < req.files.length; i++) {
-        const f = req.files[i];
+        const compressed = await compressImage(req.files[i]);
         await query(
           `INSERT INTO post_images (post_id, image_data, image_mime, file_name, file_size, sort_order)
            VALUES ($1,$2,$3,$4,$5,$6)`,
-          [postId, f.buffer, f.mimetype, f.originalname, f.size, i]
+          [postId, compressed.buffer, compressed.mime, compressed.name, compressed.buffer.length, i]
         );
       }
     }

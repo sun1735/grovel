@@ -203,6 +203,60 @@
       $('#body-len').textContent = ta.value.length;
     });
 
+    // ── 임시저장 (autosave) ──
+    // localStorage에 board/title/body를 1.5초마다 저장. 새로고침·실수 복구.
+    // 게시 성공 시 클리어.
+    const DRAFT_KEY = 'mt_compose_draft_' + me.id;
+    const titleInp = document.querySelector('input[name="title"]');
+
+    // 기존 임시저장 복원
+    try {
+      const raw = localStorage.getItem(DRAFT_KEY);
+      if (raw) {
+        const d = JSON.parse(raw);
+        const age = Date.now() - (d.savedAt || 0);
+        // 24시간 이내만 복원
+        if (age < 24 * 3600 * 1000 && (d.title || d.body)) {
+          if (d.board) {
+            // 옵션이 이미 렌더돼 있는지 확인
+            if ([...sel.options].some(o => o.value === d.board)) sel.value = d.board;
+          }
+          if (d.title) titleInp.value = d.title;
+          if (d.body)  { ta.value = d.body; $('#body-len').textContent = d.body.length; }
+          toggleJobFields();
+          mtToast('이전에 작성하던 글을 복원했어요. (24시간 이내)', 'info', 4000);
+        }
+      }
+    } catch {}
+
+    let draftTimer;
+    function saveDraft() {
+      try {
+        const data = {
+          board: sel.value,
+          title: titleInp.value,
+          body: ta.value,
+          savedAt: Date.now(),
+        };
+        // 비어 있으면 저장 안 함 (불필요한 복원 방지)
+        if (!data.title && !data.body) {
+          localStorage.removeItem(DRAFT_KEY);
+          return;
+        }
+        localStorage.setItem(DRAFT_KEY, JSON.stringify(data));
+      } catch {}
+    }
+    function scheduleDraftSave() {
+      clearTimeout(draftTimer);
+      draftTimer = setTimeout(saveDraft, 1500);
+    }
+    titleInp.addEventListener('input', scheduleDraftSave);
+    ta.addEventListener('input', scheduleDraftSave);
+    sel.addEventListener('change', scheduleDraftSave);
+
+    // 게시 성공 시 클리어 (제출 핸들러에서 호출하도록 전역 노출)
+    window.mtClearDraft = () => { try { localStorage.removeItem(DRAFT_KEY); } catch {} };
+
     // ── 이미지 업로드 ──
     const imageFiles = [];
     const dropZone = $('#drop-zone');
@@ -295,7 +349,8 @@
           $('#err').classList.remove('hidden');
           return;
         }
-        // 글 작성 직후 post.html에서 Discord 알림 모달 1회 노출 (ui.js 자동 처리)
+        // 게시 성공 — 임시저장 삭제 + Discord 모달 트리거
+        try { window.mtClearDraft && window.mtClearDraft(); } catch {}
         try { window.mtDiscordOnPostCreated && window.mtDiscordOnPostCreated(); } catch {}
         location.href = `/post.html?id=${j.post.id}`;
       } catch {

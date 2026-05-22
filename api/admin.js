@@ -6,9 +6,29 @@
  */
 const express = require('express');
 const multer = require('multer');
+const sharp = require('sharp');
 const { query } = require('../db');
 const { requireAdmin } = require('../middleware/auth');
 const { VALID_SLOTS, MAX_PER_SLOT } = require('./banners');
+
+// 배너용 이미지 압축 — 배너는 보통 작은 폭이므로 1200px max + WebP 85%
+async function compressBanner(file) {
+  const mime = file.mimetype;
+  if (mime === 'image/svg+xml' || mime === 'image/gif') {
+    return { buffer: file.buffer, mime };
+  }
+  try {
+    const buf = await sharp(file.buffer, { failOn: 'none' })
+      .rotate()
+      .resize({ width: 1200, height: 1200, fit: 'inside', withoutEnlargement: true })
+      .webp({ quality: 85 })
+      .toBuffer();
+    if (buf.length < file.buffer.length) return { buffer: buf, mime: 'image/webp' };
+    return { buffer: file.buffer, mime };
+  } catch {
+    return { buffer: file.buffer, mime };
+  }
+}
 
 const router = express.Router();
 
@@ -363,6 +383,14 @@ router.post('/banners', upload.single('image'), async (req, res) => {
       });
     }
 
+    // 업로드 파일은 sharp로 압축 (URL 입력은 그대로)
+    let imageBuf = null, imageMime = null;
+    if (hasFile) {
+      const c = await compressBanner(req.file);
+      imageBuf = c.buffer;
+      imageMime = c.mime;
+    }
+
     const { rows } = await query(
       `INSERT INTO banners (slot, image_url, image_data, image_mime, link_url, alt_text, sort_order)
        VALUES ($1,$2,$3,$4,$5,$6,$7)
@@ -371,8 +399,8 @@ router.post('/banners', upload.single('image'), async (req, res) => {
       [
         slot,
         hasFile ? null : image_url,
-        hasFile ? req.file.buffer : null,
-        hasFile ? req.file.mimetype : null,
+        imageBuf,
+        imageMime,
         link_url || null,
         alt_text || null,
         parseInt(sort_order) || 0,
