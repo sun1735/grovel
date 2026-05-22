@@ -2,10 +2,31 @@ const express = require('express');
 const multer = require('multer');
 const { query } = require('../db');
 const { requireAuth } = require('../middleware/auth');
-const { notifyNewPost, notifyNewComment } = require('../worker/discord');
+const { notifyNewPost } = require('../worker/discord');
 const { createNotification } = require('./notifications');
 
 const router = express.Router();
+
+// ── 조회수 디둡 캐시 ──
+// key: `${ip}:${postId}` → expireAt(ms). 같은 IP가 같은 글을 60초 안에 다시 보면 스킵.
+// 메모리 캐시라 멀티 인스턴스에서는 인스턴스별로 동작 (Railway 단일 인스턴스 가정).
+const VIEW_WINDOW_MS = 60 * 1000;
+const VIEW_CACHE_MAX = 20000;
+const viewCache = new Map();
+function viewCacheGc() {
+  if (viewCache.size <= VIEW_CACHE_MAX) return;
+  const now = Date.now();
+  for (const [k, exp] of viewCache) {
+    if (exp <= now) viewCache.delete(k);
+    if (viewCache.size <= VIEW_CACHE_MAX * 0.8) break;
+  }
+}
+function clientIp(req) {
+  return (req.headers['x-forwarded-for'] || '').split(',')[0].trim()
+      || req.headers['x-real-ip']
+      || req.socket?.remoteAddress
+      || 'unknown';
+}
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -252,11 +273,23 @@ router.get('/:id', async (req, res) => {
 
 // ─────────────────────────────────────────────
 // POST /api/posts/:id/view — 조회수 +1
-// 정밀한 사람/봇 구분 없이 단순 증가. 추후 IP·세션 기반으로 보강 가능.
+// 같은 IP가 60초 안에 같은 글을 다시 호출하면 스킵 (순위 조작 방지).
+// 로그인 유저는 IP 대신 user_id 키로 더 정확히 디둡.
 // ─────────────────────────────────────────────
 router.post('/:id/view', async (req, res) => {
   const id = parseInt(req.params.id);
   if (!id) return res.status(400).json({ error: 'invalid_id' });
+
+  const subject = req.user ? `u${req.user.id}` : clientIp(req);
+  const key = `${subject}:${id}`;
+  const now = Date.now();
+  const exp = viewCache.get(key);
+  if (exp && exp > now) {
+    return res.json({ ok: true, deduped: true });
+  }
+  viewCache.set(key, now + VIEW_WINDOW_MS);
+  viewCacheGc();
+
   try {
     await query('UPDATE posts SET view_count = view_count + 1 WHERE id = $1', [id]);
     res.json({ ok: true });
@@ -454,12 +487,6 @@ router.post('/:id/comments', requireAuth, async (req, res) => {
         }).catch(() => {});
       }
     }
-
-    // 디스코드 알림 (기존 유지)
-    notifyNewComment({
-      postId, postTitle,
-      author: req.user.nickname, body: body.trim().slice(0, 150),
-    }).catch(() => {});
 
     res.status(201).json({ comment: rows[0] });
   } catch (err) {

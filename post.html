@@ -411,12 +411,16 @@
       // 글 신고
       $('#post-report-btn').addEventListener('click', async () => {
         if (!currentUserId) { location.href = '/login.html?next=' + encodeURIComponent(location.href); return; }
-        const reason = prompt('신고 사유를 선택하세요:\n1. 스팸/도배\n2. 욕설/비방\n3. 부적절한 내용\n4. 기타\n\n번호를 입력하세요 (1-4):');
+        const reason = await mtSelect([
+          { value: 'spam',          label: '스팸/도배' },
+          { value: 'abuse',         label: '욕설/비방' },
+          { value: 'inappropriate', label: '부적절한 내용' },
+          { value: 'other',         label: '기타' },
+        ], { title: '글 신고', message: '신고 사유를 선택해 주세요.', okText: '신고' });
         if (!reason) return;
-        const reasons = { '1':'spam', '2':'abuse', '3':'inappropriate', '4':'other' };
         const r = await fetch('/api/posts/report', {
           method:'POST', headers:{'Content-Type':'application/json'}, credentials:'same-origin',
-          body: JSON.stringify({ target_type:'post', target_id: postId, reason: reasons[reason] || 'other' }),
+          body: JSON.stringify({ target_type:'post', target_id: postId, reason }),
         });
         const j = await r.json();
         alert(j.message || '신고가 접수되었습니다.');

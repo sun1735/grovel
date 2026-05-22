@@ -54,6 +54,27 @@
     .mt-modal-ok:hover { background:#333; }
     .mt-modal-danger { background:#ff3e5f; color:#fff; }
     .mt-modal-danger:hover { background:#ed1f43; }
+    /* 선택 모달 (mtSelect) — 라디오 리스트 */
+    .mt-select-list { display:flex; flex-direction:column; gap:6px; margin-bottom:18px; }
+    .mt-select-item {
+      display:flex; align-items:center; gap:10px;
+      padding:11px 14px; border:1.5px solid rgba(0,0,0,0.08);
+      background:#fff; border-radius:10px; cursor:pointer;
+      font-size:13.5px; font-weight:600; color:#15171c;
+      transition: background .12s, border-color .12s;
+      text-align:left;
+    }
+    .mt-select-item:hover { background:#fafbfc; border-color:rgba(0,0,0,0.16); }
+    .mt-select-item.selected { background:#fff1f3; border-color:#ff3e5f; color:#ed1f43; }
+    .mt-select-item .mt-select-radio {
+      width:18px; height:18px; border-radius:999px;
+      border:2px solid rgba(0,0,0,0.18); flex-shrink:0; position:relative;
+      transition: border-color .12s;
+    }
+    .mt-select-item.selected .mt-select-radio { border-color:#ff3e5f; }
+    .mt-select-item.selected .mt-select-radio::after {
+      content:''; position:absolute; inset:3px; border-radius:999px; background:#ff3e5f;
+    }
     @keyframes mt-fade-in { from { opacity:0; } to { opacity:1; } }
     @keyframes mt-fade-out { from { opacity:1; } to { opacity:0; } }
     @keyframes mt-modal-in { from { opacity:0; transform:scale(.95); } to { opacity:1; transform:scale(1); } }
@@ -251,6 +272,64 @@
       bg.querySelector('.mt-modal-cancel').addEventListener('click', () => close(false));
       bg.querySelector('.mt-modal-ok, .mt-modal-danger').addEventListener('click', () => close(true));
       bg.addEventListener('click', (e) => { if (e.target === bg) close(false); });
+
+      document.body.appendChild(bg);
+    });
+  };
+
+  // ── 선택 모달 (라디오 리스트) ──
+  // options: [{ value, label }] — 선택한 value 반환, 취소 시 null
+  window.mtSelect = function(options, { title = '선택', message = '', okText = '확인', cancelText = '취소', defaultValue = null } = {}) {
+    return new Promise((resolve) => {
+      const bg = document.createElement('div');
+      bg.className = 'mt-modal-bg';
+      const itemsHtml = options.map((o, i) => `
+        <button type="button" class="mt-select-item ${o.value === defaultValue ? 'selected' : ''}" data-i="${i}">
+          <span class="mt-select-radio"></span>
+          <span>${String(o.label).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}</span>
+        </button>
+      `).join('');
+      bg.innerHTML = `
+        <div class="mt-modal" style="max-width:400px">
+          <div class="mt-modal-title">${title}</div>
+          ${message ? `<div class="mt-modal-msg">${message}</div>` : ''}
+          <div class="mt-select-list">${itemsHtml}</div>
+          <div class="mt-modal-btns">
+            <button class="mt-modal-btn mt-modal-cancel">${cancelText}</button>
+            <button class="mt-modal-btn mt-modal-ok" disabled style="opacity:.4;cursor:not-allowed">${okText}</button>
+          </div>
+        </div>`;
+
+      let selected = defaultValue;
+      const okBtn = bg.querySelector('.mt-modal-ok');
+      function refreshOk() {
+        if (selected !== null && selected !== undefined) {
+          okBtn.disabled = false;
+          okBtn.style.opacity = '';
+          okBtn.style.cursor = '';
+        }
+      }
+      if (selected !== null) refreshOk();
+
+      bg.querySelectorAll('.mt-select-item').forEach(btn => {
+        btn.addEventListener('click', () => {
+          bg.querySelectorAll('.mt-select-item').forEach(x => x.classList.remove('selected'));
+          btn.classList.add('selected');
+          selected = options[parseInt(btn.dataset.i)].value;
+          refreshOk();
+        });
+      });
+
+      const close = (result) => {
+        bg.classList.add('out');
+        setTimeout(() => { bg.remove(); resolve(result); }, 200);
+      };
+      bg.querySelector('.mt-modal-cancel').addEventListener('click', () => close(null));
+      okBtn.addEventListener('click', () => {
+        if (selected === null || selected === undefined) return;
+        close(selected);
+      });
+      bg.addEventListener('click', (e) => { if (e.target === bg) close(null); });
 
       document.body.appendChild(bg);
     });

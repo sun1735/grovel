@@ -41,7 +41,43 @@ app.use(attachUser);  // 모든 요청에 req.user 채워줌 (없으면 null)
 
 // ── OG 메타태그 주입 (소셜 공유 미리보기) ──
 const fs = require('fs');
-const postHtmlTemplate = fs.readFileSync(path.join(__dirname, 'post.html'), 'utf-8');
+const postHtmlTemplate     = fs.readFileSync(path.join(__dirname, 'post.html'), 'utf-8');
+const resourceHtmlTemplate = fs.readFileSync(path.join(__dirname, 'resource.html'), 'utf-8');
+const agencyHtmlTemplate   = fs.readFileSync(path.join(__dirname, 'agency.html'), 'utf-8');
+
+const cleanMeta = (s) => String(s || '').replace(/["\n\r<>]/g, ' ').trim();
+
+function verifyTags() {
+  let t = '';
+  if (process.env.NAVER_VERIFY) t += `\n    <meta name="naver-site-verification" content="${process.env.NAVER_VERIFY}" />`;
+  if (process.env.GOOGLE_VERIFY) t += `\n    <meta name="google-site-verification" content="${process.env.GOOGLE_VERIFY}" />`;
+  return t;
+}
+
+function buildOgTags({ type, title, description, url, schemaType }) {
+  const t = cleanMeta(title);
+  const d = cleanMeta(description);
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': schemaType || 'Article',
+    headline: t,
+    description: d,
+    url,
+    publisher: { '@type': 'Organization', name: '마케톡', url: 'https://www.grovel.kr' },
+  };
+  return `
+    <meta property="og:type" content="${type}" />
+    <meta property="og:title" content="${t}" />
+    <meta property="og:description" content="${d}" />
+    <meta property="og:site_name" content="마케톡" />
+    <meta property="og:url" content="${url}" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="${t}" />
+    <meta name="twitter:description" content="${d}" />
+    <meta name="description" content="${d}" />
+    <link rel="canonical" href="${url}" />
+    <script type="application/ld+json">${JSON.stringify(jsonLd)}</script>`;
+}
 
 app.get('/post.html', async (req, res) => {
   const id = req.query.id;
@@ -53,30 +89,50 @@ app.get('/post.html', async (req, res) => {
     );
     if (rows.length === 0) return res.send(postHtmlTemplate);
     const p = rows[0];
-    const clean = (s) => String(s || '').replace(/["\n\r<>]/g, ' ').trim();
-    const ogTags = `
-    <meta property="og:type" content="article" />
-    <meta property="og:title" content="${clean(p.title)}" />
-    <meta property="og:description" content="${clean(p.excerpt)}" />
-    <meta property="og:site_name" content="마케톡" />
-    <meta property="og:url" content="https://www.grovel.kr/post.html?id=${id}" />
-    <meta name="twitter:card" content="summary" />
-    <meta name="twitter:title" content="${clean(p.title)}" />
-    <meta name="twitter:description" content="${clean(p.excerpt)}" />
-    <meta name="description" content="${clean(p.excerpt)}" />
-    <link rel="canonical" href="https://www.grovel.kr/post.html?id=${id}" />
-    <script type="application/ld+json">
-    {"@context":"https://schema.org","@type":"Article","headline":"${clean(p.title)}","description":"${clean(p.excerpt)}","url":"https://www.grovel.kr/post.html?id=${id}","publisher":{"@type":"Organization","name":"마케톡","url":"https://www.grovel.kr"}}
-    </script>`;
-    // 네이버/구글 인증 메타태그 (env에 있으면 주입)
-    let verifyTags = '';
-    if (process.env.NAVER_VERIFY) verifyTags += `\n    <meta name="naver-site-verification" content="${process.env.NAVER_VERIFY}" />`;
-    if (process.env.GOOGLE_VERIFY) verifyTags += `\n    <meta name="google-site-verification" content="${process.env.GOOGLE_VERIFY}" />`;
-
+    const url = `https://www.grovel.kr/post.html?id=${id}`;
+    const ogTags = buildOgTags({ type: 'article', title: p.title, description: p.excerpt, url, schemaType: 'Article' });
     res.send(postHtmlTemplate
-      .replace('<title>마케톡 — 게시글</title>', `<title>${clean(p.title)} — 마케톡</title>`)
-      .replace('</head>', ogTags + verifyTags + '\n</head>'));
+      .replace('<title>마케톡 — 게시글</title>', `<title>${cleanMeta(p.title)} — 마케톡</title>`)
+      .replace('</head>', ogTags + verifyTags() + '\n</head>'));
   } catch { res.send(postHtmlTemplate); }
+});
+
+app.get('/resource.html', async (req, res) => {
+  const slug = req.query.slug;
+  if (!slug) return res.send(resourceHtmlTemplate);
+  try {
+    const { rows } = await require('./db').query(
+      `SELECT title, subtitle, description FROM resources WHERE slug = $1 AND is_active = TRUE`,
+      [slug]
+    );
+    if (rows.length === 0) return res.send(resourceHtmlTemplate);
+    const r = rows[0];
+    const desc = r.description || r.subtitle || `${r.title} — 마케톡 자료실`;
+    const url = `https://www.grovel.kr/resource.html?slug=${encodeURIComponent(slug)}`;
+    const ogTags = buildOgTags({ type: 'article', title: r.title, description: desc, url, schemaType: 'Article' });
+    res.send(resourceHtmlTemplate
+      .replace('<title>자료 — 마케톡</title>', `<title>${cleanMeta(r.title)} — 마케톡 자료실</title>`)
+      .replace('</head>', ogTags + verifyTags() + '\n</head>'));
+  } catch { res.send(resourceHtmlTemplate); }
+});
+
+app.get('/agency.html', async (req, res) => {
+  const slug = req.query.slug;
+  if (!slug) return res.send(agencyHtmlTemplate);
+  try {
+    const { rows } = await require('./db').query(
+      `SELECT name, tagline, description, specialties FROM agencies WHERE slug = $1 AND is_active = TRUE`,
+      [slug]
+    );
+    if (rows.length === 0) return res.send(agencyHtmlTemplate);
+    const a = rows[0];
+    const desc = a.tagline || (a.description ? a.description.slice(0, 200) : `${a.name} — 마케톡 광고대행사 디렉토리`);
+    const url = `https://www.grovel.kr/agency.html?slug=${encodeURIComponent(slug)}`;
+    const ogTags = buildOgTags({ type: 'profile', title: a.name, description: desc, url, schemaType: 'Organization' });
+    res.send(agencyHtmlTemplate
+      .replace('<title>대행사 상세 — 마케톡</title>', `<title>${cleanMeta(a.name)} — 마케톡 대행사</title>`)
+      .replace('</head>', ogTags + verifyTags() + '\n</head>'));
+  } catch { res.send(agencyHtmlTemplate); }
 });
 
 // 정적 파일
