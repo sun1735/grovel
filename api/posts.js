@@ -6,6 +6,29 @@ const { requireAuth } = require('../middleware/auth');
 const { notifyNewPost } = require('../worker/discord');
 const { createNotification } = require('./notifications');
 
+// ── 멘션 처리 ──
+// 본문에서 @닉네임 추출 (한글/영문/숫자/_ 2-20자). 중복·자기 자신 제거.
+// users 테이블에서 활성 회원만 매칭하여 [{ id, nickname }] 반환.
+const MENTION_RE = /@([가-힣A-Za-z0-9_]{2,20})/g;
+function extractMentions(text) {
+  if (!text) return [];
+  const set = new Set();
+  let m;
+  while ((m = MENTION_RE.exec(text)) !== null) set.add(m[1]);
+  return [...set];
+}
+async function resolveMentions(text, excludeUserId) {
+  const nicks = extractMentions(text);
+  if (nicks.length === 0) return [];
+  const { rows } = await query(
+    `SELECT id, nickname FROM users
+     WHERE nickname = ANY($1::text[]) AND is_active = TRUE
+       AND ($2::bigint IS NULL OR id <> $2)`,
+    [nicks, excludeUserId || null]
+  );
+  return rows;
+}
+
 // ── 이미지 압축 헬퍼 ──
 // 큰 이미지는 1600px로 리사이즈 + WebP 80% 변환.
 // SVG/GIF(애니메이션)는 원본 유지. 실패 시 원본 사용 (가용성 우선).
@@ -460,6 +483,22 @@ router.post('/', requireAuth, upload.array('images', 5), async (req, res) => {
       excerpt: body.trim().slice(0, 150),
     }).catch(() => {});
 
+    // 본문/제목 멘션 알림
+    try {
+      const mentioned = await resolveMentions(`${title} ${body}`, req.user.id);
+      for (const u of mentioned) {
+        createNotification({
+          userId: u.id,
+          type: 'mention',
+          actorNickname: req.user.nickname,
+          actorUserId: req.user.id,
+          postId,
+          commentId: null,
+          message: `${req.user.nickname}님이 글에서 회원님을 언급했어요: "${title.slice(0, 40)}${title.length > 40 ? '…' : ''}"`,
+        }).catch(() => {});
+      }
+    } catch {}
+
     res.status(201).json({ post: rows[0] });
   } catch (err) {
     console.error('[posts/create]', err);
@@ -529,12 +568,13 @@ router.post('/:id/comments', requireAuth, async (req, res) => {
     }
 
     // 답글이면 부모 댓글 작성자에게도 알림 (원글 작성자와 겹치면 중복)
+    let parentAuthorId = null;
     if (parent_id) {
       const { rows: parentRows } = await query(
         'SELECT user_id FROM comments WHERE id = $1',
         [parent_id]
       );
-      const parentAuthorId = parentRows[0]?.user_id || null;
+      parentAuthorId = parentRows[0]?.user_id || null;
       if (parentAuthorId && parentAuthorId !== postAuthorId) {
         createNotification({
           userId: parentAuthorId,
@@ -547,6 +587,24 @@ router.post('/:id/comments', requireAuth, async (req, res) => {
         }).catch(() => {});
       }
     }
+
+    // 멘션 알림 (작성자·원글저자·부모댓글저자와 중복 제외)
+    try {
+      const mentioned = await resolveMentions(body, req.user.id);
+      const already = new Set([postAuthorId, parentAuthorId].filter(Boolean).map(Number));
+      for (const u of mentioned) {
+        if (already.has(Number(u.id))) continue;
+        createNotification({
+          userId: u.id,
+          type: 'mention',
+          actorNickname: req.user.nickname,
+          actorUserId: req.user.id,
+          postId,
+          commentId: newCommentId,
+          message: `${req.user.nickname}님이 댓글에서 회원님을 언급했어요: ${excerpt}`,
+        }).catch(() => {});
+      }
+    } catch {}
 
     res.status(201).json({ comment: rows[0] });
   } catch (err) {

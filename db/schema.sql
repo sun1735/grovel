@@ -243,6 +243,17 @@ CREATE TABLE IF NOT EXISTS likes (
 CREATE INDEX IF NOT EXISTS idx_likes_target ON likes(target_type, target_id);
 CREATE INDEX IF NOT EXISTS idx_likes_user   ON likes(user_id, created_at DESC);
 
+-- ── board_favorites: 게시판 즐겨찾기 ─────────
+-- 유저가 좋아하는 보드를 표시. 클라이언트에서 메인 보드 nav 정렬에 활용.
+CREATE TABLE IF NOT EXISTS board_favorites (
+  id         BIGSERIAL PRIMARY KEY,
+  user_id    BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  board_id   INTEGER NOT NULL REFERENCES boards(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(user_id, board_id)
+);
+CREATE INDEX IF NOT EXISTS idx_board_fav_user ON board_favorites(user_id);
+
 -- ── bookmarks: 글 북마크/스크랩 ─────────────────
 -- 좋아요와 독립. 유저가 "나중에 읽을 글" 모으는 용도.
 CREATE TABLE IF NOT EXISTS bookmarks (

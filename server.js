@@ -121,6 +121,29 @@ app.get('/resource.html', async (req, res) => {
   } catch { res.send(resourceHtmlTemplate); }
 });
 
+// /u/:nickname → user.html (정적 파일 라우팅과 통일)
+const userHtmlTemplate = fs.readFileSync(path.join(__dirname, 'user.html'), 'utf-8');
+app.get('/u/:nickname', async (req, res) => {
+  const nickname = req.params.nickname;
+  if (!/^[가-힣A-Za-z0-9_]{2,20}$/.test(nickname || '')) {
+    return res.status(404).send(userHtmlTemplate);
+  }
+  try {
+    const { rows } = await require('./db').query(
+      `SELECT nickname, bio FROM users WHERE nickname = $1 AND is_active = TRUE`,
+      [nickname]
+    );
+    if (rows.length === 0) return res.send(userHtmlTemplate);
+    const u = rows[0];
+    const desc = u.bio || `@${u.nickname}의 마케톡 활동 기록 — 작성한 글과 댓글`;
+    const url = `https://www.grovel.kr/u/${encodeURIComponent(u.nickname)}`;
+    const ogTags = buildOgTags({ type: 'profile', title: `@${u.nickname}`, description: desc, url, schemaType: 'Person' });
+    res.send(userHtmlTemplate
+      .replace('<title>회원 — 마케톡</title>', `<title>@${cleanMeta(u.nickname)} — 마케톡</title>`)
+      .replace('</head>', ogTags + verifyTags() + '\n</head>'));
+  } catch { res.send(userHtmlTemplate); }
+});
+
 app.get('/agency.html', async (req, res) => {
   const slug = req.query.slug;
   if (!slug) return res.send(agencyHtmlTemplate);

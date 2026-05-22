@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<script>(function(){try{var t=localStorage.getItem('mt-theme');var d=t==='dark'||(!t&&window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches);if(d)document.documentElement.classList.add('dark');}catch(e){}})();</script>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>회원 — 마케톡</title>
+<link rel="stylesheet" href="/tailwind.css" />
+<script src="/lucide.min.js"></script>
+<style>
+  body { background:#f6f7f9; color:#15171c; }
+  .container-x { max-width:980px; margin:0 auto; padding:0 1rem; }
+  .card { background-color:#fff; border:1px solid #eaecef; border-radius:14px; }
+  .tab { padding:10px 16px; font-size:14px; font-weight:700; color:#9aa1aa; border-bottom:2px solid transparent; cursor:pointer; white-space:nowrap; }
+  .tab.active { color:#15171c; border-bottom-color:#ff3e5f; }
+  .av { width:64px; height:64px; border-radius:18px; display:inline-flex; align-items:center; justify-content:center; color:white; font-weight:800; font-size:26px; }
+  .av-1{background:linear-gradient(135deg,#ff6b9d,#c44569)} .av-2{background:linear-gradient(135deg,#4facfe,#00f2fe)}
+  .av-3{background:linear-gradient(135deg,#43e97b,#38f9d7)} .av-4{background:linear-gradient(135deg,#fa709a,#fee140)}
+  .av-5{background:linear-gradient(135deg,#a18cd1,#fbc2eb)} .av-6{background:linear-gradient(135deg,#ffecd2,#fcb69f);color:#7a4d2c}
+  .av-7{background:linear-gradient(135deg,#84fab0,#8fd3f4);color:#0a4f3e} .av-8{background:linear-gradient(135deg,#667eea,#764ba2)}
+  .av-9{background:linear-gradient(135deg,#ee9ca7,#ffdde1);color:#7a2d36} .av-10{background:linear-gradient(135deg,#2af598,#009efd)}
+  .row-hover:hover { background:#fafbfc; }
+  .badge-cat { display:inline-flex; align-items:center; padding:.15rem .5rem; border-radius:6px; font-size:11px; font-weight:600; }
+</style>
+</head>
+<body class="antialiased">
+
+<header class="bg-white border-b border-black/5">
+  <div class="container-x flex items-center justify-between h-14">
+    <a href="/" class="flex items-center gap-2.5">
+      <img src="/logo.svg" alt="마케톡" class="w-8 h-8" />
+      <span class="font-extrabold tracking-tight">마케톡</span>
+    </a>
+    <a href="/" class="text-sm text-black/55 hover:text-black flex items-center gap-1">
+      <i data-lucide="arrow-left" class="w-4 h-4"></i> 메인으로
+    </a>
+  </div>
+</header>
+
+<div id="not-found" class="hidden container-x py-32 text-center">
+  <i data-lucide="user-x" class="w-12 h-12 text-black/20 mx-auto mb-4"></i>
+  <h2 class="font-extrabold text-xl">회원을 찾을 수 없습니다</h2>
+  <a href="/" class="mt-4 inline-flex items-center gap-1.5 bg-brand-500 text-white rounded-lg px-5 py-2.5 text-sm font-bold">메인으로 →</a>
+</div>
+
+<main id="main" class="container-x my-8 hidden space-y-6">
+
+  <div class="card p-7">
+    <div class="flex items-center gap-5">
+      <div id="u-avatar" class="av av-1">·</div>
+      <div class="flex-1 min-w-0">
+        <div class="font-black text-2xl truncate" id="u-nickname">…</div>
+        <div class="text-[12px] text-black/45 mt-1" id="u-bio"></div>
+        <div class="text-[11px] text-black/45 mt-1">
+          가입: <span id="u-joined">…</span>
+        </div>
+      </div>
+    </div>
+    <div class="grid grid-cols-3 gap-3 mt-6">
+      <div class="rounded-lg bg-paper p-3 text-center">
+        <div class="text-2xl font-extrabold" id="u-posts-c">0</div>
+        <div class="text-[11px] text-black/50">작성한 글</div>
+      </div>
+      <div class="rounded-lg bg-paper p-3 text-center">
+        <div class="text-2xl font-extrabold" id="u-comments-c">0</div>
+        <div class="text-[11px] text-black/50">작성한 댓글</div>
+      </div>
+      <div class="rounded-lg bg-paper p-3 text-center">
+        <div class="text-2xl font-extrabold" id="u-likes-c">0</div>
+        <div class="text-[11px] text-black/50">좋아요</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="flex gap-1 border-b border-black/10 overflow-x-auto">
+    <button data-tab="posts" class="tab active">최근 글</button>
+    <button data-tab="comments" class="tab">최근 댓글</button>
+  </div>
+
+  <section id="tab-posts" class="card">
+    <div id="u-posts-list" class="divide-y divide-black/5"></div>
+    <div id="u-posts-empty" class="hidden p-12 text-center text-sm text-black/40">작성한 글이 없습니다.</div>
+  </section>
+  <section id="tab-comments" class="card hidden">
+    <div id="u-comments-list" class="divide-y divide-black/5"></div>
+    <div id="u-comments-empty" class="hidden p-12 text-center text-sm text-black/40">작성한 댓글이 없습니다.</div>
+  </section>
+
+</main>
+
+<footer class="border-t border-black/5 bg-white py-8 mt-10">
+  <div class="container-x text-center text-xs text-black/45">
+    <a href="/" class="hover:text-black">© 2026 마케톡</a>
+  </div>
+</footer>
+
+<script>
+  lucide.createIcons();
+  const $ = (s) => document.querySelector(s);
+  const $$ = (s) => document.querySelectorAll(s);
+  const fmt = new Intl.NumberFormat('ko-KR');
+  const escapeHtml = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  function timeAgo(iso) {
+    const d = (Date.now() - new Date(iso).getTime())/1000;
+    if (d<60) return '방금';
+    if (d<3600) return Math.floor(d/60)+'분 전';
+    if (d<86400) return Math.floor(d/3600)+'시간 전';
+    if (d<86400*30) return Math.floor(d/86400)+'일 전';
+    return new Date(iso).toLocaleDateString('ko-KR');
+  }
+  function avatarClass(nick) {
+    let h=0; for (const c of (nick||'?')) h = (h*31+c.charCodeAt(0))>>>0;
+    return 'av-' + ((h%10)+1);
+  }
+
+  // URL: /u/:nickname (server.js가 user.html로 라우팅) 또는 /user.html?nick=
+  const path = location.pathname;
+  let nickname = null;
+  const m = path.match(/^\/u\/([^/?#]+)/);
+  if (m) nickname = decodeURIComponent(m[1]);
+  else nickname = new URLSearchParams(location.search).get('nick');
+
+  async function init() {
+    if (!nickname) { showNotFound(); return; }
+    try {
+      const r = await fetch('/api/auth/public/' + encodeURIComponent(nickname));
+      if (r.status === 404) { showNotFound(); return; }
+      if (!r.ok) throw new Error();
+      const { user, stats, posts, comments } = await r.json();
+
+      document.title = `@${user.nickname} — 마케톡`;
+      $('#main').classList.remove('hidden');
+
+      const av = $('#u-avatar');
+      av.className = 'av ' + avatarClass(user.nickname);
+      av.textContent = user.nickname[0];
+      $('#u-nickname').textContent = '@' + user.nickname;
+      $('#u-bio').textContent = user.bio || '';
+      $('#u-joined').textContent = new Date(user.joined_at).toLocaleDateString('ko-KR');
+      $('#u-posts-c').textContent = fmt.format(stats.post_count);
+      $('#u-comments-c').textContent = fmt.format(stats.comment_count);
+      $('#u-likes-c').textContent = fmt.format(stats.like_count);
+
+      // posts
+      if (posts.length === 0) $('#u-posts-empty').classList.remove('hidden');
+      else $('#u-posts-list').innerHTML = posts.map(p => `
+        <a href="/post.html?id=${p.id}" class="row-hover flex items-center gap-3 px-5 py-3 text-sm">
+          <span class="badge-cat" style="background:#eef2ff;color:#4338ca">${escapeHtml(p.board_name)}</span>
+          <span class="flex-1 truncate font-semibold">${escapeHtml(p.title)}</span>
+          <span class="text-[11px] text-black/40">${timeAgo(p.published_at)}</span>
+        </a>`).join('');
+
+      // comments
+      if (comments.length === 0) $('#u-comments-empty').classList.remove('hidden');
+      else $('#u-comments-list').innerHTML = comments.map(c => `
+        <a href="/post.html?id=${c.post_id}#c${c.id}" class="row-hover block px-5 py-3 text-sm">
+          <div class="text-[13.5px] text-black/85 line-clamp-2">${escapeHtml(c.body)}</div>
+          <div class="mt-1 flex items-center gap-2 text-[11px] text-black/45">
+            <span class="truncate flex-1">→ ${escapeHtml(c.post_title)}</span>
+            <span>${timeAgo(c.created_at)}</span>
+          </div>
+        </a>`).join('');
+
+      lucide.createIcons();
+    } catch {
+      showNotFound();
+    }
+  }
+
+  function showNotFound() {
+    $('#not-found').classList.remove('hidden');
+    lucide.createIcons();
+  }
+
+  $$('.tab').forEach(t => t.addEventListener('click', () => {
+    const target = t.dataset.tab;
+    $$('.tab').forEach(x => x.classList.remove('active'));
+    t.classList.add('active');
+    ['posts','comments'].forEach(id => $('#tab-' + id).classList.toggle('hidden', id !== target));
+  }));
+
+  init();
+</script>
+<script src="/ui.js"></script>
+</body>
+</html>

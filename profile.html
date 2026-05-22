@@ -112,6 +112,18 @@
     <button data-tab="bookmarks" class="tab">스크랩</button>
   </div>
 
+  <!-- 관심 게시판 (즐겨찾기) -->
+  <section class="card p-5">
+    <div class="flex items-center justify-between mb-3">
+      <h3 class="font-extrabold text-[14px] flex items-center gap-2">
+        <i data-lucide="star" class="w-4 h-4 text-amber-500"></i>
+        관심 게시판
+      </h3>
+      <span class="text-[11px] text-black/45">메인 보드 탭 상단에 표시됩니다</span>
+    </div>
+    <div id="board-favs" class="flex flex-wrap gap-2"></div>
+  </section>
+
   <!-- 프로필 수정 탭 -->
   <section id="tab-edit" class="card p-6">
     <form id="edit-form" class="space-y-5 max-w-lg">
@@ -264,6 +276,30 @@
       $('#stat-comments').textContent = fmt.format(s.comment_count);
       $('#stat-likes').textContent = fmt.format(s.like_count);
     } catch {}
+
+    // 관심 게시판 로드 + 토글
+    async function renderBoardFavs() {
+      try {
+        const r = await fetch('/api/boards', { credentials:'same-origin' });
+        const { boards } = await r.json();
+        const visible = boards.filter(b => b.slug !== 'notice');
+        $('#board-favs').innerHTML = visible.map(b => `
+          <button data-slug="${b.slug}" data-fav="${b.is_favorite}"
+                  class="fav-chip inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12.5px] font-bold transition
+                    ${b.is_favorite
+                      ? 'bg-amber-100 text-amber-800 hover:bg-amber-200'
+                      : 'bg-paper hover:bg-black/5 text-black/55'}">
+            ${b.is_favorite ? '★' : '☆'} ${escapeHtml(b.name)}
+          </button>
+        `).join('');
+        $$('.fav-chip').forEach(c => c.addEventListener('click', async () => {
+          c.disabled = true;
+          await fetch(`/api/boards/${c.dataset.slug}/favorite`, { method:'POST', credentials:'same-origin' });
+          await renderBoardFavs();
+        }));
+      } catch {}
+    }
+    renderBoardFavs();
 
     // Discord 가입 카드 — 사용자가 닫지 않았다면 노출
     try {

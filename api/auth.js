@@ -632,4 +632,60 @@ router.get('/stats', requireAuth, async (req, res) => {
   }
 });
 
+// ─────────────────────────────────────────────
+// GET /api/auth/public/:nickname — 공개 프로필
+// 누구나 조회 가능. 글·댓글·가입일·자기소개만 노출 (이메일 등 비공개).
+// ─────────────────────────────────────────────
+router.get('/public/:nickname', async (req, res) => {
+  const nickname = req.params.nickname;
+  if (!NICK_RE.test(nickname || '')) return res.status(400).json({ error: 'invalid_nickname' });
+
+  try {
+    const { rows } = await query(
+      `SELECT id, nickname, bio, created_at FROM users
+       WHERE nickname = $1 AND is_active = TRUE`,
+      [nickname]
+    );
+    if (rows.length === 0) return res.status(404).json({ error: 'not_found' });
+    const user = rows[0];
+
+    const [{ rows: stats }, { rows: posts }, { rows: comments }] = await Promise.all([
+      query(`
+        SELECT
+          (SELECT COUNT(*)::int FROM posts WHERE user_id = $1) AS post_count,
+          (SELECT COUNT(*)::int FROM comments WHERE user_id = $1) AS comment_count,
+          (SELECT COUNT(*)::int FROM likes l WHERE l.user_id = $1) AS like_count
+      `, [user.id]),
+      query(`
+        SELECT p.id, p.title, p.comment_count, p.view_count, p.like_count, p.published_at,
+               b.name AS board_name, b.badge_class
+        FROM posts p JOIN boards b ON b.id = p.board_id
+        WHERE p.user_id = $1
+        ORDER BY p.published_at DESC LIMIT 20
+      `, [user.id]),
+      query(`
+        SELECT c.id, c.body, c.created_at, c.like_count,
+               p.id AS post_id, p.title AS post_title
+        FROM comments c JOIN posts p ON p.id = c.post_id
+        WHERE c.user_id = $1
+        ORDER BY c.created_at DESC LIMIT 20
+      `, [user.id]),
+    ]);
+
+    res.json({
+      user: {
+        nickname: user.nickname,
+        bio: user.bio,
+        joined_at: user.created_at,
+      },
+      stats: stats[0],
+      posts,
+      comments,
+    });
+  } catch (err) {
+    console.error('[auth/public]', err);
+    res.status(500).json({ error: 'server_error' });
+  }
+});
+
 module.exports = router;

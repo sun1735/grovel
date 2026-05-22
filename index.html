@@ -540,19 +540,25 @@ fetch('/api/seo-verify').then(r=>r.json()).then(d=>{
   async function loadBoards() {
     try {
       const { boards } = await fetchJson('/api/boards');
-      // Top nav
+      // Top nav — 즐겨찾기를 상단으로 정렬 (로그인 시)
+      const visible = boards.filter(b => b.slug !== 'notice');
+      const favs = visible.filter(b => b.is_favorite);
+      const rest = visible.filter(b => !b.is_favorite);
+      const ordered = [...favs, ...rest];
+
       const nav = $('#board-nav');
       const allTab = nav.querySelector('[data-board="all"]');
       nav.innerHTML = '';
       nav.appendChild(allTab);
-      for (const b of boards.filter(b => b.slug !== 'notice')) {
+      for (const b of ordered) {
         const a = document.createElement('a');
         a.href = '#';
-        a.className = 'board-tab px-3 py-1.5 rounded-lg hover:bg-paper whitespace-nowrap';
-        a.textContent = b.name;
+        a.className = 'board-tab px-3 py-1.5 rounded-lg hover:bg-paper whitespace-nowrap inline-flex items-center gap-1';
         a.dataset.board = b.slug;
+        a.innerHTML = `${b.is_favorite ? '<i data-lucide="star" class="w-3 h-3 text-amber-500 fill-amber-500"></i>' : ''}<span>${escapeHtml(b.name)}</span>`;
         nav.appendChild(a);
       }
+      lucide.createIcons();
       nav.addEventListener('click', (e) => {
         const tab = e.target.closest('.board-tab');
         if (!tab) return;

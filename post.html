@@ -373,6 +373,9 @@
     // URL 자동 링크 (이미 a/code 안에 있는 건 피하기 어렵지만 plain text + p 라인이므로 OK)
     html = html.replace(/(https?:\/\/[^\s<]+)/g,
       '<a href="$1" target="_blank" rel="noopener" class="text-brand-500 hover:underline break-all">$1</a>');
+    // @멘션 → 공개 프로필 링크
+    html = html.replace(/@([가-힣A-Za-z0-9_]{2,20})/g,
+      '<a href="/u/$1" class="text-brand-500 font-semibold hover:underline">@$1</a>');
     // 줄바꿈 → <br/>
     return html.replace(/\n/g, '<br/>');
   }
@@ -416,7 +419,12 @@
         $('#post-body').insertAdjacentHTML('afterend', imgHtml);
       }
 
-      $('#post-author').textContent = post.author_nickname;
+      // AI 페르소나 글은 프로필 링크 없이 텍스트만, 실유저는 /u/:nick 링크
+      if (post.is_ai || !post.user_id) {
+        $('#post-author').textContent = post.author_nickname;
+      } else {
+        $('#post-author').innerHTML = `<a href="/u/${encodeURIComponent(post.author_nickname)}" class="hover:underline">${escapeHtml(post.author_nickname)}</a>`;
+      }
 
       // 구인/협업 metadata 카드
       if (post.metadata && Object.values(post.metadata).some(v => v && String(v).trim())) {
@@ -679,7 +687,7 @@
               <span class="text-black/40">·</span>
               <span class="text-black/40">${timeAgo(c.created_at)}</span>
             </div>
-            <div class="mt-1.5 text-[14px] leading-relaxed text-black/85 whitespace-pre-wrap">${escapeHtml(c.body)}</div>
+            <div class="mt-1.5 text-[14px] leading-relaxed text-black/85 whitespace-pre-wrap">${escapeHtml(c.body).replace(/@([가-힣A-Za-z0-9_]{2,20})/g, '<a href="/u/$1" class="text-brand-500 font-semibold hover:underline">@$1</a>')}</div>
             <div class="mt-2 flex items-center gap-3 text-[11px] text-black/40">
               <button class="cmt-like-btn hover:text-rose-500 inline-flex items-center gap-1 ${myCommentLikes.includes(parseInt(c.id)) ? 'text-rose-500' : ''}" data-cid="${c.id}">
                 <i data-lucide="heart" class="w-3 h-3"></i> <span>${c.like_count || 0}</span>
