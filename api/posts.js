@@ -299,6 +299,39 @@ router.get('/:id', async (req, res) => {
 });
 
 // ─────────────────────────────────────────────
+// GET /api/posts/:id/nav — 같은 보드의 이전/다음 글 (post 하단 네비)
+// ─────────────────────────────────────────────
+router.get('/:id/nav', async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (!id) return res.status(400).json({ error: 'invalid_id' });
+  try {
+    const { rows: cur } = await query(
+      `SELECT board_id, published_at FROM posts WHERE id = $1`, [id]
+    );
+    if (cur.length === 0) return res.json({ prev: null, next: null });
+    const { board_id, published_at } = cur[0];
+    // 이전 = 더 오래된, 다음 = 더 최신
+    const [{ rows: prevRows }, { rows: nextRows }] = await Promise.all([
+      query(
+        `SELECT id, title FROM posts
+         WHERE board_id = $1 AND published_at < $2
+         ORDER BY published_at DESC LIMIT 1`,
+        [board_id, published_at]
+      ),
+      query(
+        `SELECT id, title FROM posts
+         WHERE board_id = $1 AND published_at > $2
+         ORDER BY published_at ASC LIMIT 1`,
+        [board_id, published_at]
+      ),
+    ]);
+    res.json({ prev: prevRows[0] || null, next: nextRows[0] || null });
+  } catch (err) {
+    res.status(500).json({ error: 'failed' });
+  }
+});
+
+// ─────────────────────────────────────────────
 // POST /api/posts/:id/view — 조회수 +1
 // 같은 IP가 60초 안에 같은 글을 다시 호출하면 스킵 (순위 조작 방지).
 // 로그인 유저는 IP 대신 user_id 키로 더 정확히 디둡.
@@ -739,6 +772,42 @@ router.post('/:postId/comments/:commentId/like', requireAuth, async (req, res) =
   } catch (err) {
     console.error('[like/comment]', err);
     res.status(500).json({ error: 'failed' });
+  }
+});
+
+// ─────────────────────────────────────────────
+// POST /api/posts/:id/bookmark — 북마크 토글
+// ─────────────────────────────────────────────
+router.post('/:id/bookmark', requireAuth, async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (!id) return res.status(400).json({ error: 'invalid_id' });
+  try {
+    const { rowCount: inserted } = await query(
+      `INSERT INTO bookmarks (user_id, post_id) VALUES ($1, $2)
+       ON CONFLICT (user_id, post_id) DO NOTHING`,
+      [req.user.id, id]
+    );
+    if (inserted > 0) return res.json({ bookmarked: true });
+    await query('DELETE FROM bookmarks WHERE user_id = $1 AND post_id = $2', [req.user.id, id]);
+    res.json({ bookmarked: false });
+  } catch (err) {
+    console.error('[bookmark]', err);
+    res.status(500).json({ error: 'failed' });
+  }
+});
+
+// GET /api/posts/:id/bookmark — 내 북마크 상태
+router.get('/:id/bookmark', async (req, res) => {
+  if (!req.user) return res.json({ bookmarked: false });
+  const id = parseInt(req.params.id);
+  try {
+    const { rows } = await query(
+      'SELECT id FROM bookmarks WHERE user_id = $1 AND post_id = $2',
+      [req.user.id, id]
+    );
+    res.json({ bookmarked: rows.length > 0 });
+  } catch {
+    res.json({ bookmarked: false });
   }
 });
 

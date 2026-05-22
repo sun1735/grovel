@@ -594,6 +594,27 @@ router.get('/my-likes', requireAuth, async (req, res) => {
 });
 
 // ─────────────────────────────────────────────
+// GET /api/auth/my-bookmarks — 내가 북마크한 글
+// ─────────────────────────────────────────────
+router.get('/my-bookmarks', requireAuth, async (req, res) => {
+  try {
+    const { rows } = await query(`
+      SELECT p.id, p.title, p.comment_count, p.view_count, p.like_count, p.published_at,
+             b.name AS board_name, b.badge_class
+      FROM bookmarks bm
+      JOIN posts p  ON p.id = bm.post_id
+      JOIN boards b ON b.id = p.board_id
+      WHERE bm.user_id = $1
+      ORDER BY bm.created_at DESC
+      LIMIT 50
+    `, [req.user.id]);
+    res.json({ posts: rows });
+  } catch (err) {
+    res.status(500).json({ error: 'failed' });
+  }
+});
+
+// ─────────────────────────────────────────────
 // GET /api/auth/stats — 내 활동 통계
 // ─────────────────────────────────────────────
 router.get('/stats', requireAuth, async (req, res) => {
@@ -602,7 +623,8 @@ router.get('/stats', requireAuth, async (req, res) => {
       SELECT
         (SELECT COUNT(*)::int FROM posts WHERE user_id = $1) AS post_count,
         (SELECT COUNT(*)::int FROM comments WHERE user_id = $1) AS comment_count,
-        (SELECT COUNT(*)::int FROM likes WHERE user_id = $1) AS like_count
+        (SELECT COUNT(*)::int FROM likes WHERE user_id = $1) AS like_count,
+        (SELECT COUNT(*)::int FROM bookmarks WHERE user_id = $1) AS bookmark_count
     `, [req.user.id]);
     res.json(rows[0]);
   } catch (err) {

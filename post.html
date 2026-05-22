@@ -212,6 +212,9 @@
         <button id="like-btn" class="inline-flex items-center gap-1.5 rounded-lg bg-paper hover:bg-rose-50 hover:text-rose-500 px-4 py-2 text-sm font-semibold transition-colors">
           <i data-lucide="heart" class="w-4 h-4"></i> <span id="like-count">0</span>
         </button>
+        <button id="bookmark-btn" class="inline-flex items-center gap-1.5 rounded-lg bg-paper hover:bg-amber-50 hover:text-amber-600 px-4 py-2 text-sm font-semibold transition-colors">
+          <i data-lucide="bookmark" class="w-4 h-4"></i> <span id="bookmark-label">스크랩</span>
+        </button>
         <button id="share-kakao" class="inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold hover:opacity-90"
                 style="background:#FEE500;color:#191919">
           <svg width="14" height="14" viewBox="0 0 20 20" aria-hidden="true"><path fill="#191919" d="M10 1C5.03 1 1 4.17 1 8.09c0 2.54 1.66 4.77 4.17 6.05l-1.06 3.88c-.09.34.28.61.58.43l4.5-2.96c.27.03.54.04.81.04 4.97 0 9-3.17 9-7.09S14.97 1 10 1"/></svg>
@@ -223,6 +226,9 @@
       </div>
     </article>
 
+    <!-- 이전/다음 글 네비 -->
+    <nav id="post-nav" class="hidden grid grid-cols-1 sm:grid-cols-2 gap-3"></nav>
+
     <!-- INLINE AD -->
     <div class="ad-slot h-[110px]" data-ad-slot="inline">INLINE AD</div>
 
@@ -232,6 +238,10 @@
         <div class="font-extrabold flex items-center gap-2">
           <i data-lucide="message-square" class="w-4 h-4 text-black/60"></i>
           댓글 <span id="cmt-count" class="text-brand-500">0</span>
+        </div>
+        <div class="flex gap-1 text-[11px]">
+          <button id="sort-recent" class="sort-tab px-2.5 py-1 rounded-md bg-ink text-white font-bold">최신순</button>
+          <button id="sort-likes" class="sort-tab px-2.5 py-1 rounded-md bg-paper hover:bg-black/5 text-black/60 font-bold">좋아요순</button>
         </div>
       </div>
 
@@ -328,6 +338,45 @@
     return r.json();
   }
 
+  // 간단 마크다운 렌더 — XSS 방지 위해 이스케이프 먼저, 그 다음 인라인 패턴만 치환.
+  // 지원: **bold**, *italic*, `code`, > quote, - list, URL 자동링크.
+  function renderBody(text) {
+    let html = escapeHtml(text || '');
+    // 줄 단위 처리: 인용 / 리스트
+    const lines = html.split('\n');
+    let out = [];
+    let listOpen = false;
+    for (let line of lines) {
+      // 리스트
+      const liMatch = line.match(/^\s*[-*]\s+(.+)$/);
+      if (liMatch) {
+        if (!listOpen) { out.push('<ul class="list-disc pl-5 my-2">'); listOpen = true; }
+        out.push(`<li>${liMatch[1]}</li>`);
+        continue;
+      }
+      if (listOpen) { out.push('</ul>'); listOpen = false; }
+      // 인용
+      const qMatch = line.match(/^\s*&gt;\s?(.*)$/);
+      if (qMatch) {
+        out.push(`<blockquote class="border-l-4 border-brand-500/40 pl-3 my-2 text-black/70 italic">${qMatch[1]}</blockquote>`);
+        continue;
+      }
+      out.push(line);
+    }
+    if (listOpen) out.push('</ul>');
+    html = out.join('\n');
+    // 인라인: 코드 → 굵게 → 기울임 (순서 중요)
+    html = html
+      .replace(/`([^`\n]+)`/g, '<code class="bg-paper rounded px-1.5 py-0.5 text-[0.92em] font-mono">$1</code>')
+      .replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>')
+      .replace(/(^|[^*])\*([^*\n]+)\*/g, '$1<em>$2</em>');
+    // URL 자동 링크 (이미 a/code 안에 있는 건 피하기 어렵지만 plain text + p 라인이므로 OK)
+    html = html.replace(/(https?:\/\/[^\s<]+)/g,
+      '<a href="$1" target="_blank" rel="noopener" class="text-brand-500 hover:underline break-all">$1</a>');
+    // 줄바꿈 → <br/>
+    return html.replace(/\n/g, '<br/>');
+  }
+
   // ───── 게시글 로드 ─────
   const postId = new URLSearchParams(location.search).get('id');
   let currentUserId = null;
@@ -350,10 +399,8 @@
 
       // 본문
       $('#post-title').textContent = post.title;
-      // 본문 렌더: HTML 이스케이프 후 URL을 클릭 가능한 링크로 변환
-      const bodyHtml = escapeHtml(post.body)
-        .replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener" class="text-brand-500 hover:underline break-all">$1</a>');
-      $('#post-body').innerHTML = bodyHtml;
+      // 본문 렌더: 이스케이프 → 간단 마크다운 → URL 자동링크
+      $('#post-body').innerHTML = renderBody(post.body);
 
       // 이미지 렌더링
       if (images && images.length > 0) {
@@ -407,6 +454,13 @@
       // 댓글
       renderComments(comments);
 
+      // 정렬 토글 (한 번만 바인딩)
+      if (!window.__cmtSortBound) {
+        window.__cmtSortBound = true;
+        $('#sort-recent').addEventListener('click', () => switchCmtSort('recent'));
+        $('#sort-likes').addEventListener('click',  () => switchCmtSort('likes'));
+      }
+
       // 조회수 +1
       fetch(`/api/posts/${postId}/view`, { method: 'POST' }).catch(() => {});
 
@@ -428,6 +482,58 @@
       });
 
       $('#share-kakao').addEventListener('click', () => kakaoShare({ shareTitle, shareDesc, shareUrl }));
+
+      // ── 북마크 ──
+      const bmBtn = $('#bookmark-btn');
+      const bmLbl = $('#bookmark-label');
+      function setBookmarkUI(active) {
+        bmLbl.textContent = active ? '스크랩됨' : '스크랩';
+        bmBtn.classList.toggle('bg-amber-50', active);
+        bmBtn.classList.toggle('text-amber-600', active);
+        bmBtn.classList.toggle('bg-paper', !active);
+      }
+      if (currentUserId) {
+        try {
+          const r = await fetch(`/api/posts/${postId}/bookmark`, { credentials:'same-origin' });
+          const { bookmarked } = await r.json();
+          setBookmarkUI(bookmarked);
+        } catch {}
+      }
+      bmBtn.addEventListener('click', async () => {
+        if (!currentUserId) { location.href = '/login.html?next=' + encodeURIComponent(location.href); return; }
+        const r = await fetch(`/api/posts/${postId}/bookmark`, { method:'POST', credentials:'same-origin' });
+        const { bookmarked } = await r.json();
+        setBookmarkUI(bookmarked);
+        mtToast(bookmarked ? '스크랩했어요' : '스크랩 해제', 'success', 1800);
+      });
+
+      // ── 이전/다음 글 네비 ──
+      try {
+        const r = await fetch(`/api/posts/${postId}/nav`);
+        const { prev, next } = await r.json();
+        if (prev || next) {
+          $('#post-nav').classList.remove('hidden');
+          $('#post-nav').innerHTML = `
+            ${prev ? `
+              <a href="/post.html?id=${prev.id}" class="card p-4 hover:bg-paper transition flex items-center gap-3 min-w-0">
+                <i data-lucide="arrow-left" class="w-4 h-4 text-black/40 shrink-0"></i>
+                <div class="min-w-0">
+                  <div class="text-[11px] text-black/45 font-bold">이전 글</div>
+                  <div class="text-[13.5px] font-semibold truncate">${escapeHtml(prev.title)}</div>
+                </div>
+              </a>` : '<div></div>'}
+            ${next ? `
+              <a href="/post.html?id=${next.id}" class="card p-4 hover:bg-paper transition flex items-center gap-3 min-w-0 sm:text-right sm:justify-end">
+                <div class="min-w-0">
+                  <div class="text-[11px] text-black/45 font-bold">다음 글</div>
+                  <div class="text-[13.5px] font-semibold truncate">${escapeHtml(next.title)}</div>
+                </div>
+                <i data-lucide="arrow-right" class="w-4 h-4 text-black/40 shrink-0"></i>
+              </a>` : ''}
+          `;
+          lucide.createIcons();
+        }
+      } catch {}
 
       // 글 신고
       $('#post-report-btn').addEventListener('click', async () => {
@@ -523,7 +629,24 @@
     } catch {}
   }
 
+  let commentsCache = [];
+  let commentSort = 'recent';  // 'recent' | 'likes'
+
+  function switchCmtSort(mode) {
+    commentSort = mode;
+    const recBtn = $('#sort-recent'), likBtn = $('#sort-likes');
+    [recBtn, likBtn].forEach(b => {
+      b.classList.remove('bg-ink', 'text-white');
+      b.classList.add('bg-paper', 'text-black/60');
+    });
+    const active = mode === 'recent' ? recBtn : likBtn;
+    active.classList.remove('bg-paper', 'text-black/60');
+    active.classList.add('bg-ink', 'text-white');
+    if (commentsCache.length) renderComments(commentsCache);
+  }
+
   function renderComments(comments) {
+    commentsCache = comments;
     $('#cmt-count').textContent = comments.length;
     const list = $('#cmt-list');
     if (comments.length === 0) {
@@ -531,7 +654,10 @@
       return;
     }
     // 대댓글 트리 구성
-    const topLevel = comments.filter(c => !c.parent_id);
+    let topLevel = comments.filter(c => !c.parent_id);
+    if (commentSort === 'likes') {
+      topLevel = [...topLevel].sort((a, b) => (b.like_count||0) - (a.like_count||0) || new Date(a.created_at) - new Date(b.created_at));
+    }
     const replies = {};
     comments.forEach(c => {
       if (c.parent_id) {

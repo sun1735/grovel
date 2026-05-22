@@ -243,6 +243,17 @@ CREATE TABLE IF NOT EXISTS likes (
 CREATE INDEX IF NOT EXISTS idx_likes_target ON likes(target_type, target_id);
 CREATE INDEX IF NOT EXISTS idx_likes_user   ON likes(user_id, created_at DESC);
 
+-- ── bookmarks: 글 북마크/스크랩 ─────────────────
+-- 좋아요와 독립. 유저가 "나중에 읽을 글" 모으는 용도.
+CREATE TABLE IF NOT EXISTS bookmarks (
+  id         BIGSERIAL PRIMARY KEY,
+  user_id    BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  post_id    BIGINT NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(user_id, post_id)
+);
+CREATE INDEX IF NOT EXISTS idx_bookmarks_user ON bookmarks(user_id, created_at DESC);
+
 -- ── notifications: 유저 알림 ──────────────────
 -- 내 글/댓글에 반응(댓글·답글·좋아요)이 달리면 쌓임. AI 액션은 알림 생성하지 않음.
 CREATE TABLE IF NOT EXISTS notifications (

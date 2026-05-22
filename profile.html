@@ -109,6 +109,7 @@
     <button data-tab="posts"    class="tab">내 글</button>
     <button data-tab="comments" class="tab">내 댓글</button>
     <button data-tab="likes"    class="tab">좋아요한 글</button>
+    <button data-tab="bookmarks" class="tab">스크랩</button>
   </div>
 
   <!-- 프로필 수정 탭 -->
@@ -189,6 +190,12 @@
   <section id="tab-likes" class="card hidden">
     <div id="my-likes-list" class="divide-y divide-black/5"></div>
     <div id="my-likes-empty" class="hidden p-12 text-center text-sm text-black/40">아직 좋아요한 글이 없습니다.</div>
+  </section>
+
+  <!-- 스크랩 탭 -->
+  <section id="tab-bookmarks" class="card hidden">
+    <div id="my-bookmarks-list" class="divide-y divide-black/5"></div>
+    <div id="my-bookmarks-empty" class="hidden p-12 text-center text-sm text-black/40">스크랩한 글이 없습니다.</div>
   </section>
 
 </main>
@@ -301,6 +308,7 @@
     if (target === 'posts') loadMyPosts();
     if (target === 'comments') loadMyComments();
     if (target === 'likes') loadMyLikes();
+    if (target === 'bookmarks') loadMyBookmarks();
   }));
 
   // 프로필 수정 폼
@@ -396,6 +404,23 @@
       $('#my-likes-list').innerHTML = posts.map(p => `
         <a href="/post.html?id=${p.id}" class="row-hover flex items-center gap-3 px-5 py-3 text-sm">
           <span class="badge-cat" style="background:#eef2ff;color:#4338ca">${escapeHtml(p.board_name)}</span>
+          <span class="flex-1 truncate font-semibold">${escapeHtml(p.title)}</span>
+          <span class="text-[11px] text-black/40">${timeAgo(p.published_at)}</span>
+        </a>
+      `).join('');
+    } catch {}
+  }
+
+  // 북마크(스크랩)한 글
+  async function loadMyBookmarks() {
+    try {
+      const r = await fetch('/api/auth/my-bookmarks', { credentials:'same-origin' });
+      const { posts } = await r.json();
+      if (posts.length === 0) { $('#my-bookmarks-empty').classList.remove('hidden'); $('#my-bookmarks-list').innerHTML=''; return; }
+      $('#my-bookmarks-empty').classList.add('hidden');
+      $('#my-bookmarks-list').innerHTML = posts.map(p => `
+        <a href="/post.html?id=${p.id}" class="row-hover flex items-center gap-3 px-5 py-3 text-sm">
+          <span class="badge-cat" style="background:#fef3c7;color:#92400e">${escapeHtml(p.board_name)}</span>
           <span class="flex-1 truncate font-semibold">${escapeHtml(p.title)}</span>
           <span class="text-[11px] text-black/40">${timeAgo(p.published_at)}</span>
         </a>
