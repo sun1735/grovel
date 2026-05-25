@@ -130,16 +130,20 @@ CREATE INDEX IF NOT EXISTS idx_engine_log_task   ON engine_log(task_type, succes
 -- AI 페르소나와 별개. is_ai=false인 글/댓글의 작성자.
 -- 첫 번째 가입자는 자동으로 admin role을 받는다 (api/auth.js에서 처리).
 CREATE TABLE IF NOT EXISTS users (
-  id            BIGSERIAL PRIMARY KEY,
-  email         VARCHAR(255) UNIQUE NOT NULL,
-  nickname      VARCHAR(64)  UNIQUE NOT NULL,
-  password_hash VARCHAR(255) NOT NULL,
-  role          VARCHAR(16)  DEFAULT 'user',     -- 'user' | 'admin'
-  is_active     BOOLEAN      DEFAULT TRUE,
-  bio           TEXT,
-  created_at    TIMESTAMPTZ  DEFAULT NOW(),
-  last_login_at TIMESTAMPTZ
+  id             BIGSERIAL PRIMARY KEY,
+  email          VARCHAR(255) UNIQUE NOT NULL,
+  nickname       VARCHAR(64)  UNIQUE NOT NULL,
+  password_hash  VARCHAR(255) NOT NULL,
+  role           VARCHAR(16)  DEFAULT 'user',     -- 'user' | 'admin'
+  is_active      BOOLEAN      DEFAULT TRUE,
+  bio            TEXT,
+  email_verified BOOLEAN      DEFAULT FALSE,      -- 카카오 가입자는 가입 시 TRUE
+  token_version  INTEGER      DEFAULT 0,          -- 비번 변경 시 +1 → 기존 JWT 무효화
+  created_at     TIMESTAMPTZ  DEFAULT NOW(),
+  last_login_at  TIMESTAMPTZ
 );
+ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN DEFAULT FALSE;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS token_version  INTEGER DEFAULT 0;
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE INDEX IF NOT EXISTS idx_users_nickname ON users(nickname);
 
@@ -221,6 +225,18 @@ CREATE TABLE IF NOT EXISTS reports (
   created_at  TIMESTAMPTZ DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS idx_reports_status ON reports(status, created_at DESC);
+
+-- ── email_verifications: 이메일 인증 토큰 ──────
+-- 가입 시 토큰 발급 → 디스코드 관리자 채널로 안내 → 운영자가 전달.
+CREATE TABLE IF NOT EXISTS email_verifications (
+  id          BIGSERIAL PRIMARY KEY,
+  user_id     BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  token       VARCHAR(128) UNIQUE NOT NULL,
+  expires_at  TIMESTAMPTZ NOT NULL,
+  used        BOOLEAN DEFAULT FALSE,
+  created_at  TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_email_verif_token ON email_verifications(token) WHERE used = FALSE;
 
 -- ── password_resets: 비밀번호 재설정 토큰 ────────
 CREATE TABLE IF NOT EXISTS password_resets (

@@ -18,6 +18,7 @@ const {
   setSessionCookie,
   clearSessionCookie,
   requireAuth,
+  invalidateUserCache,
 } = require('../middleware/auth');
 const { notifyNewUser, notifyError } = require('../worker/discord');
 
@@ -128,7 +129,7 @@ router.post('/register', registerLimiter, async (req, res) => {
     const { rows } = await query(
       `INSERT INTO users (email, nickname, password_hash, role)
        VALUES ($1,$2,$3,$4)
-       RETURNING id, email, nickname, role, created_at`,
+       RETURNING id, email, nickname, role, token_version, created_at`,
       [email.toLowerCase(), nickname, hash, role]
     );
     const user = rows[0];
@@ -136,12 +137,69 @@ router.post('/register', registerLimiter, async (req, res) => {
     const token = signToken(user);
     setSessionCookie(res, token);
 
-    // 디스코드 관리자 알림
+    // 디스코드 관리자 알림 + 이메일 인증 토큰 발급
     notifyNewUser({ nickname: user.nickname, email: user.email, role: user.role }).catch(() => {});
+    sendEmailVerification(user.id, user.email, user.nickname).catch(() => {});
 
     res.status(201).json({ user });
   } catch (err) {
     console.error('[auth/register]', err);
+    res.status(500).json({ error: 'server_error' });
+  }
+});
+
+// ── 이메일 인증 토큰 발급 + Discord 안내 ──
+async function sendEmailVerification(userId, email, nickname) {
+  const token = crypto.randomBytes(32).toString('hex');
+  const expiresAt = new Date(Date.now() + 7 * 24 * 3600 * 1000); // 7일
+  await query(
+    `UPDATE email_verifications SET used = TRUE WHERE user_id = $1 AND used = FALSE`,
+    [userId]
+  );
+  await query(
+    `INSERT INTO email_verifications (user_id, token, expires_at) VALUES ($1, $2, $3)`,
+    [userId, token, expiresAt]
+  );
+  const verifyUrl = `https://www.grovel.kr/api/auth/verify-email?token=${token}`;
+  notifyError({
+    title: '📧 이메일 인증 요청',
+    message: `닉네임: ${nickname}\n이메일: ${email}\n\n인증 링크 (7일 유효):\n${verifyUrl}\n\n이 링크를 해당 회원에게 전달하세요.`,
+  }).catch(() => {});
+  console.log('[auth] email verification requested for:', email, '→', verifyUrl);
+}
+
+// GET /api/auth/verify-email?token=... — 링크 클릭 시 인증 완료
+router.get('/verify-email', async (req, res) => {
+  const { token } = req.query;
+  if (!token) return res.redirect('/login.html?verify=invalid');
+  try {
+    const { rows } = await query(
+      `SELECT id, user_id FROM email_verifications
+       WHERE token = $1 AND used = FALSE AND expires_at > NOW()`,
+      [token]
+    );
+    if (rows.length === 0) return res.redirect('/login.html?verify=expired');
+
+    await query('UPDATE users SET email_verified = TRUE WHERE id = $1', [rows[0].user_id]);
+    await query('UPDATE email_verifications SET used = TRUE WHERE id = $1', [rows[0].id]);
+    res.redirect('/login.html?verify=success');
+  } catch {
+    res.redirect('/login.html?verify=error');
+  }
+});
+
+// POST /api/auth/resend-verification — 인증 메일 재발송 (로그인 필요)
+router.post('/resend-verification', requireAuth, async (req, res) => {
+  try {
+    const { rows } = await query(
+      'SELECT email, nickname, email_verified FROM users WHERE id = $1',
+      [req.user.id]
+    );
+    if (rows.length === 0) return res.status(404).json({ error: 'not_found' });
+    if (rows[0].email_verified) return res.json({ ok: true, message: '이미 인증된 계정입니다.' });
+    await sendEmailVerification(req.user.id, rows[0].email, rows[0].nickname);
+    res.json({ ok: true, message: '인증 안내가 발송되었습니다.' });
+  } catch (err) {
     res.status(500).json({ error: 'server_error' });
   }
 });
@@ -155,7 +213,7 @@ router.post('/login', loginLimiter, async (req, res) => {
 
   try {
     const { rows } = await query(
-      'SELECT id, email, nickname, password_hash, role, is_active FROM users WHERE email = $1',
+      'SELECT id, email, nickname, password_hash, role, is_active, token_version FROM users WHERE email = $1',
       [email.toLowerCase()]
     );
     const user = rows[0];
@@ -190,9 +248,18 @@ router.post('/logout', (req, res) => {
 // ─────────────────────────────────────────────
 // GET /api/auth/me — 현재 로그인 상태
 // ─────────────────────────────────────────────
-router.get('/me', (req, res) => {
+router.get('/me', async (req, res) => {
   if (!req.user) return res.json({ user: null });
-  res.json({ user: req.user });
+  try {
+    const { rows } = await query(
+      'SELECT email_verified FROM users WHERE id = $1',
+      [req.user.id]
+    );
+    const isKakao = /@kakao\.local$/.test(req.user.email || '');
+    res.json({ user: { ...req.user, email_verified: !!rows[0]?.email_verified, is_kakao: isKakao } });
+  } catch {
+    res.json({ user: req.user });
+  }
 });
 
 // ─────────────────────────────────────────────
@@ -202,17 +269,34 @@ const KAKAO_REST_KEY = process.env.KAKAO_REST_API_KEY;
 const KAKAO_SECRET = process.env.KAKAO_CLIENT_SECRET;
 const KAKAO_REDIRECT = 'https://www.grovel.kr/api/auth/kakao/callback';
 
-// GET /api/auth/kakao — 카카오 OAuth 페이지로 리다이렉트
+// GET /api/auth/kakao — 카카오 OAuth 페이지로 리다이렉트 (state CSRF 토큰 발급)
 router.get('/kakao', (req, res) => {
   if (!KAKAO_REST_KEY) return res.status(500).json({ error: 'kakao_not_configured' });
-  const url = `https://kauth.kakao.com/oauth/authorize?client_id=${KAKAO_REST_KEY}&redirect_uri=${encodeURIComponent(KAKAO_REDIRECT)}&response_type=code`;
+  const state = crypto.randomBytes(24).toString('hex');
+  // 10분 유효한 httpOnly 쿠키로 state 저장 (서버 세션 없이 검증)
+  res.cookie('mt_oauth_state', state, {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production',
+    maxAge: 10 * 60 * 1000,
+    path: '/',
+  });
+  const url = `https://kauth.kakao.com/oauth/authorize?client_id=${KAKAO_REST_KEY}&redirect_uri=${encodeURIComponent(KAKAO_REDIRECT)}&response_type=code&state=${state}`;
   res.redirect(url);
 });
 
-// GET /api/auth/kakao/callback — 카카오에서 돌아온 후 처리
+// GET /api/auth/kakao/callback — 카카오에서 돌아온 후 처리 (state 검증)
 router.get('/kakao/callback', async (req, res) => {
-  const { code } = req.query;
+  const { code, state } = req.query;
   if (!code) return res.redirect('/login.html?error=kakao_failed');
+
+  // CSRF 방어: state 검증
+  const expectedState = req.cookies?.['mt_oauth_state'];
+  res.clearCookie('mt_oauth_state', { path: '/' });
+  if (!expectedState || !state || expectedState !== state) {
+    console.warn('[kakao] state mismatch — possible CSRF');
+    return res.redirect('/login.html?error=kakao_state_invalid');
+  }
 
   try {
     // 1. 인가 코드 → 액세스 토큰
@@ -247,7 +331,7 @@ router.get('/kakao/callback', async (req, res) => {
 
     // 3. 기존 회원 찾기 (이메일 기준)
     let { rows } = await query(
-      'SELECT id, email, nickname, role FROM users WHERE email = $1',
+      'SELECT id, email, nickname, role, token_version FROM users WHERE email = $1',
       [email.toLowerCase()]
     );
 
@@ -265,9 +349,9 @@ router.get('/kakao/callback', async (req, res) => {
       const hash = await bcrypt.hash(randomPw, 12);
 
       const insertResult = await query(
-        `INSERT INTO users (email, nickname, password_hash, role)
-         VALUES ($1, $2, $3, $4)
-         RETURNING id, email, nickname, role`,
+        `INSERT INTO users (email, nickname, password_hash, role, email_verified)
+         VALUES ($1, $2, $3, $4, TRUE)
+         RETURNING id, email, nickname, role, token_version`,
         [email.toLowerCase(), finalNick, hash, role]
       );
       rows = insertResult.rows;
@@ -388,8 +472,10 @@ router.post('/reset-password', async (req, res) => {
     }
 
     const hash = await bcrypt.hash(new_password, 12);
-    await query('UPDATE users SET password_hash = $2 WHERE id = $1', [rows[0].user_id, hash]);
+    // 비번 변경 시 token_version +1 → 기존 모든 세션 무효화
+    await query('UPDATE users SET password_hash = $2, token_version = token_version + 1 WHERE id = $1', [rows[0].user_id, hash]);
     await query('UPDATE password_resets SET used = TRUE WHERE id = $1', [rows[0].id]);
+    invalidateUserCache(rows[0].user_id);
 
     res.json({ ok: true, message: '비밀번호가 변경되었습니다. 새 비밀번호로 로그인하세요.' });
   } catch (err) {
@@ -429,6 +515,7 @@ router.put('/profile', requireAuth, async (req, res) => {
     }
 
     // 비밀번호 변경
+    let pwChanged = false;
     if (new_password) {
       if (!current_password) return res.status(400).json({ error: 'missing_current_password', message: '현재 비밀번호를 입력하세요.' });
       const newPwdError = checkPasswordStrength(new_password);
@@ -441,20 +528,23 @@ router.put('/profile', requireAuth, async (req, res) => {
       const hash = await bcrypt.hash(new_password, 12);
       params.push(hash);
       updates.push(`password_hash = $${params.length}`);
+      updates.push(`token_version = token_version + 1`);  // 다른 기기 세션 무효화
+      pwChanged = true;
     }
 
     if (updates.length === 0) return res.status(400).json({ error: 'nothing_to_update' });
 
     await query(`UPDATE users SET ${updates.join(', ')} WHERE id = $1`, params);
+    if (pwChanged) invalidateUserCache(req.user.id);
 
-    // 닉네임 변경 시 토큰 갱신
-    if (nickname && nickname !== req.user.nickname) {
-      const { rows } = await query('SELECT id, email, nickname, role FROM users WHERE id = $1', [req.user.id]);
+    // 닉네임 또는 비번 변경 시 토큰 재발급 (현재 세션은 유지)
+    if ((nickname && nickname !== req.user.nickname) || pwChanged) {
+      const { rows } = await query('SELECT id, email, nickname, role, token_version FROM users WHERE id = $1', [req.user.id]);
       const token = signToken(rows[0]);
       setSessionCookie(res, token);
     }
 
-    res.json({ ok: true, message: '프로필이 수정되었습니다.' });
+    res.json({ ok: true, message: '프로필이 수정되었습니다.', password_changed: pwChanged });
   } catch (err) {
     console.error('[auth/profile]', err);
     res.status(500).json({ error: 'server_error' });

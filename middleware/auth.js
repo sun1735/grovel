@@ -18,7 +18,10 @@ if (!process.env.JWT_SECRET) {
 
 function signToken(user) {
   return jwt.sign(
-    { id: user.id, email: user.email, nickname: user.nickname, role: user.role },
+    {
+      id: user.id, email: user.email, nickname: user.nickname, role: user.role,
+      tv: user.token_version || 0,  // 비번 변경 시 +1 → 기존 토큰 무효화
+    },
     JWT_SECRET,
     { expiresIn: JWT_EXPIRES_IN }
   );
@@ -54,6 +57,7 @@ async function attachUser(req, _res, next) {
       email: payload.email,
       nickname: payload.nickname,
       role: payload.role,
+      tv: payload.tv ?? 0,
     };
   } catch (_) {
     // 만료/위조 → null 유지
@@ -61,37 +65,54 @@ async function attachUser(req, _res, next) {
   next();
 }
 
-// 정지 상태 캐시 — userId → { active: bool, exp: ms }. 60초 TTL.
+// 계정 상태 캐시 — userId → { active, tokenVersion, exp }. 60초 TTL.
 const ACTIVE_CACHE_TTL = 60 * 1000;
 const activeCache = new Map();
-async function checkActive(userId) {
+async function getUserState(userId) {
   const now = Date.now();
   const c = activeCache.get(userId);
-  if (c && c.exp > now) return c.active;
+  if (c && c.exp > now) return c;
   try {
-    const { rows } = await query('SELECT is_active FROM users WHERE id = $1', [userId]);
-    const active = rows.length > 0 ? rows[0].is_active : false;
-    activeCache.set(userId, { active, exp: now + ACTIVE_CACHE_TTL });
+    const { rows } = await query('SELECT is_active, token_version FROM users WHERE id = $1', [userId]);
+    if (rows.length === 0) {
+      const v = { active: false, tokenVersion: -1, exp: now + ACTIVE_CACHE_TTL };
+      activeCache.set(userId, v);
+      return v;
+    }
+    const v = {
+      active: rows[0].is_active,
+      tokenVersion: rows[0].token_version || 0,
+      exp: now + ACTIVE_CACHE_TTL,
+    };
+    activeCache.set(userId, v);
     if (activeCache.size > 5000) {
-      // GC: 만료 항목 정리
-      for (const [k, v] of activeCache) {
-        if (v.exp <= now) activeCache.delete(k);
+      for (const [k, vv] of activeCache) {
+        if (vv.exp <= now) activeCache.delete(k);
         if (activeCache.size <= 4000) break;
       }
     }
-    return active;
+    return v;
   } catch {
-    return true; // DB 오류 시 통과 (가용성 우선)
+    return { active: true, tokenVersion: null, exp: now + ACTIVE_CACHE_TTL };
   }
 }
 
-/** 로그인 필수 + 활성 계정 확인 */
+function invalidateUserCache(userId) {
+  activeCache.delete(userId);
+}
+
+/** 로그인 필수 + 활성 계정 + 토큰 버전 일치 확인 */
 async function requireAuth(req, res, next) {
   if (!req.user) return res.status(401).json({ error: 'auth_required' });
-  const active = await checkActive(req.user.id);
-  if (!active) {
+  const state = await getUserState(req.user.id);
+  if (!state.active) {
     clearSessionCookie(res);
     return res.status(403).json({ error: 'account_suspended', message: '계정이 정지되었습니다. 운영자에게 문의해 주세요.' });
+  }
+  // tokenVersion mismatch (비번 변경 등으로 무효화) → 강제 로그아웃
+  if (state.tokenVersion !== null && (req.user.tv ?? 0) !== state.tokenVersion) {
+    clearSessionCookie(res);
+    return res.status(401).json({ error: 'session_invalidated', message: '비밀번호가 변경되어 다시 로그인이 필요합니다.' });
   }
   next();
 }
@@ -100,10 +121,14 @@ async function requireAuth(req, res, next) {
 async function requireAdmin(req, res, next) {
   if (!req.user) return res.status(401).json({ error: 'auth_required' });
   if (req.user.role !== 'admin') return res.status(403).json({ error: 'admin_required' });
-  const active = await checkActive(req.user.id);
-  if (!active) {
+  const state = await getUserState(req.user.id);
+  if (!state.active) {
     clearSessionCookie(res);
     return res.status(403).json({ error: 'account_suspended' });
+  }
+  if (state.tokenVersion !== null && (req.user.tv ?? 0) !== state.tokenVersion) {
+    clearSessionCookie(res);
+    return res.status(401).json({ error: 'session_invalidated' });
   }
   next();
 }
@@ -115,5 +140,6 @@ module.exports = {
   attachUser,
   requireAuth,
   requireAdmin,
+  invalidateUserCache,
   COOKIE_NAME,
 };
