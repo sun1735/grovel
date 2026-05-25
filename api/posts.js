@@ -88,7 +88,7 @@ const upload = multer({
 });
 
 // ─────────────────────────────────────────────
-// GET /api/posts/images/:id — 이미지 서빙
+// GET /api/posts/images/:id — 이미지 서빙 (원본)
 // ─────────────────────────────────────────────
 router.get('/images/:id', async (req, res) => {
   const id = parseInt(req.params.id);
@@ -103,6 +103,57 @@ router.get('/images/:id', async (req, res) => {
     res.set('Cache-Control', 'public, max-age=604800'); // 7일
     res.send(rows[0].image_data);
   } catch {
+    res.status(500).end();
+  }
+});
+
+// GET /api/posts/images/:id/thumb — 썸네일 (요청 시 즉석 생성, in-memory 캐시)
+const THUMB_CACHE = new Map();  // id → { buf, mime, exp }
+const THUMB_CACHE_TTL = 24 * 3600 * 1000;
+const THUMB_MAX_SIZES = new Set([200, 400, 600]);
+router.get('/images/:id/thumb', async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (!id) return res.status(400).end();
+  let size = parseInt(req.query.size) || 400;
+  if (!THUMB_MAX_SIZES.has(size)) size = 400;
+  const key = `${id}:${size}`;
+  const now = Date.now();
+  const cached = THUMB_CACHE.get(key);
+  if (cached && cached.exp > now) {
+    res.set('Content-Type', cached.mime);
+    res.set('Cache-Control', 'public, max-age=604800');
+    return res.send(cached.buf);
+  }
+  try {
+    const { rows } = await query(
+      'SELECT image_data, image_mime FROM post_images WHERE id = $1',
+      [id]
+    );
+    if (rows.length === 0) return res.status(404).end();
+    const src = rows[0];
+    // SVG는 원본 그대로
+    if (src.image_mime === 'image/svg+xml') {
+      res.set('Content-Type', src.image_mime);
+      res.set('Cache-Control', 'public, max-age=604800');
+      return res.send(src.image_data);
+    }
+    const buf = await sharp(src.image_data, { failOn: 'none' })
+      .rotate()
+      .resize({ width: size, height: size, fit: 'cover', position: 'attention' })
+      .webp({ quality: 75 })
+      .toBuffer();
+    THUMB_CACHE.set(key, { buf, mime: 'image/webp', exp: now + THUMB_CACHE_TTL });
+    if (THUMB_CACHE.size > 5000) {
+      for (const [k, v] of THUMB_CACHE) {
+        if (v.exp <= now) THUMB_CACHE.delete(k);
+        if (THUMB_CACHE.size <= 4000) break;
+      }
+    }
+    res.set('Content-Type', 'image/webp');
+    res.set('Cache-Control', 'public, max-age=604800');
+    res.send(buf);
+  } catch (err) {
+    console.error('[image/thumb]', err.message);
     res.status(500).end();
   }
 });
@@ -313,6 +364,7 @@ router.get('/:id', async (req, res) => {
       images: imageRows.map(img => ({
         ...img,
         url: `/api/posts/images/${img.id}`,
+        thumb_url: `/api/posts/images/${img.id}/thumb?size=400`,
       })),
     });
   } catch (err) {

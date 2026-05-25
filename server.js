@@ -278,41 +278,80 @@ app.get('/sitemap.xml', async (_req, res) => {
   }
 });
 
-// ── SEO: RSS 피드 ──
+// ── SEO: RSS 피드 (전체 + 보드별) ──
+function rssEsc(s) {
+  return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+async function buildRss({ board, title, description, selfHref }) {
+  const db = require('./db');
+  const params = [];
+  let where = '';
+  if (board) {
+    params.push(board);
+    where = `WHERE b.slug = $${params.length}`;
+  }
+  const { rows } = await db.query(
+    `SELECT p.id, p.title, SUBSTRING(p.body, 1, 300) AS excerpt,
+            p.author_nickname, p.published_at, b.name AS board_name
+     FROM posts p JOIN boards b ON b.id = p.board_id
+     ${where}
+     ORDER BY p.published_at DESC LIMIT 30`,
+    params
+  );
+
+  let xml = '<?xml version="1.0" encoding="UTF-8"?>\n';
+  xml += '<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">\n<channel>\n';
+  xml += `<title>${rssEsc(title)}</title>\n`;
+  xml += '<link>https://www.grovel.kr</link>\n';
+  xml += `<description>${rssEsc(description)}</description>\n`;
+  xml += '<language>ko</language>\n';
+  xml += `<atom:link href="${selfHref}" rel="self" type="application/rss+xml" />\n`;
+  for (const p of rows) {
+    xml += '<item>\n';
+    xml += `<title>${rssEsc(p.title)}</title>\n`;
+    xml += `<link>https://www.grovel.kr/post.html?id=${p.id}</link>\n`;
+    xml += `<guid>https://www.grovel.kr/post.html?id=${p.id}</guid>\n`;
+    xml += `<description>${rssEsc(p.excerpt)}</description>\n`;
+    xml += `<pubDate>${new Date(p.published_at).toUTCString()}</pubDate>\n`;
+    xml += `<category>${rssEsc(p.board_name)}</category>\n`;
+    xml += '</item>\n';
+  }
+  xml += '</channel>\n</rss>';
+  return xml;
+}
+
 app.get('/rss.xml', async (_req, res) => {
   try {
-    const db = require('./db');
-    const { rows } = await db.query(`
-      SELECT p.id, p.title, SUBSTRING(p.body, 1, 300) AS excerpt,
-             p.author_nickname, p.published_at, b.name AS board_name
-      FROM posts p JOIN boards b ON b.id = p.board_id
-      ORDER BY p.published_at DESC LIMIT 30
-    `);
-
-    const esc = (s) => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-    let xml = '<?xml version="1.0" encoding="UTF-8"?>\n';
-    xml += '<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">\n<channel>\n';
-    xml += '<title>마케톡 — 마케터들의 익명 커뮤니티</title>\n';
-    xml += '<link>https://www.grovel.kr</link>\n';
-    xml += '<description>마케팅, 광고, SEO, 부업까지. 실무자들이 모이는 가장 솔직한 익명 커뮤니티.</description>\n';
-    xml += '<language>ko</language>\n';
-    xml += '<atom:link href="https://www.grovel.kr/rss.xml" rel="self" type="application/rss+xml" />\n';
-
-    for (const p of rows) {
-      xml += '<item>\n';
-      xml += `<title>${esc(p.title)}</title>\n`;
-      xml += `<link>https://www.grovel.kr/post.html?id=${p.id}</link>\n`;
-      xml += `<guid>https://www.grovel.kr/post.html?id=${p.id}</guid>\n`;
-      xml += `<description>${esc(p.excerpt)}</description>\n`;
-      xml += `<pubDate>${new Date(p.published_at).toUTCString()}</pubDate>\n`;
-      xml += `<category>${esc(p.board_name)}</category>\n`;
-      xml += '</item>\n';
-    }
-
-    xml += '</channel>\n</rss>';
+    const xml = await buildRss({
+      board: null,
+      title: '마케톡 — 마케터들의 익명 커뮤니티',
+      description: '마케팅, 광고, SEO, 부업까지. 실무자들이 모이는 가장 솔직한 익명 커뮤니티.',
+      selfHref: 'https://www.grovel.kr/rss.xml',
+    });
     res.type('application/rss+xml').send(xml);
   } catch (err) {
     console.error('[rss]', err);
+    res.type('application/rss+xml').send('<?xml version="1.0"?><rss version="2.0"><channel></channel></rss>');
+  }
+});
+
+// 보드별 RSS — /rss/board/:slug.xml
+app.get('/rss/board/:slug.xml', async (req, res) => {
+  const slug = req.params.slug;
+  try {
+    const db = require('./db');
+    const { rows } = await db.query('SELECT name FROM boards WHERE slug = $1', [slug]);
+    if (rows.length === 0) return res.status(404).type('text').send('not found');
+    const xml = await buildRss({
+      board: slug,
+      title: `마케톡 · ${rows[0].name}`,
+      description: `마케톡 ${rows[0].name} 게시판 — 최신 글 피드`,
+      selfHref: `https://www.grovel.kr/rss/board/${slug}.xml`,
+    });
+    res.type('application/rss+xml').send(xml);
+  } catch (err) {
+    console.error('[rss/board]', err);
     res.type('application/rss+xml').send('<?xml version="1.0"?><rss version="2.0"><channel></channel></rss>');
   }
 });

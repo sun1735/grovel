@@ -405,13 +405,14 @@
       // 본문 렌더: 이스케이프 → 간단 마크다운 → URL 자동링크
       $('#post-body').innerHTML = renderBody(post.body);
 
-      // 이미지 렌더링
+      // 이미지 렌더링 — 1장은 원본, 2장↑은 썸네일(빠른 로딩)
       if (images && images.length > 0) {
+        const useThumb = images.length > 1;
         const imgHtml = `
           <div class="mt-6 grid ${images.length === 1 ? '' : images.length === 2 ? 'grid-cols-2' : 'grid-cols-3'} gap-2">
             ${images.map(img => `
               <a href="${img.url}" target="_blank" class="block">
-                <img src="${img.url}" alt="${escapeHtml(img.file_name || '')}" loading="lazy"
+                <img src="${useThumb ? (img.thumb_url || img.url) : img.url}" alt="${escapeHtml(img.file_name || '')}" loading="lazy"
                      class="w-full ${images.length === 1 ? 'max-h-[500px] object-contain' : 'aspect-square object-cover'} rounded-lg border border-black/5" />
               </a>
             `).join('')}
