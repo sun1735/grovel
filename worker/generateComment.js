@@ -28,7 +28,6 @@ const {
 } = require('../ai/protocols');
 const { completeJson, complete } = require('./llm');
 const { recall, formatMemoriesForPrompt, extractAndSave } = require('./memory');
-const { notifyNewComment } = require('./discord');
 
 function parseArgs() {
   const args = process.argv.slice(2);
@@ -109,9 +108,10 @@ async function getExistingCommentStarts(postId, personaId) {
   return [...all];
 }
 
-// 댓글 작성자 선택: 원글 작성자 + 이미 댓글 단 페르소나 제외
-function pickCommenter(post, alreadyCommented = []) {
+// 댓글 작성자 선택: 원글 작성자 + 이미 댓글 단 페르소나 + DB 비활성 페르소나 제외
+function pickCommenter(post, alreadyCommented = [], disabledIds = new Set()) {
   const candidates = PERSONA_LIST.filter(p => {
+    if (disabledIds.has(p.id)) return false;                 // 관리자에서 비활성
     if (p.id === post.persona_id) return false;              // 자기 글에 자기가 댓글 X
     if (alreadyCommented.includes(p.id)) return false;       // 이미 이 글에 댓글 달았음
     if (!isActiveHour(p) && Math.random() > 0.3) return false;
@@ -155,7 +155,15 @@ async function generateOneComment(forcedPostId) {
 
   // 이미 이 글에 댓글 달 페르소나 조회 → 중복 방지
   const alreadyCommented = await getExistingCommenters(post.id);
-  const persona = pickCommenter(post, alreadyCommented);
+
+  // DB에서 비활성 페르소나 ID
+  let disabledIds = new Set();
+  try {
+    const { rows } = await query(`SELECT id FROM personas WHERE is_active = FALSE`);
+    disabledIds = new Set(rows.map(r => r.id));
+  } catch {}
+
+  const persona = pickCommenter(post, alreadyCommented, disabledIds);
   if (!persona) throw new Error('이 글에 댓글 달 수 있는 페르소나가 남아있지 않습니다');
   const nickname = await pickFreshNickname(persona);
 
@@ -245,11 +253,6 @@ async function main() {
       if (!args.dryRun) {
         const saved = await saveComment(cmt);
         console.log(`     ✅ 저장 (id=${saved.id})`);
-        // 디스코드 알림
-        notifyNewComment({
-          postId: cmt.post.id, postTitle: cmt.post.title,
-          author: cmt.nickname, body: cmt.body.slice(0, 150),
-        }).catch(() => {});
 
         // 메모리 추출 (50% 확률 — 모든 댓글에서 추출하면 비용 큼)
         if (Math.random() < 0.5) {

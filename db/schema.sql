@@ -25,8 +25,11 @@ CREATE TABLE IF NOT EXISTS personas (
   archetype       VARCHAR(64) NOT NULL,
   reference_name  VARCHAR(32),
   bio             TEXT,
+  is_active       BOOLEAN DEFAULT TRUE,            -- 운영자가 끄면 글/댓글 생성 안 함
   created_at      TIMESTAMPTZ DEFAULT NOW()
 );
+-- 기존 테이블 호환: 컬럼 멱등 추가
+ALTER TABLE personas ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE;
 
 -- ── posts: 게시글 ──────────────────────────────
 CREATE TABLE IF NOT EXISTS posts (
@@ -242,6 +245,21 @@ CREATE TABLE IF NOT EXISTS likes (
 );
 CREATE INDEX IF NOT EXISTS idx_likes_target ON likes(target_type, target_id);
 CREATE INDEX IF NOT EXISTS idx_likes_user   ON likes(user_id, created_at DESC);
+
+-- ── admin_audit_log: 관리자 액션 감사 로그 ────
+-- 누가 언제 누구에게 어떤 액션을 했는지. 분쟁·실수 추적용.
+CREATE TABLE IF NOT EXISTS admin_audit_log (
+  id          BIGSERIAL PRIMARY KEY,
+  admin_id    BIGINT REFERENCES users(id) ON DELETE SET NULL,
+  admin_nick  VARCHAR(64),                        -- 닉네임 스냅샷
+  action      VARCHAR(64) NOT NULL,               -- 'user_suspend' | 'user_unsuspend' | 'post_delete' | 'comment_delete' | 'user_purge' | ...
+  target_type VARCHAR(32),                        -- 'user' | 'post' | 'comment' | 'persona' | ...
+  target_id   BIGINT,
+  detail      JSONB,                              -- 자유 메타 (사유, 이전값 등)
+  created_at  TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_audit_time   ON admin_audit_log(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_audit_target ON admin_audit_log(target_type, target_id);
 
 -- ── board_favorites: 게시판 즐겨찾기 ─────────
 -- 유저가 좋아하는 보드를 표시. 클라이언트에서 메인 보드 nav 정렬에 활용.

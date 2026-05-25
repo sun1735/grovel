@@ -161,12 +161,15 @@
   <!-- 탭 -->
   <div class="flex gap-1 border-b border-black/10 overflow-x-auto">
     <button data-tab="posts"    class="tab px-4 py-2.5 text-sm font-bold border-b-2 border-brand-500 text-brand-600 whitespace-nowrap">최근 게시글</button>
+    <button data-tab="comments" class="tab px-4 py-2.5 text-sm font-bold border-b-2 border-transparent text-black/55 hover:text-black whitespace-nowrap">최근 댓글</button>
     <button data-tab="users"    class="tab px-4 py-2.5 text-sm font-bold border-b-2 border-transparent text-black/55 hover:text-black whitespace-nowrap">회원</button>
+    <button data-tab="personas" class="tab px-4 py-2.5 text-sm font-bold border-b-2 border-transparent text-black/55 hover:text-black whitespace-nowrap">페르소나</button>
     <button data-tab="memories" class="tab px-4 py-2.5 text-sm font-bold border-b-2 border-transparent text-black/55 hover:text-black whitespace-nowrap">페르소나 메모리</button>
     <button data-tab="engine"   class="tab px-4 py-2.5 text-sm font-bold border-b-2 border-transparent text-black/55 hover:text-black whitespace-nowrap">엔진 로그</button>
     <button data-tab="banners"  class="tab px-4 py-2.5 text-sm font-bold border-b-2 border-transparent text-black/55 hover:text-black whitespace-nowrap">배너 관리</button>
     <button data-tab="agencies" class="tab px-4 py-2.5 text-sm font-bold border-b-2 border-transparent text-black/55 hover:text-black whitespace-nowrap">대행사 관리</button>
     <button data-tab="reports"  class="tab px-4 py-2.5 text-sm font-bold border-b-2 border-transparent text-black/55 hover:text-black whitespace-nowrap">신고 관리</button>
+    <button data-tab="audit"    class="tab px-4 py-2.5 text-sm font-bold border-b-2 border-transparent text-black/55 hover:text-black whitespace-nowrap">감사 로그</button>
   </div>
 
   <!-- 탭 내용 -->
@@ -179,12 +182,39 @@
     </table>
   </section>
 
+  <section id="tab-comments" class="tab-pane card scrollbox hidden">
+    <table class="w-full">
+      <thead><tr>
+        <th>ID</th><th>구분</th><th>본문</th><th>작성자</th><th>원글</th><th>좋아요</th><th>시간</th><th></th>
+      </tr></thead>
+      <tbody id="tbody-comments"></tbody>
+    </table>
+  </section>
+
   <section id="tab-users" class="tab-pane card scrollbox hidden">
     <table class="w-full">
       <thead><tr>
         <th>ID</th><th>이메일</th><th>닉네임</th><th>역할</th><th>상태</th><th>글</th><th>댓글</th><th>가입일</th><th>최근 로그인</th><th></th>
       </tr></thead>
       <tbody id="tbody-users"></tbody>
+    </table>
+  </section>
+
+  <section id="tab-personas" class="tab-pane card scrollbox hidden">
+    <table class="w-full">
+      <thead><tr>
+        <th>코드</th><th>아키타입</th><th>내부명</th><th>작성한 글</th><th>작성한 댓글</th><th>상태</th><th></th>
+      </tr></thead>
+      <tbody id="tbody-personas"></tbody>
+    </table>
+  </section>
+
+  <section id="tab-audit" class="tab-pane card scrollbox hidden">
+    <table class="w-full">
+      <thead><tr>
+        <th>시간</th><th>관리자</th><th>액션</th><th>대상</th><th>상세</th>
+      </tr></thead>
+      <tbody id="tbody-audit"></tbody>
     </table>
   </section>
 
@@ -302,14 +332,20 @@
   </section>
 
   <!-- 신고 관리 탭 -->
-  <section id="tab-reports" class="tab-pane hidden card scrollbox">
-    <table class="w-full">
-      <thead><tr>
-        <th>ID</th><th>유형</th><th>대상</th><th>사유</th><th>신고자</th><th>상태</th><th>시간</th><th></th>
-      </tr></thead>
-      <tbody id="tbody-reports"></tbody>
-    </table>
-    <div id="reports-empty" class="hidden p-8 text-center text-sm text-black/40">접수된 신고가 없습니다</div>
+  <section id="tab-reports" class="tab-pane hidden space-y-4">
+    <div class="card p-5">
+      <div class="font-extrabold text-[14px] mb-3">신고 사유별 (최근 30일)</div>
+      <div id="reports-stats" class="grid grid-cols-2 md:grid-cols-4 gap-3 text-[12px]"></div>
+    </div>
+    <div class="card scrollbox">
+      <table class="w-full">
+        <thead><tr>
+          <th>ID</th><th>유형</th><th>대상</th><th>사유</th><th>신고자</th><th>상태</th><th>시간</th><th></th>
+        </tr></thead>
+        <tbody id="tbody-reports"></tbody>
+      </table>
+      <div id="reports-empty" class="hidden p-8 text-center text-sm text-black/40">접수된 신고가 없습니다</div>
+    </div>
   </section>
 
   <!-- 대행사 관리 탭 -->
@@ -607,6 +643,10 @@
                          ? 'bg-rose-50 text-rose-600 hover:bg-rose-100'
                          : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'}">
                 ${u.is_active ? '정지' : '해제'}
+              </button>
+              <button data-uid="${u.id}" data-nick="${escapeHtml(u.nickname)}"
+                       class="user-purge text-[11px] px-2 py-1 rounded bg-black/5 hover:bg-black/10 text-black/70 ml-1">
+                글·댓글 삭제
               </button>`}
         </td>
       </tr>
@@ -623,6 +663,18 @@
       const j = await r.json();
       if (r.ok) { mtToast('처리되었습니다.', 'success'); loadUsers(); }
       else mtToast(j.message || '실패', 'error');
+    }));
+    $$('.user-purge').forEach(btn => btn.addEventListener('click', async () => {
+      const nick = btn.dataset.nick;
+      const ok = await mtConfirm(`<b>${nick}</b>님의 모든 글·댓글을 영구 삭제하시겠습니까?<br/>계정 자체는 유지됩니다. 되돌릴 수 없습니다.`,
+        { title: '콘텐츠 일괄 삭제', okText: '삭제', danger: true });
+      if (!ok) return;
+      const r = await fetch(`/api/admin/users/${btn.dataset.uid}/content`, { method:'DELETE', credentials:'same-origin' });
+      const j = await r.json();
+      if (r.ok) {
+        mtToast(`글 ${j.deleted_posts}개 · 댓글 ${j.deleted_comments}개 삭제됨`, 'success', 4000);
+        loadUsers(); loadOverview();
+      } else mtToast(j.message || '실패', 'error');
     }));
   }
 
@@ -836,7 +888,97 @@
   const REASON_LABEL = { spam:'스팸/도배', abuse:'욕설/비방', inappropriate:'부적절', other:'기타' };
   const STATUS_LABEL = { pending:'대기', resolved:'처리됨', dismissed:'기각' };
 
+  async function loadComments() {
+    const r = await fetch('/api/admin/recent-comments?limit=100', { credentials:'same-origin' });
+    const { comments } = await r.json();
+    $('#tbody-comments').innerHTML = comments.map(c => `
+      <tr>
+        <td>${c.id}</td>
+        <td>${c.is_ai ? '<span class="badge b-ai">AI</span>' : '<span class="badge b-user">유저</span>'}</td>
+        <td class="max-w-[400px] truncate">${escapeHtml((c.body || '').slice(0, 120))}</td>
+        <td>${escapeHtml(c.author_nickname)}</td>
+        <td class="max-w-[200px] truncate"><a href="/post.html?id=${c.post_id}#c${c.id}" target="_blank" class="hover:underline">${escapeHtml(c.post_title || '')}</a></td>
+        <td>${c.like_count}</td>
+        <td>${timeAgo(c.created_at)}</td>
+        <td><button data-id="${c.id}" class="del-cmt text-rose-500 hover:text-rose-700"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button></td>
+      </tr>
+    `).join('');
+    lucide.createIcons();
+    $$('.del-cmt').forEach(b => b.addEventListener('click', async () => {
+      const ok = await mtConfirm('이 댓글을 삭제하시겠습니까?', { title:'댓글 삭제', okText:'삭제', danger:true });
+      if (!ok) return;
+      await fetch('/api/admin/comments/' + b.dataset.id, { method:'DELETE', credentials:'same-origin' });
+      loadComments(); loadOverview();
+    }));
+  }
+
+  async function loadPersonas() {
+    const r = await fetch('/api/admin/personas', { credentials:'same-origin' });
+    const { personas } = await r.json();
+    $('#tbody-personas').innerHTML = personas.map(p => `
+      <tr>
+        <td class="font-mono font-bold">${escapeHtml(p.codename)}</td>
+        <td>${escapeHtml(p.archetype)}</td>
+        <td class="font-mono text-[11px] text-black/55">${escapeHtml(p.reference_name || '-')}</td>
+        <td>${fmt.format(p.post_count)}</td>
+        <td>${fmt.format(p.comment_count)}</td>
+        <td>${p.is_active ? '<span class="badge b-ok">활성</span>' : '<span class="badge b-warn">비활성</span>'}</td>
+        <td>
+          <button data-id="${p.id}" data-active="${p.is_active}" class="ps-toggle text-[11px] px-2 py-0.5 rounded ${p.is_active ? 'bg-rose-50 text-rose-600 hover:bg-rose-100' : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'}">
+            ${p.is_active ? '비활성화' : '활성화'}
+          </button>
+        </td>
+      </tr>
+    `).join('');
+    $$('.ps-toggle').forEach(b => b.addEventListener('click', async () => {
+      const wasActive = b.dataset.active === 'true';
+      const ok = await mtConfirm(`이 페르소나를 ${wasActive ? '비활성화' : '활성화'}하시겠습니까?\n비활성화 시 신규 글·댓글 생성에서 제외됩니다.`,
+        { title: '페르소나 토글', okText: wasActive ? '비활성화' : '활성화', danger: wasActive });
+      if (!ok) return;
+      const r = await fetch(`/api/admin/personas/${b.dataset.id}/active`, {
+        method:'PUT', headers:{'Content-Type':'application/json'}, credentials:'same-origin',
+        body: JSON.stringify({ is_active: !wasActive }),
+      });
+      if (r.ok) loadPersonas();
+      else mtToast('실패', 'error');
+    }));
+  }
+
+  async function loadAudit() {
+    const r = await fetch('/api/admin/audit-log', { credentials:'same-origin' });
+    const { logs } = await r.json();
+    $('#tbody-audit').innerHTML = logs.map(l => `
+      <tr>
+        <td class="whitespace-nowrap tabular-nums text-[11px]">${fmtDateTime(l.created_at)}</td>
+        <td class="font-semibold">${escapeHtml(l.admin_nick || '-')}</td>
+        <td><span class="badge b-ai">${escapeHtml(l.action)}</span></td>
+        <td class="text-[11px] text-black/55">${l.target_type || '-'} #${l.target_id || '-'}</td>
+        <td class="font-mono text-[10.5px] text-black/55 max-w-[320px] truncate">${l.detail ? escapeHtml(JSON.stringify(l.detail)) : '-'}</td>
+      </tr>
+    `).join('');
+  }
+
+  async function loadReportStats() {
+    try {
+      const r = await fetch('/api/admin/reports/stats', { credentials:'same-origin' });
+      const { by_reason } = await r.json();
+      const REASONS = ['spam','abuse','inappropriate','other'];
+      $('#reports-stats').innerHTML = REASONS.map(rn => {
+        const d = by_reason[rn] || { pending:0, resolved:0, dismissed:0, total:0 };
+        return `
+          <div class="rounded-lg bg-paper p-3">
+            <div class="font-bold">${REASON_LABEL[rn] || rn}</div>
+            <div class="text-2xl font-extrabold mt-1">${d.total}</div>
+            <div class="text-[10.5px] text-black/50 mt-1">
+              대기 ${d.pending} · 처리 ${d.resolved} · 기각 ${d.dismissed}
+            </div>
+          </div>`;
+      }).join('');
+    } catch {}
+  }
+
   async function loadReports() {
+    loadReportStats();
     const r = await fetch('/api/admin/reports', { credentials:'same-origin' });
     const { reports } = await r.json();
     if (reports.length === 0) { $('#reports-empty').classList.remove('hidden'); $('#tbody-reports').innerHTML=''; return; }
@@ -942,11 +1084,14 @@
     $$('.tab-pane').forEach(p => p.classList.add('hidden'));
     $('#tab-' + target).classList.remove('hidden');
     if (target === 'users')    loadUsers();
+    if (target === 'comments') loadComments();
+    if (target === 'personas') loadPersonas();
     if (target === 'memories') loadMemories();
     if (target === 'engine')   loadEngine();
     if (target === 'banners')  loadBanners();
     if (target === 'agencies') loadAgencies();
     if (target === 'reports')  loadReports();
+    if (target === 'audit')    loadAudit();
   }));
 
   $('#mem-search').addEventListener('click', loadMemories);

@@ -11,6 +11,16 @@ const { query } = require('../db');
 const { requireAdmin } = require('../middleware/auth');
 const { VALID_SLOTS, MAX_PER_SLOT } = require('./banners');
 
+// ── audit log 헬퍼 ──
+// 실패해도 원 동작에 영향 없도록 fire-and-forget.
+function audit(req, action, targetType, targetId, detail) {
+  query(
+    `INSERT INTO admin_audit_log (admin_id, admin_nick, action, target_type, target_id, detail)
+     VALUES ($1,$2,$3,$4,$5,$6)`,
+    [req.user?.id || null, req.user?.nickname || null, action, targetType || null, targetId || null, detail || null]
+  ).catch(err => console.warn('[audit]', err.message));
+}
+
 // 배너용 이미지 압축 — 배너는 보통 작은 폭이므로 1200px max + WebP 85%
 async function compressBanner(file) {
   const mime = file.mimetype;
@@ -217,9 +227,82 @@ router.put('/users/:id/active', async (req, res) => {
     }
 
     await query('UPDATE users SET is_active = $2 WHERE id = $1', [id, is_active]);
+    audit(req, is_active ? 'user_unsuspend' : 'user_suspend', 'user', id);
     res.json({ ok: true });
   } catch (err) {
     console.error('[admin/users/active]', err);
+    res.status(500).json({ error: 'failed' });
+  }
+});
+
+// ─────────────────────────────────────────────
+// DELETE /api/admin/users/:id/content — 유저의 모든 글·댓글 일괄 삭제
+// 계정은 유지 (탈퇴는 본인 동의 필요). 콘텐츠만 비움.
+// ─────────────────────────────────────────────
+router.delete('/users/:id/content', async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (!id) return res.status(400).json({ error: 'invalid_id' });
+  if (id === req.user.id) return res.status(400).json({ error: 'cant_target_self' });
+  try {
+    const { rows: target } = await query('SELECT role, nickname FROM users WHERE id = $1', [id]);
+    if (target.length === 0) return res.status(404).json({ error: 'not_found' });
+    if (target[0].role === 'admin') {
+      return res.status(403).json({ error: 'cant_purge_admin' });
+    }
+    const { rowCount: pCount } = await query('DELETE FROM posts WHERE user_id = $1', [id]);
+    const { rowCount: cCount } = await query('DELETE FROM comments WHERE user_id = $1', [id]);
+    audit(req, 'user_purge_content', 'user', id, { nickname: target[0].nickname, posts: pCount, comments: cCount });
+    res.json({ ok: true, deleted_posts: pCount, deleted_comments: cCount });
+  } catch (err) {
+    console.error('[admin/users/content]', err);
+    res.status(500).json({ error: 'failed' });
+  }
+});
+
+// ─────────────────────────────────────────────
+// GET /api/admin/personas — 페르소나 목록 + 활성 상태
+// ─────────────────────────────────────────────
+router.get('/personas', async (_req, res) => {
+  try {
+    const { rows } = await query(`
+      SELECT p.id, p.codename, p.archetype, p.reference_name, p.is_active,
+             (SELECT COUNT(*)::int FROM posts    WHERE persona_id = p.id) AS post_count,
+             (SELECT COUNT(*)::int FROM comments WHERE persona_id = p.id) AS comment_count
+      FROM personas p ORDER BY p.codename
+    `);
+    res.json({ personas: rows });
+  } catch (err) {
+    res.status(500).json({ error: 'failed' });
+  }
+});
+
+// PUT /api/admin/personas/:id/active — 활성 토글
+router.put('/personas/:id/active', async (req, res) => {
+  const id = req.params.id;
+  const { is_active } = req.body || {};
+  if (typeof is_active !== 'boolean') return res.status(400).json({ error: 'missing_is_active' });
+  try {
+    const { rowCount } = await query('UPDATE personas SET is_active = $2 WHERE id = $1', [id, is_active]);
+    if (rowCount === 0) return res.status(404).json({ error: 'not_found' });
+    audit(req, is_active ? 'persona_enable' : 'persona_disable', 'persona', null, { id });
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: 'failed' });
+  }
+});
+
+// ─────────────────────────────────────────────
+// GET /api/admin/audit-log — 감사 로그 (최근 100개)
+// ─────────────────────────────────────────────
+router.get('/audit-log', async (_req, res) => {
+  try {
+    const { rows } = await query(`
+      SELECT id, admin_id, admin_nick, action, target_type, target_id, detail, created_at
+      FROM admin_audit_log
+      ORDER BY created_at DESC LIMIT 100
+    `);
+    res.json({ logs: rows });
+  } catch (err) {
     res.status(500).json({ error: 'failed' });
   }
 });
@@ -280,7 +363,9 @@ router.delete('/posts/:id', async (req, res) => {
   const id = parseInt(req.params.id);
   if (!id) return res.status(400).json({ error: 'invalid_id' });
   try {
+    const { rows } = await query('SELECT title FROM posts WHERE id = $1', [id]);
     await query('DELETE FROM posts WHERE id = $1', [id]);
+    audit(req, 'post_delete', 'post', id, rows[0] ? { title: rows[0].title } : null);
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: 'failed' });
@@ -294,12 +379,34 @@ router.delete('/comments/:id', async (req, res) => {
   const id = parseInt(req.params.id);
   if (!id) return res.status(400).json({ error: 'invalid_id' });
   try {
-    const { rows } = await query('SELECT post_id FROM comments WHERE id = $1', [id]);
+    const { rows } = await query('SELECT post_id, body FROM comments WHERE id = $1', [id]);
     if (rows[0]) {
       await query('UPDATE posts SET comment_count = GREATEST(0, comment_count - 1) WHERE id = $1', [rows[0].post_id]);
     }
     await query('DELETE FROM comments WHERE id = $1', [id]);
+    audit(req, 'comment_delete', 'comment', id, rows[0] ? { post_id: rows[0].post_id, excerpt: (rows[0].body || '').slice(0, 100) } : null);
     res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: 'failed' });
+  }
+});
+
+// ─────────────────────────────────────────────
+// GET /api/admin/recent-comments — 최근 댓글 (관리/삭제용)
+// ─────────────────────────────────────────────
+router.get('/recent-comments', async (req, res) => {
+  const limit = Math.min(parseInt(req.query.limit) || 50, 100);
+  try {
+    const { rows } = await query(`
+      SELECT c.id, c.body, c.author_nickname, c.is_ai, c.user_id, c.persona_id,
+             c.like_count, c.created_at,
+             p.id AS post_id, p.title AS post_title
+      FROM comments c
+      JOIN posts p ON p.id = c.post_id
+      ORDER BY c.created_at DESC
+      LIMIT $1
+    `, [limit]);
+    res.json({ comments: rows });
   } catch (err) {
     res.status(500).json({ error: 'failed' });
   }
@@ -308,6 +415,28 @@ router.delete('/comments/:id', async (req, res) => {
 // ─────────────────────────────────────────────
 // 신고 관리
 // ─────────────────────────────────────────────
+// GET /api/admin/reports/stats — 사유별 카운트 (최근 30일)
+router.get('/reports/stats', async (_req, res) => {
+  try {
+    const { rows } = await query(`
+      SELECT reason, status, COUNT(*)::int AS c
+      FROM reports
+      WHERE created_at > NOW() - INTERVAL '30 days'
+      GROUP BY reason, status
+    `);
+    // pivot: { reason: { pending, resolved, dismissed, total } }
+    const pivot = {};
+    for (const r of rows) {
+      pivot[r.reason] = pivot[r.reason] || { pending: 0, resolved: 0, dismissed: 0, total: 0 };
+      pivot[r.reason][r.status] = (pivot[r.reason][r.status] || 0) + r.c;
+      pivot[r.reason].total += r.c;
+    }
+    res.json({ by_reason: pivot });
+  } catch (err) {
+    res.status(500).json({ error: 'failed' });
+  }
+});
+
 router.get('/reports', async (_req, res) => {
   try {
     const { rows } = await query(`
@@ -328,6 +457,7 @@ router.put('/reports/:id', async (req, res) => {
   if (!['resolved', 'dismissed'].includes(status)) return res.status(400).json({ error: 'invalid_status' });
   try {
     await query('UPDATE reports SET status = $2 WHERE id = $1', [id, status]);
+    audit(req, 'report_' + status, 'report', id);
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: 'failed' });

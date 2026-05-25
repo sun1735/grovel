@@ -167,12 +167,26 @@ async function markSeedUsed(seedId) {
 // ─────────────────────────────────────────────
 async function generateOnePost(forcedBoardSlug) {
   const board = await pickBoard(forcedBoardSlug);
-  const persona = pickPersonaForBoard(board.slug) || PERSONA_LIST[Math.floor(Math.random() * PERSONA_LIST.length)];
+
+  // DB에서 비활성 페르소나 확인 → 풀에서 제외
+  let allowedIds = null;
+  try {
+    const { rows } = await query(`SELECT id FROM personas WHERE is_active = FALSE`);
+    if (rows.length > 0) allowedIds = new Set(PERSONA_LIST.map(p => p.id).filter(id => !rows.some(r => r.id === id)));
+  } catch {}
+  const allowed = allowedIds
+    ? PERSONA_LIST.filter(p => allowedIds.has(p.id))
+    : PERSONA_LIST;
+  if (allowed.length === 0) throw new Error('활성 페르소나가 없습니다. 관리자에서 1명 이상 활성화하세요.');
+
+  let persona = pickPersonaForBoard(board.slug);
+  if (persona && allowedIds && !allowedIds.has(persona.id)) persona = null;
+  if (!persona) persona = allowed[Math.floor(Math.random() * allowed.length)];
 
   // 시간대 체크: 페르소나가 지금 활동시간 아니면 다른 페르소나로 교체 시도
   let chosenPersona = persona;
   if (!isActiveHour(persona) && Math.random() > 0.2) {  // 20%만 비활성 시간 통과
-    const alt = PERSONA_LIST.find(p => isActiveHour(p) && p.boards.primary?.includes(board.slug));
+    const alt = allowed.find(p => isActiveHour(p) && p.boards.primary?.includes(board.slug));
     if (alt) chosenPersona = alt;
   }
 
