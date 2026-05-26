@@ -8,6 +8,8 @@
 
 <link rel="stylesheet" href="/tailwind.css" />
 <script src="/lucide.min.js"></script>
+<script src="/dompurify.min.js"></script>
+<script src="/editor.js"></script>
 <style>
   body { background:#f6f7f9; color:#15171c; }
   .container-x { max-width:1240px; margin:0 auto; padding-left:1rem; padding-right:1rem; }
@@ -196,7 +198,7 @@
       <!-- 수정 모드 (숨김) -->
       <div id="post-edit-form" class="hidden px-6 md:px-8 py-6">
         <input type="text" id="edit-title" class="w-full h-12 px-3.5 rounded-lg border border-black/10 text-lg font-bold mb-3" />
-        <textarea id="edit-body" rows="12" class="w-full px-3.5 py-3 rounded-lg border border-black/10 text-[15px] leading-relaxed resize-y"></textarea>
+        <div id="edit-editor-mount"></div>
         <div class="flex justify-end gap-2 mt-3">
           <button id="edit-cancel" class="px-4 py-2 rounded-lg bg-paper hover:bg-black/5 text-sm font-bold">취소</button>
           <button id="edit-save" class="px-4 py-2 rounded-lg bg-brand-500 hover:bg-brand-600 text-white text-sm font-bold">저장</button>
@@ -340,13 +342,79 @@
 
   // 간단 마크다운 렌더 — XSS 방지 위해 이스케이프 먼저, 그 다음 인라인 패턴만 치환.
   // 지원: **bold**, *italic*, `code`, > quote, - list, URL 자동링크.
+  // 본문이 리치 HTML(에디터 산출물)인지 마크다운(기존·AI 글)인지 자동 감지
+  const HTML_TAG_RE = /<(?:p|div|br|span|h[1-6]|ul|ol|li|blockquote|img|table|pre|code|a|b|i|u|s|strong|em|font|hr)\b/i;
+
+  // 리치 HTML 본문: DOMPurify로 sanitize → @멘션·URL을 텍스트노드 한정 링크화
+  function renderHtmlBody(text) {
+    if (!window.DOMPurify) return escapeHtml(text || '').replace(/\n/g, '<br/>'); // 안전 폴백
+    const clean = window.MTEditor ? MTEditor.sanitize(text) : DOMPurify.sanitize(text);
+    const wrap = document.createElement('div');
+    wrap.className = 'rich';
+    wrap.innerHTML = clean;
+    linkifyTextNodes(wrap);
+    return wrap.outerHTML;
+  }
+
+  function linkifyTextNodes(root) {
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+      acceptNode(node) {
+        if (!node.nodeValue || !node.nodeValue.trim()) return NodeFilter.FILTER_REJECT;
+        for (let p = node.parentNode; p && p !== root; p = p.parentNode) {
+          const t = p.nodeName;
+          if (t === 'A' || t === 'CODE' || t === 'PRE') return NodeFilter.FILTER_REJECT;
+        }
+        return NodeFilter.FILTER_ACCEPT;
+      },
+    });
+    const targets = [];
+    for (let n; (n = walker.nextNode()); ) targets.push(n);
+    const RE = /(https?:\/\/[^\s<]+)|@([가-힣A-Za-z0-9_]{2,20})/g;
+    for (const node of targets) {
+      const text = node.nodeValue;
+      RE.lastIndex = 0;
+      if (!RE.test(text)) continue;
+      RE.lastIndex = 0;
+      const frag = document.createDocumentFragment();
+      let last = 0, m;
+      while ((m = RE.exec(text))) {
+        if (m.index > last) frag.appendChild(document.createTextNode(text.slice(last, m.index)));
+        const a = document.createElement('a');
+        if (m[1]) {
+          a.href = m[1]; a.target = '_blank'; a.rel = 'noopener nofollow ugc';
+          a.className = 'text-brand-500 hover:underline break-all'; a.textContent = m[1];
+        } else {
+          a.href = '/u/' + m[2];
+          a.className = 'text-brand-500 font-semibold hover:underline'; a.textContent = '@' + m[2];
+        }
+        frag.appendChild(a);
+        last = m.index + m[0].length;
+      }
+      if (last < text.length) frag.appendChild(document.createTextNode(text.slice(last)));
+      node.parentNode.replaceChild(frag, node);
+    }
+  }
+
   function renderBody(text) {
+    if (HTML_TAG_RE.test(text || '')) return renderHtmlBody(text);
+    // ── 기존 마크다운 렌더 (구 게시글·AI 생성글) ──
     let html = escapeHtml(text || '');
     // 줄 단위 처리: 인용 / 리스트
     const lines = html.split('\n');
     let out = [];
     let listOpen = false;
     for (let line of lines) {
+      // 제목 (#, ##, ###)
+      const hMatch = line.match(/^(#{1,3})\s+(.+)$/);
+      if (hMatch) {
+        if (listOpen) { out.push('</ul>'); listOpen = false; }
+        const lvl = hMatch[1].length;
+        const cls = lvl === 1 ? 'text-xl font-extrabold mt-4 mb-2'
+                  : lvl === 2 ? 'text-lg font-bold mt-3 mb-2'
+                  :             'text-base font-bold mt-2 mb-1';
+        out.push(`<h${lvl + 2} class="${cls}">${hMatch[2]}</h${lvl + 2}>`);
+        continue;
+      }
       // 리스트
       const liMatch = line.match(/^\s*[-*]\s+(.+)$/);
       if (liMatch) {
@@ -365,17 +433,28 @@
     }
     if (listOpen) out.push('</ul>');
     html = out.join('\n');
+    // 마크다운 링크 [텍스트](url) → 토큰으로 보관 (자동링크와 충돌 방지, http/https만 허용)
+    // {{LINK0}} 형태 sentinel — 본문에 거의 없고, 아래 자동링크 정규식에서 '{' 를 제외해 둠.
+    const linkTokens = [];
+    html = html.replace(/\[([^\]\n]+)\]\((https?:\/\/[^\s)]+)\)/g, (_, label, url) => {
+      const i = linkTokens.push(
+        `<a href="${url}" target="_blank" rel="noopener" class="text-brand-500 hover:underline break-all">${label}</a>`
+      ) - 1;
+      return `{{LINK${i}}}`;
+    });
     // 인라인: 코드 → 굵게 → 기울임 (순서 중요)
     html = html
       .replace(/`([^`\n]+)`/g, '<code class="bg-paper rounded px-1.5 py-0.5 text-[0.92em] font-mono">$1</code>')
       .replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>')
       .replace(/(^|[^*])\*([^*\n]+)\*/g, '$1<em>$2</em>');
-    // URL 자동 링크 (이미 a/code 안에 있는 건 피하기 어렵지만 plain text + p 라인이므로 OK)
-    html = html.replace(/(https?:\/\/[^\s<]+)/g,
+    // URL 자동 링크 ('{' 제외 → 링크 sentinel을 삼키지 않게)
+    html = html.replace(/(https?:\/\/[^\s<{]+)/g,
       '<a href="$1" target="_blank" rel="noopener" class="text-brand-500 hover:underline break-all">$1</a>');
     // @멘션 → 공개 프로필 링크
     html = html.replace(/@([가-힣A-Za-z0-9_]{2,20})/g,
       '<a href="/u/$1" class="text-brand-500 font-semibold hover:underline">@$1</a>');
+    // 마크다운 링크 토큰 복원
+    html = html.replace(/\{\{LINK(\d+)\}\}/g, (_, i) => linkTokens[i]);
     // 줄바꿈 → <br/>
     return html.replace(/\n/g, '<br/>');
   }
@@ -406,7 +485,10 @@
       $('#post-body').innerHTML = renderBody(post.body);
 
       // 이미지 렌더링 — 1장은 원본, 2장↑은 썸네일(빠른 로딩)
-      if (images && images.length > 0) {
+      // 본문에 인라인으로 삽입된 이미지는 갤러리에서 제외 (중복 표시 방지)
+      const galleryImages = (images || []).filter(im => !(post.body || '').includes('/api/posts/images/' + im.id));
+      if (galleryImages.length > 0) {
+        const images = galleryImages;
         const useThumb = images.length > 1;
         const imgHtml = `
           <div class="mt-6 grid ${images.length === 1 ? '' : images.length === 2 ? 'grid-cols-2' : 'grid-cols-3'} gap-2">
@@ -478,7 +560,8 @@
 
       // ── 공유 버튼 ──
       const shareTitle = post.title;
-      const shareDesc  = (post.body || '').replace(/\s+/g, ' ').slice(0, 100);
+      const bodyPlain  = window.MTEditor ? MTEditor.stripHtml(post.body || '') : (post.body || '');
+      const shareDesc  = bodyPlain.replace(/\s+/g, ' ').slice(0, 100);
       const shareUrl   = location.href;
 
       $('#share-copy').addEventListener('click', async () => {
@@ -575,10 +658,14 @@
           else { const j = await r.json(); alert(j.message || '삭제 실패'); }
         });
 
-        // 수정
+        // 수정 — 리치 에디터 (최초 클릭 시 1회 생성)
+        let editEditor = null;
         $('#post-edit-btn').addEventListener('click', () => {
           $('#edit-title').value = post.title;
-          $('#edit-body').value = post.body;
+          if (!editEditor) {
+            editEditor = MTEditor.create({ mount: $('#edit-editor-mount'), placeholder: '본문을 입력하세요.' });
+          }
+          editEditor.setHTML(post.body || '');
           $('#post-edit-form').classList.remove('hidden');
           $('#post-body').classList.add('hidden');
           // 이미지/메타카드도 숨기기
@@ -590,8 +677,9 @@
         });
         $('#edit-save').addEventListener('click', async () => {
           const newTitle = $('#edit-title').value.trim();
-          const newBody = $('#edit-body').value.trim();
-          if (newTitle.length < 4 || newBody.length < 5) { alert('제목 4자, 본문 5자 이상 필요합니다.'); return; }
+          if (newTitle.length < 4) { alert('제목은 4자 이상이어야 합니다.'); return; }
+          if (!editEditor || editEditor.isEmpty()) { alert('본문을 입력해 주세요.'); return; }
+          const newBody = editEditor.getHTML();
           const r = await fetch(`/api/posts/${postId}`, {
             method:'PUT',
             headers:{'Content-Type':'application/json'},

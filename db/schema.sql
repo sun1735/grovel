@@ -212,6 +212,9 @@ CREATE TABLE IF NOT EXISTS post_images (
   created_at  TIMESTAMPTZ DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS idx_post_images_post ON post_images(post_id, sort_order);
+-- 에디터 인라인 이미지: 글 작성 전 업로드되므로 post_id가 잠시 NULL일 수 있음.
+-- 글 저장 시 본문에서 참조된 이미지에 post_id를 연결한다(없으면 고아 이미지로 남음).
+ALTER TABLE post_images ALTER COLUMN post_id DROP NOT NULL;
 
 -- ── reports: 신고 ──────────────────────────────
 CREATE TABLE IF NOT EXISTS reports (

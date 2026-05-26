@@ -7,6 +7,8 @@
 <title>글쓰기 — 마케톡</title>
 <link rel="stylesheet" href="/tailwind.css" />
 <script src="/lucide.min.js"></script>
+<script src="/dompurify.min.js"></script>
+<script src="/editor.js"></script>
 <style>
   body { background:#f6f7f9; color:#15171c; }
   .container-x { max-width:880px; margin:0 auto; padding:0 1rem; }
@@ -111,12 +113,10 @@
 
     <div class="mb-5">
       <label class="text-xs font-bold text-black/60 block mb-1.5">본문</label>
-      <textarea name="body" id="body-textarea" required minlength="5" maxlength="8000" rows="14"
-                class="w-full px-3.5 py-3 rounded-lg border border-black/10 text-[15px] leading-relaxed resize-y"
-                placeholder="본문 내용을 입력하세요. 마케팅 노하우, 질문, 일상 모두 환영합니다."></textarea>
+      <div id="editor-mount"></div>
       <div class="flex justify-between text-[11px] text-black/40 mt-1.5">
-        <span>서식: <code class="bg-paper px-1 rounded">**굵게**</code> <code class="bg-paper px-1 rounded">*기울임*</code> <code class="bg-paper px-1 rounded">`코드`</code> <code class="bg-paper px-1 rounded">- 리스트</code> <code class="bg-paper px-1 rounded">&gt; 인용</code></span>
-        <span><span id="body-len">0</span> / 8000</span>
+        <span>툴바에서 글꼴·크기·색상·정렬·목록·표·이미지·링크를 사용할 수 있어요.</span>
+        <span><span id="body-len">0</span>자</span>
       </div>
     </div>
 
@@ -197,10 +197,11 @@
     sel.addEventListener('change', toggleJobFields);
     toggleJobFields();  // 초기 상태
 
-    // 글자 수 카운터
-    const ta = document.querySelector('textarea[name="body"]');
-    ta.addEventListener('input', () => {
-      $('#body-len').textContent = ta.value.length;
+    // ── 리치 텍스트 에디터 ──
+    const editor = MTEditor.create({
+      mount: $('#editor-mount'),
+      placeholder: '본문 내용을 입력하세요. 마케팅 노하우, 질문, 일상 모두 환영합니다.',
+      onInput: () => { $('#body-len').textContent = editor.getText().length; scheduleDraftSave(); },
     });
 
     // ── 임시저장 (autosave) ──
@@ -222,7 +223,7 @@
             if ([...sel.options].some(o => o.value === d.board)) sel.value = d.board;
           }
           if (d.title) titleInp.value = d.title;
-          if (d.body)  { ta.value = d.body; $('#body-len').textContent = d.body.length; }
+          if (d.body)  { editor.setHTML(d.body); $('#body-len').textContent = editor.getText().length; }
           toggleJobFields();
           mtToast('이전에 작성하던 글을 복원했어요. (24시간 이내)', 'info', 4000);
         }
@@ -235,7 +236,7 @@
         const data = {
           board: sel.value,
           title: titleInp.value,
-          body: ta.value,
+          body: editor.isEmpty() ? '' : editor.getHTML(),
           savedAt: Date.now(),
         };
         // 비어 있으면 저장 안 함 (불필요한 복원 방지)
@@ -251,7 +252,6 @@
       draftTimer = setTimeout(saveDraft, 1500);
     }
     titleInp.addEventListener('input', scheduleDraftSave);
-    ta.addEventListener('input', scheduleDraftSave);
     sel.addEventListener('change', scheduleDraftSave);
 
     // 게시 성공 시 클리어 (제출 핸들러에서 호출하도록 전역 노출)
@@ -314,10 +314,16 @@
       e.preventDefault();
       $('#err').classList.add('hidden');
 
+      if (editor.isEmpty()) {
+        $('#err').textContent = '본문을 입력해 주세요.';
+        $('#err').classList.remove('hidden');
+        return;
+      }
+
       const formData = new FormData();
       formData.append('board_slug', e.target.board_slug.value);
       formData.append('title', e.target.title.value);
-      formData.append('body', e.target.body.value);
+      formData.append('body', editor.getHTML());
 
       // 구인/협업 metadata
       if (e.target.board_slug.value === 'job') {

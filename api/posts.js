@@ -1,10 +1,78 @@
 const express = require('express');
 const multer = require('multer');
 const sharp = require('sharp');
+const sanitizeHtml = require('sanitize-html');
 const { query } = require('../db');
 const { requireAuth } = require('../middleware/auth');
 const { notifyNewPost } = require('../worker/discord');
 const { createNotification } = require('./notifications');
+
+// ── 본문 HTML sanitize (리치 에디터 출력 검증) ──
+// 클라이언트(editor.js의 DOMPurify)와 동일 화이트리스트. 이미지 src는 우리 업로드
+// 경로(/api/posts/images/N)만 허용해 외부 추적·믹스드콘텐츠를 막는다.
+const COLOR_RE = [/^#(?:[0-9a-f]{3,8})$/i, /^rgb\(/i, /^rgba\(/i, /^[a-z]+$/i];
+const SANITIZE_OPTS = {
+  allowedTags: [
+    'p', 'br', 'div', 'span', 'b', 'strong', 'i', 'em', 'u', 's', 'strike',
+    'a', 'ul', 'ol', 'li', 'blockquote', 'h1', 'h2', 'h3', 'h4',
+    'code', 'pre', 'img', 'table', 'thead', 'tbody', 'tr', 'td', 'th', 'hr', 'font',
+  ],
+  allowedAttributes: {
+    a: ['href', 'target', 'rel'],
+    img: ['src', 'alt'],
+    font: ['color', 'face'],
+    td: ['colspan', 'rowspan', 'style'],
+    th: ['colspan', 'rowspan', 'style'],
+    '*': ['style'],
+  },
+  allowedStyles: {
+    '*': {
+      'color': COLOR_RE,
+      'background-color': COLOR_RE,
+      'font-family': [/^[\w\s",'.\-]+$/],
+      'font-size': [/^\d+(?:\.\d+)?(?:px|em|rem|%|pt)$/, /^(?:xx-small|x-small|small|medium|large|x-large|xx-large|smaller|larger)$/],
+      'font-weight': [/^(?:normal|bold|bolder|lighter|[1-9]00)$/],
+      'font-style': [/^(?:normal|italic)$/],
+      'text-decoration': [/^(?:none|underline|line-through|underline line-through)$/],
+      'text-align': [/^(?:left|right|center|justify)$/],
+    },
+  },
+  allowedSchemes: ['http', 'https', 'mailto'],
+  allowedSchemesByTag: { img: [] },  // img은 스킴 없는 상대경로만
+  transformTags: {
+    a: sanitizeHtml.simpleTransform('a', { target: '_blank', rel: 'noopener nofollow ugc' }),
+    img: (tagName, attribs) => {
+      const src = attribs.src || '';
+      if (!/^\/api\/posts\/images\/\d+/.test(src)) return { tagName: 'img', attribs: {} };
+      return { tagName: 'img', attribs: { src, alt: (attribs.alt || '').slice(0, 200) } };
+    },
+  },
+};
+function sanitizeBody(html) { return sanitizeHtml(String(html || ''), SANITIZE_OPTS); }
+// 태그 전부 제거한 순수 텍스트 (길이 검증·발췌·멘션 추출용)
+function htmlToText(html) {
+  return sanitizeHtml(String(html || ''), { allowedTags: [], allowedAttributes: {} })
+    .replace(/\s+/g, ' ').trim();
+}
+// 본문에서 인라인 이미지 id 추출 (글 저장 시 post_id 연결용)
+function extractImageIds(html) {
+  const ids = [];
+  const re = /\/api\/posts\/images\/(\d+)/g;
+  let m;
+  while ((m = re.exec(String(html || ''))) !== null) ids.push(parseInt(m[1], 10));
+  return [...new Set(ids.filter(Boolean))];
+}
+async function linkInlineImages(postId, html) {
+  const ids = extractImageIds(html);
+  if (ids.length === 0) return;
+  try {
+    await query(
+      `UPDATE post_images SET post_id = $1 WHERE id = ANY($2::bigint[]) AND post_id IS NULL`,
+      [postId, ids]
+    );
+  } catch (e) { /* 연결 실패해도 본문 표시엔 지장 없음 */ }
+}
+const BODY_MAX = 60000;  // sanitize된 HTML 기준 상한 (DB는 TEXT라 여유 있음)
 
 // ── 멘션 처리 ──
 // 본문에서 @닉네임 추출 (한글/영문/숫자/_ 2-20자). 중복·자기 자신 제거.
@@ -159,6 +227,26 @@ router.get('/images/:id/thumb', async (req, res) => {
 });
 
 // ─────────────────────────────────────────────
+// POST /api/posts/upload-image — 에디터 인라인 이미지 업로드 (인증 필수)
+// 글 작성 전이라 post_id 없이 저장(NULL). 글 저장 시 본문 참조로 연결됨.
+// ─────────────────────────────────────────────
+router.post('/upload-image', requireAuth, upload.single('image'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'no_file' });
+  try {
+    const compressed = await compressImage(req.file);
+    const { rows } = await query(
+      `INSERT INTO post_images (post_id, image_data, image_mime, file_name, file_size, sort_order)
+       VALUES (NULL,$1,$2,$3,$4,0) RETURNING id`,
+      [compressed.buffer, compressed.mime, compressed.name, compressed.buffer.length]
+    );
+    res.json({ id: rows[0].id, url: `/api/posts/images/${rows[0].id}` });
+  } catch (err) {
+    console.error('[upload-image]', err);
+    res.status(500).json({ error: 'failed' });
+  }
+});
+
+// ─────────────────────────────────────────────
 // GET /api/posts/hot — 실시간 인기글 Top N
 // 최근 24h 내 게시글 중 (조회수 + 댓글수×30) 점수로 정렬
 // ─────────────────────────────────────────────
@@ -230,13 +318,15 @@ router.get('/news', async (req, res) => {
   try {
     const { rows } = await query(`
       SELECT p.id, p.title, p.platform, p.published_at, p.view_count, p.comment_count,
-             SUBSTRING(p.body, 1, 120) AS excerpt
+             SUBSTRING(p.body, 1, 600) AS excerpt_raw
       FROM posts p JOIN boards b ON b.id = p.board_id
       WHERE b.slug = 'news'
       ORDER BY p.published_at DESC
       LIMIT $1
     `, [limit]);
-    res.json({ posts: rows });
+    // 본문이 HTML일 수 있어 태그 제거 후 120자
+    const posts = rows.map(({ excerpt_raw, ...r }) => ({ ...r, excerpt: htmlToText(excerpt_raw).slice(0, 120) }));
+    res.json({ posts });
   } catch (err) {
     res.status(500).json({ error: 'failed' });
   }
@@ -447,7 +537,11 @@ router.post('/', requireAuth, upload.array('images', 5), async (req, res) => {
   if (title.length < 4 || title.length > 200) {
     return res.status(400).json({ error: 'invalid_title' });
   }
-  if (body.length < 5 || body.length > 8000) {
+  // 본문 sanitize (리치 HTML) + 길이 검증 (텍스트 기준, 이미지/표만 있는 글도 허용)
+  const cleanBody = sanitizeBody(body).trim();
+  const bodyText = htmlToText(cleanBody);
+  const hasMedia = /<(?:img|table|hr)\b/i.test(cleanBody);
+  if ((bodyText.length < 2 && !hasMedia) || cleanBody.length > BODY_MAX) {
     return res.status(400).json({ error: 'invalid_body' });
   }
 
@@ -512,9 +606,12 @@ router.post('/', requireAuth, upload.array('images', 5), async (req, res) => {
         (board_id, user_id, author_nickname, title, body, view_count, is_ai, metadata)
        VALUES ($1,$2,$3,$4,$5,$6,FALSE,$7)
        RETURNING id, published_at`,
-      [boardRows[0].id, req.user.id, req.user.nickname, title.trim(), body.trim(), 0, cleanedMeta]
+      [boardRows[0].id, req.user.id, req.user.nickname, title.trim(), cleanBody, 0, cleanedMeta]
     );
     const postId = rows[0].id;
+
+    // 본문에 삽입된 인라인 이미지(post_id NULL)를 이 글에 연결
+    await linkInlineImages(postId, cleanBody);
 
     // 이미지 저장 (있으면) — sharp로 WebP 80% / 1600px 리사이즈
     if (req.files && req.files.length > 0) {
@@ -532,12 +629,12 @@ router.post('/', requireAuth, upload.array('images', 5), async (req, res) => {
     notifyNewPost({
       id: postId, title: title.trim(),
       author: req.user.nickname, board: board_slug,
-      excerpt: body.trim().slice(0, 150),
+      excerpt: bodyText.slice(0, 150),
     }).catch(() => {});
 
-    // 본문/제목 멘션 알림
+    // 본문/제목 멘션 알림 (HTML 태그 제거한 텍스트에서 추출)
     try {
-      const mentioned = await resolveMentions(`${title} ${body}`, req.user.id);
+      const mentioned = await resolveMentions(`${title} ${bodyText}`, req.user.id);
       for (const u of mentioned) {
         createNotification({
           userId: u.id,
@@ -687,13 +784,22 @@ router.put('/:id', requireAuth, async (req, res) => {
       params.push(title.trim());
       updates.push(`title = $${params.length}`);
     }
-    if (body && body.trim().length >= 5) {
-      params.push(body.trim());
-      updates.push(`body = $${params.length}`);
+    let cleanBody = null;
+    if (body != null) {
+      cleanBody = sanitizeBody(body).trim();
+      const bodyText = htmlToText(cleanBody);
+      const hasMedia = /<(?:img|table|hr)\b/i.test(cleanBody);
+      if ((bodyText.length >= 2 || hasMedia) && cleanBody.length <= BODY_MAX) {
+        params.push(cleanBody);
+        updates.push(`body = $${params.length}`);
+      } else {
+        cleanBody = null;  // 유효하지 않은 본문은 업데이트 제외
+      }
     }
     if (updates.length === 0) return res.status(400).json({ error: 'nothing_to_update' });
 
     await query(`UPDATE posts SET ${updates.join(', ')} WHERE id = $1`, params);
+    if (cleanBody) await linkInlineImages(id, cleanBody);
     res.json({ ok: true });
   } catch (err) {
     console.error('[posts/update]', err);
