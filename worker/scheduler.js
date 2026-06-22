@@ -19,16 +19,17 @@
  *   4. Variables → DATABASE_URL, ANTHROPIC_API_KEY 추가 (메인 서비스에서 복사)
  *   5. Deploy
  *
- * 예상 일일 발행량:
- *   글: 약 28-32개   (자동 토픽 시드 + 페르소나 회전)
- *   댓글: 약 85-100개 (50% 확률로 메모리 추출)
+ * 예상 일일 발행량 (배율 GEN_RATE_MULTIPLIER 적용 후):
+ *   기본 배율 1/3 기준 → 글 ~9-10개, 댓글 ~25-28개 (비용 절감 모드)
+ *   배율 1.0 으로 올리면 → 글 ~28-32개, 댓글 ~85-100개 (원래 볼륨)
+ *   GEN_RATE_MULTIPLIER 환경변수로 재배포 없이 조절 (예: 0.5, 0.2)
  */
 require('dotenv').config();
 const { pool } = require('../db');
 const { generateOnePost, savePost, markSeedUsed } = require('./generatePost');
 const { generateOneComment, saveComment } = require('./generateComment');
 const { extractAndSave } = require('./memory');
-const { notifyNewPost, notifyNewComment } = require('./discord');
+const { notifyNewPost } = require('./discord');
 
 // ─────────────────────────────────────────────
 // 한국 시간 기준 시간별 평균 발생률
@@ -69,6 +70,18 @@ const SLOTS_PER_HOUR = 4;       // cron이 15분마다 돈다고 가정
 const MAX_POSTS_PER_RUN = 5;    // 안전 한도
 const MAX_COMMENTS_PER_RUN = 12;
 const DELAY_BETWEEN_CALLS_MS = 1200;  // Anthropic 레이트 리미트 회피
+
+// ─────────────────────────────────────────────
+// 발행량 배율 — 비용 절감용 전역 스로틀
+//   HOURLY_RATES 에 곱해지는 계수. 1.0 = 원래대로, 0.33 ≈ 1/3로 감축.
+//   환경변수 GEN_RATE_MULTIPLIER 로 재배포 없이 튜닝 가능 (예: 0.5, 0.2).
+//   기본값 1/3 → 일일 글 ~9-10개, 댓글 ~25-28개 수준.
+// ─────────────────────────────────────────────
+function getRateMultiplier() {
+  const v = parseFloat(process.env.GEN_RATE_MULTIPLIER);
+  if (Number.isFinite(v) && v >= 0) return v;
+  return 1 / 3;
+}
 
 // ─────────────────────────────────────────────
 // 유틸
@@ -142,11 +155,6 @@ async function tryGenerateComment() {
     const cmt = await generateOneComment();
     const saved = await saveComment(cmt);
     console.log(`   💬 COMMENT id=${saved.id} on post#${cmt.post.id} [${cmt.persona.codename}] ${cmt.nickname} — "${cmt.body.slice(0, 50)}"`);
-    // 디스코드 알림
-    notifyNewComment({
-      postId: cmt.post.id, postTitle: cmt.post.title,
-      author: cmt.nickname, body: cmt.body.slice(0, 150),
-    }).catch(() => {});
 
     // 50% 확률로 메모리 추출 (잔존율 KPI)
     if (Math.random() < 0.5) {
@@ -167,9 +175,27 @@ async function tryGenerateComment() {
 // ─────────────────────────────────────────────
 // 메인
 // ─────────────────────────────────────────────
+// ─────────────────────────────────────────────
+// 킬 스위치: AI_GENERATION_ENABLED=false 면 자동 생성 중단
+//   비용 절감용. 크론 설정은 그대로 두고 환경변수만 끄면 됨.
+//   수동 burst(--burst-posts/--burst-comments)는 의도적 실행이므로 통과.
+//   재개: Railway Variables 에서 AI_GENERATION_ENABLED=true (또는 변수 삭제)
+// ─────────────────────────────────────────────
+function isGenerationEnabled() {
+  const v = (process.env.AI_GENERATION_ENABLED || '').trim().toLowerCase();
+  return !['false', '0', 'off', 'no'].includes(v);
+}
+
 async function main() {
   const args = parseArgs();
   const isBurst = args.burstPosts > 0 || args.burstComments > 0;
+
+  // 킬 스위치 — 자동 모드에서만 적용 (burst는 수동 의도)
+  if (!isBurst && !isGenerationEnabled()) {
+    console.log('🛑 AI_GENERATION_ENABLED=false — 자동 글·댓글 생성 중단됨 (비용 절감 모드)');
+    await pool.end();
+    return;
+  }
 
   let postTarget, commentTarget;
 
@@ -179,10 +205,13 @@ async function main() {
     console.log(`💥 BURST 모드 — 글 ${postTarget}개, 댓글 ${commentTarget}개`);
   } else {
     const hour = getKSTHour();
-    const [postRate, commentRate] = HOURLY_RATES[hour] || [1.0, 3.0];
+    const mult = getRateMultiplier();
+    const [basePostRate, baseCommentRate] = HOURLY_RATES[hour] || [1.0, 3.0];
+    const postRate = basePostRate * mult;
+    const commentRate = baseCommentRate * mult;
     postTarget = Math.min(pickCount(postRate, args.slotsPerHour), MAX_POSTS_PER_RUN);
     commentTarget = Math.min(pickCount(commentRate, args.slotsPerHour), MAX_COMMENTS_PER_RUN);
-    console.log(`⏰ ${hour}시 KST · 시간대 발생률 글=${postRate}/h 댓글=${commentRate}/h`);
+    console.log(`⏰ ${hour}시 KST · 배율 x${mult.toFixed(2)} · 발생률 글=${postRate.toFixed(2)}/h 댓글=${commentRate.toFixed(2)}/h`);
     console.log(`🎯 이번 슬롯 목표: 글 ${postTarget}개, 댓글 ${commentTarget}개`);
   }
 
