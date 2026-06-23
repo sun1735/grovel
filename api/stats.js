@@ -9,8 +9,7 @@ router.get('/', async (_req, res) => {
     const { rows } = await query('SELECT * FROM stats_view');
     const stats = rows[0];
 
-    // 가짜 멤버수와 접속자수는 계산식으로 자연스럽게 (실제 회원 시스템 붙기 전까지)
-    // 현재 시간 기반으로 조금씩 변동하게 → 매번 같은 숫자 X
+    // 멤버수·접속자수는 시간 기반 계산식으로 산출 (매번 조금씩 변동)
     const now = Date.now();
     const seed = Math.sin(now / 1000 / 60) * 0.5 + 0.5; // 0~1, 1분 주기 변동
     const baseMembers = 38000 + Math.floor(seed * 500);

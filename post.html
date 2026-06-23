@@ -397,7 +397,7 @@
 
   function renderBody(text) {
     if (HTML_TAG_RE.test(text || '')) return renderHtmlBody(text);
-    // ── 기존 마크다운 렌더 (구 게시글·AI 생성글) ──
+    // ── 기존 마크다운 렌더 (구 게시글) ──
     let html = escapeHtml(text || '');
     // 줄 단위 처리: 인용 / 리스트
     const lines = html.split('\n');
@@ -502,7 +502,7 @@
         $('#post-body').insertAdjacentHTML('afterend', imgHtml);
       }
 
-      // AI 페르소나 글은 프로필 링크 없이 텍스트만, 실유저는 /u/:nick 링크
+      // user_id 없는 작성자는 프로필 링크 없이 텍스트만, 실유저는 /u/:nick 링크
       if (post.is_ai || !post.user_id) {
         $('#post-author').textContent = post.author_nickname;
       } else {

@@ -51,26 +51,6 @@ async function notifyNewPost({ id, title, author, board, excerpt, url }) {
 }
 
 // ─────────────────────────────────────────────
-// 새 댓글 알림 → #새글알림
-// ─────────────────────────────────────────────
-async function notifyNewComment({ postId, postTitle, author, body }) {
-  await send(WEBHOOK_POSTS, {
-    username: '마케톡',
-    embeds: [{
-      title: `💬 "${(postTitle || '').slice(0, 40)}" 에 새 댓글`,
-      url: `https://www.grovel.kr/post.html?id=${postId}`,
-      description: (body || '').slice(0, 200),
-      color: 0x3b82f6,
-      fields: [
-        { name: '작성자', value: author || '-', inline: true },
-      ],
-      footer: { text: '마케톡 · 댓글 알림' },
-      timestamp: new Date().toISOString(),
-    }],
-  });
-}
-
-// ─────────────────────────────────────────────
 // 새 회원 가입 → #관리자알림
 // ─────────────────────────────────────────────
 async function notifyNewUser({ nickname, email, role }) {
@@ -128,7 +108,6 @@ async function notifyDailyStats({ posts, comments, users, engineRate }) {
 
 module.exports = {
   notifyNewPost,
-  notifyNewComment,
   notifyNewUser,
   notifyError,
   notifyDailyStats,

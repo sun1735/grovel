@@ -42,7 +42,7 @@ async function checkQuota() {
   }
 }
 
-// Anthropic rate/overload 에러는 재시도해도 즉시 실패 (429/529/overload_error)
+// Anthropic rate/overload 에러 (429/529/overload_error)
 function isRateLimitError(err) {
   if (!err) return false;
   const status = err.status || err.response?.status;
@@ -50,6 +50,16 @@ function isRateLimitError(err) {
   const name = err.error?.type || err.name || '';
   return /overload|rate_limit/i.test(name);
 }
+
+// Retry-After 헤더(초 단위)를 [5, 60]초로 클램핑. 헤더 없으면 기본 15초.
+function getRetryAfterMs(err) {
+  const h = err?.headers?.['retry-after'] || err?.response?.headers?.['retry-after'];
+  const raw = parseInt(h, 10);
+  const sec = Number.isFinite(raw) && raw > 0 ? raw : 15;
+  return Math.min(60, Math.max(5, sec)) * 1000;
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
 /**
  * LLM에 메시지 전송 후 텍스트 응답 반환
@@ -78,10 +88,21 @@ async function complete({ system, user, model = PRIMARY_MODEL, maxTokens, logCtx
       messages: [{ role: 'user', content: user }],
     });
   } catch (err) {
-    // Rate limit/overload는 폴백 호출 안 함 (똑같이 실패할 것)
     if (isRateLimitError(err)) {
-      console.warn(`[llm] ${usedModel} rate/overload (${err.status || err.name}), 폴백 스킵`);
-      error = err;
+      // Retry-After만큼 대기 후 같은 모델로 1회만 재시도. 폴백 모델도 동일 한도에 묶일 수 있어 모델 스왑은 안 함.
+      const waitMs = getRetryAfterMs(err);
+      console.warn(`[llm] ${usedModel} rate/overload (${err.status || err.name}) → ${waitMs}ms 대기 후 재시도`);
+      await sleep(waitMs);
+      try {
+        result = await client.messages.create({
+          model: usedModel,
+          max_tokens: tokens,
+          system,
+          messages: [{ role: 'user', content: user }],
+        });
+      } catch (err2) {
+        error = err2;
+      }
     } else {
       // 그 외 일반 실패 → 폴백 모델로 1회 재시도
       console.warn(`[llm] ${usedModel} 실패: ${err.message} → ${FALLBACK_MODEL}로 폴백`);

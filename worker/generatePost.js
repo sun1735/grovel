@@ -7,7 +7,7 @@
  *   3. 최근 사용 안 한 닉네임 선택
  *   4. 시스템 프롬프트 빌드 → LLM 호출
  *   5. 결과 검증 (제목/본문 길이 등 품질 필터)
- *   6. DB 저장 + 자연스러운 초기 view_count
+ *   6. DB 저장 (초기 view_count 포함)
  *   7. (선택) Discord 웹훅 알림
  *
  * 사용:
@@ -98,7 +98,7 @@ function validateOutput(out) {
   if (out.body.length < 10) return '본문이 너무 짧음';
   if (out.body.length > 4000) return '본문이 너무 김';
 
-  // AI 흔적 감지 — 절대 노출되면 안 되는 표현들
+  // 금지 표현 필터
   const aiMarkers = [
     '죄송합니다만', '저는 AI', '언어 모델', 'AI 어시스턴트',
     '도움이 되었기를', '추가로 궁금한', '아래와 같이',
@@ -109,17 +109,14 @@ function validateOutput(out) {
     }
   }
 
-  // 정형화된 마크다운 헤더 = 광고 카피 같은 정형화 패턴
+  // 정형화 패턴 필터
   if (/^#{1,6}\s/m.test(out.body)) return '마크다운 헤더 사용 (정형화 패턴)';
   if (/^[-*]\s.+\n[-*]\s/m.test(out.body)) return '불릿 리스트 사용 (정형화 패턴)';
 
   return null; // OK
 }
 
-// ─────────────────────────────────────────────
-// 자연스러운 초기 조회수 (식별률 회피)
-// 갓 올린 글이 0뷰면 어색함. 30~250 사이 무작위.
-// ─────────────────────────────────────────────
+// 초기 조회수 — 30~250 사이 무작위
 function naturalInitialViewCount() {
   return 30 + Math.floor(Math.random() * 220);
 }
@@ -237,7 +234,7 @@ ${recentTitles.slice(0, 30).map(t => `- ${t}`).join('\n')}
     throw new Error(`품질 검증 실패: ${error}`);
   }
 
-  // 가벼운 후처리 오타 (LLM이 충분히 어색하지 않을 경우 보강)
+  // 가벼운 후처리 오타 주입 (옵션)
   const finalBody = Math.random() < 0.4
     ? injectKoreanTypos(result.body, 0.008)
     : result.body;

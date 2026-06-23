@@ -1,13 +1,8 @@
 /**
- * 마케톡 — 5인 페르소나 정의
+ * 마케톡 — 페르소나 정의
  *
- * 식별 불가능성(Indistinguishability) 프로토콜 기반 페르소나 데이터.
  * 게시글/댓글 생성 시 LLM에 주입할 인격, 말투, 시간 패턴, 관계 매트릭스를 정의한다.
- *
- * 외부에서는 인격을 통합 사용하되, 공개 게시글의 작성자명은 nicknames 풀에서
- * 무작위로 선택해 노출한다 (한 페르소나 = 한 닉네임 X, 한 페르소나 = 닉네임 풀).
- *
- * 수익 모델/유료 상품 관련 필드는 의도적으로 제외함.
+ * 작성자명은 각 인격의 nicknames 풀에서 무작위로 선택한다.
  */
 
 const PERSONAS = {
@@ -19,7 +14,7 @@ const PERSONAS = {
     id: 'trendsetter',
     codename: 'A',
     archetype: '트렌드 세터',
-    referenceName: '유리아',          // 내부 로그/대시보드용 (외부 노출 X)
+    referenceName: '유리아',          // 내부 로그/대시보드용
     avatarStyle: 'av-1',              // 프론트 CSS 클래스 매핑
 
     bio: '유행에 민감하고 빠른 흐름을 즐김. 올드한 방식은 대놓고 무시.',
@@ -426,7 +421,9 @@ const PERSONAS = {
 };
 
 // 외부에서 ID로 빠르게 조회할 수 있도록 헬퍼
-const PERSONA_LIST = Object.values(PERSONAS);
+// analyst: 톤이 안 맞아 신규 생성에서 제외 (기존 글/댓글은 PERSONAS.analyst 로 그대로 조회됨)
+const DISABLED_FOR_GENERATION = new Set(['analyst']);
+const PERSONA_LIST = Object.values(PERSONAS).filter(p => !DISABLED_FOR_GENERATION.has(p.id));
 
 function getPersona(id) {
   return PERSONAS[id] || null;

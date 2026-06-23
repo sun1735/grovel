@@ -1,28 +1,15 @@
 /**
  * 마케톡 — 시간대 가중치 기반 스케줄러
  *
- * Railway Cron이 매 15분(또는 임의 주기)마다 호출.
- * 현재 한국 시간(KST)을 보고, 그 시간대의 활동량(글/댓글)을 확률적으로 결정한다.
- *
- * 새벽 3~5시는 거의 잠수. 점심·저녁·밤은 활발. 살아있는 사이트 패턴.
+ * Cron이 일정 주기마다 호출. 현재 시각(KST)의 가중치로 작업량을 확률적으로 결정한다.
  *
  * 사용:
  *   node worker/scheduler.js                     # 자동 모드 (현재 시각 기반)
- *   node worker/scheduler.js --burst-posts 30    # 한 번에 30개 글 즉시 생성
- *   node worker/scheduler.js --burst-comments 60 # 한 번에 60개 댓글 즉시 생성
- *   node worker/scheduler.js --dry-run           # 실행하지 않고 카운트만 출력
+ *   node worker/scheduler.js --burst-posts 30    # 즉시 배치 실행
+ *   node worker/scheduler.js --burst-comments 60
+ *   node worker/scheduler.js --dry-run           # 카운트만 출력
  *
- * Railway Cron 설정 (대시보드):
- *   1. 같은 프로젝트에서 + New Service → GitHub Repo (sun1735/grovel)
- *   2. Settings → Service: Start Command = "node worker/scheduler.js"
- *   3. Settings → Cron Schedule = "*\/15 * * * *"  (매 15분)
- *   4. Variables → DATABASE_URL, ANTHROPIC_API_KEY 추가 (메인 서비스에서 복사)
- *   5. Deploy
- *
- * 예상 일일 발행량 (배율 GEN_RATE_MULTIPLIER 적용 후):
- *   기본 배율 1/3 기준 → 글 ~9-10개, 댓글 ~25-28개 (비용 절감 모드)
- *   배율 1.0 으로 올리면 → 글 ~28-32개, 댓글 ~85-100개 (원래 볼륨)
- *   GEN_RATE_MULTIPLIER 환경변수로 재배포 없이 조절 (예: 0.5, 0.2)
+ * 배율은 GEN_RATE_MULTIPLIER 환경변수로 재배포 없이 조절.
  */
 require('dotenv').config();
 const { pool } = require('../db');
@@ -31,56 +18,44 @@ const { generateOneComment, saveComment } = require('./generateComment');
 const { extractAndSave } = require('./memory');
 const { notifyNewPost } = require('./discord');
 
-// ─────────────────────────────────────────────
-// 한국 시간 기준 시간별 평균 발생률
-//   posts: 그 시간대 1시간 동안의 평균 게시글 수
-//   comments: 동시간대 평균 댓글 수
-// 심야(23시~06시)는 게시글 작성 없음. 댓글만 소폭 유지해 "읽힘" 흔적 제공.
-// 일일 합계: 글 ~28-30개, 댓글 ~75-85개
-// ─────────────────────────────────────────────
+// 시각별 가중치 [a, b]
 const HOURLY_RATES = {
-  // hour: [posts/hr, comments/hr]
-   0: [0, 0.8],     // 심야 — 게시글 작성 X
+   0: [0, 0.8],
    1: [0, 0.6],
    2: [0, 0.4],
    3: [0, 0.2],
    4: [0, 0.2],
    5: [0, 0.3],
    6: [0, 0.5],
-   7: [0.6, 1.8],   // 출근 길 모바일 활동 재개
+   7: [0.6, 1.8],
    8: [1.2, 3.2],
-   9: [1.5, 4.0],   // 업무 시작
+   9: [1.5, 4.0],
   10: [1.6, 4.2],
   11: [1.5, 4.0],
-  12: [1.9, 5.0],   // 점심시간 피크
+  12: [1.9, 5.0],
   13: [1.6, 4.5],
   14: [1.5, 4.0],
   15: [1.6, 4.0],
   16: [1.6, 4.2],
   17: [1.6, 4.5],
-  18: [1.5, 4.5],   // 퇴근
+  18: [1.5, 4.5],
   19: [1.5, 4.2],
   20: [1.7, 4.5],
   21: [1.9, 5.0],
-  22: [1.9, 5.0],   // 저녁 피크 (22시가 게시글 마지막 시간대)
-  23: [0, 1.5],     // 23시부터 게시글 작성 중단 (댓글만)
+  22: [1.9, 5.0],
+  23: [0, 1.5],
 };
 
-const SLOTS_PER_HOUR = 4;       // cron이 15분마다 돈다고 가정
-const MAX_POSTS_PER_RUN = 5;    // 안전 한도
+const SLOTS_PER_HOUR = 4;
+const MAX_POSTS_PER_RUN = 5;
 const MAX_COMMENTS_PER_RUN = 12;
-const DELAY_BETWEEN_CALLS_MS = 1200;  // Anthropic 레이트 리미트 회피
+const DELAY_BETWEEN_CALLS_MS = 1200;
 
-// ─────────────────────────────────────────────
-// 발행량 배율 — 비용 절감용 전역 스로틀
-//   HOURLY_RATES 에 곱해지는 계수. 1.0 = 원래대로, 0.33 ≈ 1/3로 감축.
-//   환경변수 GEN_RATE_MULTIPLIER 로 재배포 없이 튜닝 가능 (예: 0.5, 0.2).
-//   기본값 1/3 → 일일 글 ~9-10개, 댓글 ~25-28개 수준.
-// ─────────────────────────────────────────────
+// 전역 배율 — GEN_RATE_MULTIPLIER 환경변수로 조절 (기본 0.1)
 function getRateMultiplier() {
   const v = parseFloat(process.env.GEN_RATE_MULTIPLIER);
   if (Number.isFinite(v) && v >= 0) return v;
-  return 1 / 3;
+  return 1 / 10;
 }
 
 // ─────────────────────────────────────────────
@@ -156,7 +131,7 @@ async function tryGenerateComment() {
     const saved = await saveComment(cmt);
     console.log(`   💬 COMMENT id=${saved.id} on post#${cmt.post.id} [${cmt.persona.codename}] ${cmt.nickname} — "${cmt.body.slice(0, 50)}"`);
 
-    // 50% 확률로 메모리 추출 (잔존율 KPI)
+    // 50% 확률로 메모리 추출
     if (Math.random() < 0.5) {
       try {
         const mem = await extractAndSave(cmt.persona, {

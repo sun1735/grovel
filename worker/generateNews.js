@@ -4,7 +4,7 @@
  * 흐름:
  *   1. RSS 피드에서 최근 마케팅 뉴스 수집
  *   2. Claude가 분석 브리핑 작성
- *   3. 작성자 "마케톡" (페르소나 X)으로 news 보드에 발행
+ *   3. 작성자 "마케톡"으로 news 보드에 발행
  *
  * 사용:
  *   node worker/generateNews.js           # 1회 실행
@@ -275,14 +275,14 @@ async function main() {
     const saved = await saveNewsPost(finalTitle, fullBody, result.platform);
     console.log(`\n✅ 브리핑 발행 완료 (id=${saved.id})`);
 
-    // 디스코드 알림
-    notifyNewPost({
+    // 디스코드 알림 — 워커가 곧 종료되므로 반드시 await (fire-and-forget 시 fetch가 프로세스 종료에 잘려나감)
+    await notifyNewPost({
       id: saved.id,
       title: finalTitle,
       author: '마케톡',
       board: '뉴스/동향',
       excerpt: result.body.slice(0, 150),
-    }).catch(() => {});
+    }).catch(err => console.warn('[discord] notify 실패:', err.message));
   } else {
     console.log('\n🧪 DRY-RUN — 저장하지 않음');
   }
