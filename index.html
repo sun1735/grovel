@@ -59,6 +59,8 @@ fetch('/api/seo-verify').then(r=>r.json()).then(d=>{
     text-transform:uppercase; display:flex; align-items:center; justify-content:center;
     border-radius:16px;
   }
+  /* 배너 임시 비활성화 */
+  [data-ad-slot] { display:none !important; }
   .badge-cat { display:inline-flex; align-items:center; gap:.35rem; padding:.2rem .55rem; border-radius:6px; font-size:12px; font-weight:600; }
   .b-free  { background:#eef2ff; color:#4338ca; }
   .b-ad    { background:#fef3c7; color:#b45309; }
