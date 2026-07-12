@@ -144,6 +144,9 @@ CREATE TABLE IF NOT EXISTS users (
 );
 ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN DEFAULT FALSE;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS token_version  INTEGER DEFAULT 0;
+-- 카카오 고유 ID — 이메일 동의 여부와 무관하게 같은 계정을 식별
+ALTER TABLE users ADD COLUMN IF NOT EXISTS kakao_id VARCHAR(32);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_users_kakao ON users(kakao_id) WHERE kakao_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE INDEX IF NOT EXISTS idx_users_nickname ON users(nickname);
 

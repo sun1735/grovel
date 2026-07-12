@@ -392,13 +392,30 @@ router.get('/kakao/callback', async (req, res) => {
 
     const kakaoId = String(profile.id);
     const nickname = profile.kakao_account?.profile?.nickname || '카카오유저' + kakaoId.slice(-4);
-    const email = profile.kakao_account?.email || `kakao_${kakaoId}@kakao.local`;
+    const realEmail = profile.kakao_account?.email ? profile.kakao_account.email.toLowerCase() : null;
+    const placeholderEmail = `kakao_${kakaoId}@kakao.local`;
+    const email = realEmail || placeholderEmail;
 
-    // 3. 기존 회원 찾기 (이메일 기준)
+    // 3. 기존 회원 찾기 — 카카오 ID 우선, 레거시(플레이스홀더 이메일) → 실이메일 순
+    //    (이메일 동의항목을 켠 뒤부터는 실이메일이 오므로, 이메일만으로 찾으면
+    //     기존 @kakao.local 계정을 못 찾아 중복 계정이 생긴다)
     let { rows } = await query(
-      'SELECT id, email, nickname, role, token_version FROM users WHERE email = $1',
-      [email.toLowerCase()]
+      'SELECT id, email, nickname, role, token_version, kakao_id FROM users WHERE kakao_id = $1',
+      [kakaoId]
     );
+    if (rows.length === 0) {
+      ({ rows } = await query(
+        'SELECT id, email, nickname, role, token_version, kakao_id FROM users WHERE email = $1',
+        [placeholderEmail]
+      ));
+    }
+    if (rows.length === 0 && realEmail) {
+      // 같은 이메일로 일반 가입한 계정이 있으면 그 계정으로 로그인 (기존 동작 유지)
+      ({ rows } = await query(
+        'SELECT id, email, nickname, role, token_version, kakao_id FROM users WHERE email = $1',
+        [realEmail]
+      ));
+    }
 
     const isNewUser = rows.length === 0;
     if (rows.length === 0) {
@@ -415,15 +432,33 @@ router.get('/kakao/callback', async (req, res) => {
       const hash = await bcrypt.hash(randomPw, 12);
 
       const insertResult = await query(
-        `INSERT INTO users (email, nickname, password_hash, role, email_verified)
-         VALUES ($1, $2, $3, $4, TRUE)
+        `INSERT INTO users (email, nickname, password_hash, role, email_verified, kakao_id)
+         VALUES ($1, $2, $3, $4, TRUE, $5)
          RETURNING id, email, nickname, role, token_version`,
-        [email.toLowerCase(), finalNick, hash, role]
+        [email.toLowerCase(), finalNick, hash, role, kakaoId]
       );
       rows = insertResult.rows;
 
       // 디스코드 알림
       notifyNewUser({ nickname: finalNick, email, role }).catch(() => {});
+    } else {
+      const existing = rows[0];
+      // kakao_id 백필 (레거시 계정)
+      if (!existing.kakao_id) {
+        await query('UPDATE users SET kakao_id = $2 WHERE id = $1', [existing.id, kakaoId]);
+      }
+      // 플레이스홀더 이메일 → 실이메일 백필 (다른 계정이 안 쓰는 경우만)
+      if (realEmail && /@kakao\.local$/.test(existing.email)) {
+        const { rows: dup } = await query(
+          'SELECT id FROM users WHERE email = $1 AND id != $2', [realEmail, existing.id]);
+        if (dup.length === 0) {
+          await query(
+            'UPDATE users SET email = $2, email_verified = TRUE WHERE id = $1',
+            [existing.id, realEmail]
+          );
+          rows[0].email = realEmail;
+        }
+      }
     }
 
     // 4. JWT 발급 + 쿠키 설정
