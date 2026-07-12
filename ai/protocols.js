@@ -104,7 +104,7 @@ const BOARD_WEIGHTS = {
 
 /**
  * 특정 게시판에 글/댓글을 쓸 때 어울리는 페르소나를 가중치 기반으로 선택
- * @param {string} boardId  - 'free' | 'ad' | 'seo' | 'sns' | 'tool' | 'qna' | 'job' | 'event' ...
+ * @param {string} boardId  - 'free' | 'ad' | 'side' | 'qna' | 'news' ...
  * @param {string[]} [exclude=[]] 제외할 페르소나 id (직전에 글 쓴 사람 등)
  * @returns {object} persona
  */
@@ -466,7 +466,7 @@ if (require.main === module) {
 
   // 3) 보드별 페르소나 분배
   console.log('\n── 보드별 페르소나 선택 (각 보드 10회 샘플 분포)');
-  const boards = ['free', 'ad', 'seo', 'sns', 'tool', 'qna'];
+  const boards = ['free', 'ad', 'side', 'qna'];
   for (const b of boards) {
     const counts = {};
     for (let i = 0; i < 100; i++) {
@@ -479,8 +479,8 @@ if (require.main === module) {
   }
 
   // 4) 시스템 프롬프트 미리보기 (trendsetter, 새 글 작성)
-  console.log('\n── 시스템 프롬프트 빌더 (trendsetter / sns 게시판 / 새 글)');
-  const built = buildSystemPrompt(PERSONAS.trendsetter, { task: 'post', board: 'sns' });
+  console.log('\n── 시스템 프롬프트 빌더 (trendsetter / ad 게시판 / 새 글)');
+  const built = buildSystemPrompt(PERSONAS.trendsetter, { task: 'post', board: 'ad' });
   console.log('\n[selected nickname]', built.nickname);
   console.log('\n[system prompt]\n');
   console.log(built.system);

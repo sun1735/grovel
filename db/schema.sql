@@ -303,7 +303,7 @@ CREATE TABLE IF NOT EXISTS bookmarks (
 CREATE INDEX IF NOT EXISTS idx_bookmarks_user ON bookmarks(user_id, created_at DESC);
 
 -- ── notifications: 유저 알림 ──────────────────
--- 내 글/댓글에 반응(댓글·답글·좋아요)이 달리면 쌓임. AI 액션은 알림 생성하지 않음.
+-- 내 글/댓글에 반응(댓글·답글·좋아요)이 달리면 쌓임.
 CREATE TABLE IF NOT EXISTS notifications (
   id             BIGSERIAL PRIMARY KEY,
   user_id        BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,  -- 수신자
@@ -318,6 +318,19 @@ CREATE TABLE IF NOT EXISTS notifications (
 );
 CREATE INDEX IF NOT EXISTS idx_notif_user_unread ON notifications(user_id, created_at DESC) WHERE is_read = FALSE;
 CREATE INDEX IF NOT EXISTS idx_notif_user_all    ON notifications(user_id, created_at DESC);
+
+-- ── 이메일 수신 설정 + 발송 로그 ────────────────
+-- email_notify: 알림·다이제스트 메일 수신 여부 (수신 거부 시 FALSE)
+ALTER TABLE users ADD COLUMN IF NOT EXISTS email_notify BOOLEAN DEFAULT TRUE;
+
+-- email_log: 발송 이력 (스로틀·다이제스트 중복 방지용)
+CREATE TABLE IF NOT EXISTS email_log (
+  id       BIGSERIAL PRIMARY KEY,
+  user_id  BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  kind     VARCHAR(32) NOT NULL,      -- 'notification' | 'digest' | 'verify' | 'reset'
+  sent_at  TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_email_log_user ON email_log(user_id, kind, sent_at DESC);
 
 -- ── resources: 다운로드 가능한 마케팅 자료 ─────
 CREATE TABLE IF NOT EXISTS resources (

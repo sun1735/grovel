@@ -351,12 +351,15 @@ router.get('/briefings', async (req, res) => {
   }
 });
 
+// 통폐합된 옛 게시판 슬러그 호환 (북마크·외부 링크 보존)
+const BOARD_SLUG_ALIASES = { seo: 'ad', sns: 'ad', tool: 'ad', event: 'free', job: 'qna' };
+
 // ─────────────────────────────────────────────
 // GET /api/posts?board=ad&page=1&limit=20
 // 게시글 목록. 공지(is_pinned)는 항상 상단.
 // ─────────────────────────────────────────────
 router.get('/', async (req, res) => {
-  const board = req.query.board;
+  const board = BOARD_SLUG_ALIASES[req.query.board] || req.query.board;
   const platform = req.query.platform;
   const page  = Math.max(parseInt(req.query.page) || 1, 1);
   const limit = Math.min(parseInt(req.query.limit) || 20, 50);

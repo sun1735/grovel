@@ -16,7 +16,8 @@
     "worker:comment": "node worker/generateComment.js",
     "worker:topics": "node worker/generateTopics.js",
     "worker:scheduler": "node worker/scheduler.js",
-    "worker:news": "node worker/generateNews.js"
+    "worker:news": "node worker/generateNews.js",
+    "worker:digest": "node worker/sendDigest.js"
   },
   "engines": {
     "node": ">=18"

@@ -6,6 +6,7 @@
 const express = require('express');
 const { query } = require('../db');
 const { requireAuth } = require('../middleware/auth');
+const { sendEmail, renderEmail, makeUnsubUrl, isEmailEnabled, BASE_URL } = require('../worker/mailer');
 
 const router = express.Router();
 
@@ -86,7 +87,6 @@ router.delete('/:id', requireAuth, async (req, res) => {
 
 // ─────────────────────────────────────────────
 // 헬퍼: 알림 생성 (다른 API에서 호출)
-// AI 행위자(actor_user_id=null이 아니라 is_ai 플래그 체크)는 호출부에서 스킵 결정
 // ─────────────────────────────────────────────
 async function createNotification({ userId, type, actorNickname, actorUserId, postId, commentId, message }) {
   if (!userId) return;
@@ -99,10 +99,66 @@ async function createNotification({ userId, type, actorNickname, actorUserId, po
        VALUES ($1,$2,$3,$4,$5,$6,$7)`,
       [userId, type, actorNickname || null, actorUserId || null, postId || null, commentId || null, message]
     );
+    // 이메일 알림 (실패해도 인앱 알림에 영향 없음)
+    maybeEmailNotification({ userId, type, postId, commentId, message }).catch(err => {
+      console.error('[notifications/email]', err.message);
+    });
   } catch (err) {
     // 알림 실패는 원 동작에 영향 주지 않음
     console.error('[notifications/create]', err.message);
   }
+}
+
+// 이메일로도 보낼 알림 타입 (좋아요는 인앱만 — 메일 피로 방지)
+const EMAIL_TYPES = new Set(['comment', 'reply', 'reply_on_my_post', 'mention']);
+const EMAIL_THROTTLE_MIN = 30; // 유저당 알림 메일 최소 간격(분)
+
+async function maybeEmailNotification({ userId, type, postId, commentId, message }) {
+  if (!EMAIL_TYPES.has(type) || !isEmailEnabled()) return;
+
+  const { rows } = await query(
+    `SELECT email, email_notify, email_verified FROM users
+     WHERE id = $1 AND is_active = TRUE`,
+    [userId]
+  );
+  const u = rows[0];
+  if (!u || !u.email_notify || !u.email_verified) return;
+
+  // 스로틀: 최근 N분 내 알림 메일을 보냈으면 스킵 (인앱 알림에는 다 쌓여 있음)
+  const { rows: recent } = await query(
+    `SELECT 1 FROM email_log
+     WHERE user_id = $1 AND kind = 'notification'
+       AND sent_at > NOW() - ($2 || ' minutes')::interval
+     LIMIT 1`,
+    [userId, EMAIL_THROTTLE_MIN]
+  );
+  if (recent.length > 0) return;
+
+  const postUrl = postId
+    ? `${BASE_URL}/post.html?id=${postId}${commentId ? `#c${commentId}` : ''}`
+    : BASE_URL;
+
+  const result = await sendEmail({
+    to: u.email,
+    subject: '마케톡에 새 반응이 달렸어요 💬',
+    html: renderEmail({
+      preheader: message.slice(0, 80),
+      title: '회원님 글에 새 반응이 달렸어요',
+      bodyHtml: `<p style="margin:0;">${escapeHtmlForEmail(message)}</p>`,
+      ctaText: '확인하러 가기',
+      ctaUrl: postUrl,
+      unsubscribeUrl: makeUnsubUrl(userId),
+    }),
+  });
+  if (result && !result.skipped) {
+    await query(`INSERT INTO email_log (user_id, kind) VALUES ($1, 'notification')`, [userId]);
+  }
+}
+
+function escapeHtmlForEmail(s) {
+  return String(s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
 module.exports = { router, createNotification };

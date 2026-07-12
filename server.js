@@ -336,9 +336,15 @@ app.get('/rss.xml', async (_req, res) => {
   }
 });
 
+// 통폐합된 옛 게시판 슬러그 → 현행 슬러그 (구독 중인 RSS·검색엔진 유입 보존)
+const BOARD_SLUG_ALIASES = { seo: 'ad', sns: 'ad', tool: 'ad', event: 'free', job: 'qna' };
+
 // 보드별 RSS — /rss/board/:slug.xml
 app.get('/rss/board/:slug.xml', async (req, res) => {
   const slug = req.params.slug;
+  if (BOARD_SLUG_ALIASES[slug]) {
+    return res.redirect(301, `/rss/board/${BOARD_SLUG_ALIASES[slug]}.xml`);
+  }
   try {
     const db = require('./db');
     const { rows } = await db.query('SELECT name FROM boards WHERE slug = $1', [slug]);

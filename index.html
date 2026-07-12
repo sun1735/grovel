@@ -215,9 +215,24 @@ fetch('/api/seo-verify').then(r=>r.json()).then(d=>{
 <!-- ============== TOP ROW: 배너 + 프로필 (2열, 메인 그리드에 정렬) ============== -->
 <div class="container-x mt-5 grid gap-5 lg:grid-cols-[minmax(0,1fr)_300px]">
 
-  <!-- 좌측: 배너 (col-span-8) -->
+  <!-- 좌측: AI 카피 생성기 히어로 -->
   <div class="min-w-0">
-    <div class="ad-slot h-[150px]" data-ad-slot="top">800 × 150  ·  TOP BANNER AD</div>
+    <a href="/copy-generator.html"
+       class="card h-[150px] px-6 sm:px-8 flex items-center justify-between gap-4 group overflow-hidden relative"
+       style="background:linear-gradient(120deg,#ff3e5f,#c41635);border:0">
+      <div class="min-w-0 text-white">
+        <div class="flex items-center gap-1.5 text-[11px] font-bold tracking-wider uppercase" style="color:rgba(255,255,255,.75)">
+          <i data-lucide="sparkles" class="w-3.5 h-3.5"></i> 무료 AI 도구
+        </div>
+        <div class="font-black text-[19px] sm:text-[22px] mt-1.5 leading-tight">광고 카피, 10초 만에 뽑아드려요</div>
+        <div class="text-[12.5px] sm:text-[13px] mt-1.5 truncate" style="color:rgba(255,255,255,.85)">
+          네이버·메타·카카오·구글 맞춤 카피를 AI가 동시에 · 하루 3회 무료
+        </div>
+      </div>
+      <div class="flex-shrink-0 hidden sm:flex items-center gap-1.5 bg-white text-brand-600 rounded-xl px-5 h-11 text-[13.5px] font-extrabold group-hover:scale-[1.03] transition-transform">
+        카피 만들기 <i data-lucide="arrow-right" class="w-4 h-4"></i>
+      </div>
+    </a>
   </div>
 
   <!-- 우측: 프로필 카드 (col-span-4) -->

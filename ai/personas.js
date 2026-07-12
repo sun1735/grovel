@@ -64,10 +64,10 @@ const PERSONAS = {
     },
 
     boards: {
-      primary:   ['sns', 'free'],
-      secondary: ['ad'],
-      rare:      ['tool'],
-      never:     ['seo', 'job'],
+      primary:   ['ad', 'free'],
+      secondary: [],
+      rare:      ['qna'],
+      never:     [],
     },
 
     relations: {
@@ -144,10 +144,10 @@ const PERSONAS = {
     },
 
     boards: {
-      primary:   ['ad', 'tool'],
-      secondary: ['seo', 'qna'],
+      primary:   ['ad'],
+      secondary: ['qna'],
       rare:      ['free'],
-      never:     ['sns'],
+      never:     [],
     },
 
     relations: {
@@ -225,8 +225,8 @@ const PERSONAS = {
 
     boards: {
       primary:   ['ad', 'qna'],
-      secondary: ['seo', 'tool'],
-      rare:      ['sns'],
+      secondary: [],
+      rare:      ['news'],
       never:     ['free'],            // 잡담은 비판할 게 없음
     },
 
@@ -304,9 +304,9 @@ const PERSONAS = {
 
     boards: {
       primary:   ['free', 'qna'],
-      secondary: ['sns'],
+      secondary: ['side'],
       rare:      ['ad'],
-      never:     ['seo'],
+      never:     [],
     },
 
     relations: {
@@ -390,10 +390,10 @@ const PERSONAS = {
     },
 
     boards: {
-      primary:   ['ad', 'tool'],
-      secondary: ['qna', 'job'],
+      primary:   ['ad', 'side'],
+      secondary: ['qna'],
       rare:      ['free'],
-      never:     ['sns'],
+      never:     [],
     },
 
     relations: {

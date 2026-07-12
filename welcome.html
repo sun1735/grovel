@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<script>(function(){try{var t=localStorage.getItem('mt-theme');var d=t==='dark'||(!t&&window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches);if(d)document.documentElement.classList.add('dark');}catch(e){}})();</script>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>환영합니다 — 마케톡</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+<meta name="robots" content="noindex" />
+<link rel="stylesheet" href="/tailwind.css" />
+<script src="/lucide.min.js"></script>
+<style>
+  body {
+    background:#f6f7f9; color:#15171c;
+    font-feature-settings:"ss01","cv11";
+    -webkit-font-smoothing:antialiased;
+  }
+  .card {
+    background-color:#fff;
+    border:1px solid rgba(0,0,0,0.05);
+    border-radius:16px;
+    box-shadow:0 1px 2px rgba(15,23,42,0.03);
+  }
+  .board-chip {
+    display:flex; align-items:center; gap:8px;
+    padding:12px 14px; border-radius:12px;
+    border:1.5px solid rgba(0,0,0,0.1); background:#fff;
+    font-size:13.5px; font-weight:700; cursor:pointer;
+    transition: border-color .15s, background .15s, color .15s;
+    text-align:left; width:100%;
+  }
+  .board-chip .chip-desc { font-size:11px; font-weight:500; color:rgba(0,0,0,.45); }
+  .board-chip.on {
+    border-color:#ff3e5f; background:rgba(255,62,95,.06); color:#e11d48;
+  }
+  .board-chip.on .chip-desc { color:rgba(225,29,72,.7); }
+  .board-chip .chip-check { visibility:hidden; }
+  .board-chip.on .chip-check { visibility:visible; }
+</style>
+</head>
+<body class="antialiased min-h-screen flex items-center justify-center px-4 py-10" data-no-discord-modal>
+
+  <div class="w-full max-w-md">
+
+    <!-- 환영 헤더 -->
+    <div class="text-center mb-7">
+      <a href="/" class="inline-flex items-center justify-center gap-2">
+        <img src="/logo.svg" alt="마케톡" class="w-10 h-10" />
+        <span class="font-black tracking-tight text-[22px] leading-none">마케톡</span>
+      </a>
+      <h1 class="text-[20px] font-black mt-4"><span id="hello-nick">회원</span>님, 환영해요! 🎉</h1>
+      <p class="text-[12.5px] text-black/55 mt-2 leading-relaxed">
+        딱 30초면 끝나요. 관심 게시판을 골라두면<br/>홈 화면이 취향대로 정리됩니다.
+      </p>
+    </div>
+
+    <!-- 이메일 인증 안내 (미인증 시에만 표시) -->
+    <div id="verify-banner" class="hidden card p-4 mb-4 flex items-start gap-3" style="border-color:rgba(255,62,95,.25)">
+      <i data-lucide="mail-check" class="w-5 h-5 text-brand-500 flex-shrink-0 mt-0.5"></i>
+      <div class="text-[12.5px] leading-relaxed">
+        <b>인증 메일을 보냈어요.</b> 메일함에서 버튼 한 번만 눌러주시면
+        댓글 알림·주간 다이제스트를 받을 수 있어요.
+      </div>
+    </div>
+
+    <!-- Step 1: 관심 게시판 -->
+    <div class="card p-6 mb-4">
+      <div class="flex items-center gap-2 mb-4">
+        <span class="w-6 h-6 rounded-full bg-brand-500 text-white text-[12px] font-black flex items-center justify-center">1</span>
+        <h2 class="text-[15px] font-extrabold">관심 게시판을 골라주세요</h2>
+      </div>
+      <div id="board-list" class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+        <div class="text-[12px] text-black/45 py-4 text-center col-span-2">게시판 불러오는 중...</div>
+      </div>
+    </div>
+
+    <!-- Step 2: 첫 발자국 -->
+    <div class="card p-6 mb-5">
+      <div class="flex items-center gap-2 mb-4">
+        <span class="w-6 h-6 rounded-full bg-brand-500 text-white text-[12px] font-black flex items-center justify-center">2</span>
+        <h2 class="text-[15px] font-extrabold">가볍게 시작해 보세요</h2>
+      </div>
+      <p class="text-[12.5px] text-black/55 leading-relaxed mb-4">
+        눈팅도 좋지만, 질문 하나 남기면 금방 답이 달려요.
+        지금 다른 마케터들이 보고 있는 글이에요 👇
+      </p>
+      <div id="hot-posts" class="space-y-1 mb-1"></div>
+    </div>
+
+    <!-- CTA -->
+    <div class="grid grid-cols-2 gap-3">
+      <a href="/compose.html?board=qna"
+         class="h-12 bg-brand-500 text-white rounded-xl text-[14px] font-bold hover:bg-brand-600 transition flex items-center justify-center gap-1.5">
+        <i data-lucide="pen-line" class="w-4 h-4"></i> 첫 글 쓰기
+      </a>
+      <a href="/" class="h-12 bg-ink text-white rounded-xl text-[14px] font-bold hover:bg-black/85 transition flex items-center justify-center gap-1.5">
+        둘러보기 <i data-lucide="arrow-right" class="w-4 h-4"></i>
+      </a>
+    </div>
+    <p class="text-center mt-4">
+      <a href="/" class="text-[12px] text-black/45 hover:text-black font-medium">나중에 할게요</a>
+    </p>
+
+  </div>
+
+<script>
+  lucide.createIcons();
+  const $ = (s) => document.querySelector(s);
+
+  function escapeHtml(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+  }
+
+  (async () => {
+    // 로그인 확인 — 비로그인이면 로그인 페이지로
+    let me = null;
+    try {
+      const r = await fetch('/api/auth/me', { credentials: 'same-origin' });
+      me = (await r.json()).user;
+    } catch {}
+    if (!me) { location.href = '/login.html'; return; }
+    $('#hello-nick').textContent = me.nickname;
+    if (!me.email_verified) $('#verify-banner').classList.remove('hidden');
+
+    // 게시판 목록 (공지 제외)
+    try {
+      const r = await fetch('/api/boards', { credentials: 'same-origin' });
+      const { boards } = await r.json();
+      const list = boards.filter(b => b.slug !== 'notice');
+      $('#board-list').innerHTML = list.map(b => `
+        <button type="button" class="board-chip ${b.is_favorite ? 'on' : ''}" data-slug="${b.slug}">
+          <span class="flex-1 min-w-0">
+            ${escapeHtml(b.name)}<br/>
+            <span class="chip-desc">${escapeHtml(b.description || '')}</span>
+          </span>
+          <i data-lucide="check-circle-2" class="chip-check w-4.5 h-4.5 flex-shrink-0" style="width:18px;height:18px"></i>
+        </button>`).join('');
+      lucide.createIcons();
+
+      document.querySelectorAll('.board-chip').forEach(chip => {
+        chip.addEventListener('click', async () => {
+          chip.classList.toggle('on');
+          try {
+            await fetch(`/api/boards/${chip.dataset.slug}/favorite`, {
+              method: 'POST', credentials: 'same-origin',
+            });
+          } catch {
+            chip.classList.toggle('on'); // 실패 시 되돌림
+          }
+        });
+      });
+    } catch {
+      $('#board-list').innerHTML = '<div class="text-[12px] text-black/45 py-4 text-center col-span-2">게시판을 불러오지 못했어요.</div>';
+    }
+
+    // 지금 뜨는 글 3개 (최근 글 중 댓글 많은 순)
+    try {
+      const r = await fetch('/api/posts?limit=30', { credentials: 'same-origin' });
+      const { posts } = await r.json();
+      const hot = (posts || []).filter(p => !p.is_pinned)
+        .sort((a, b) => (b.comment_count || 0) - (a.comment_count || 0))
+        .slice(0, 3);
+      $('#hot-posts').innerHTML = hot.map(p => `
+        <a href="/post.html?id=${p.id}" class="flex items-center gap-2.5 px-3 py-2.5 rounded-lg hover:bg-paper transition text-[13px]">
+          <span class="text-[10.5px] font-bold text-brand-500 flex-shrink-0">${escapeHtml(p.board_name || '')}</span>
+          <span class="flex-1 truncate font-medium">${escapeHtml(p.title)}</span>
+          <span class="text-[11px] text-black/40 flex-shrink-0">💬 ${p.comment_count || 0}</span>
+        </a>`).join('');
+    } catch {}
+  })();
+</script>
+<script src="/ui.js"></script>
+</body>
+</html>

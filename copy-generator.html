@@ -144,6 +144,20 @@
     </div>
     <div id="result-tabs" class="flex gap-1 overflow-x-auto border-b border-black/5 mb-5"></div>
     <div id="result-body"></div>
+
+    <!-- 비로그인 가입 유도 (결과 확인 후 노출) -->
+    <div id="signup-nudge" class="hidden mt-5 rounded-xl p-5 flex flex-col sm:flex-row sm:items-center gap-4"
+         style="background:linear-gradient(120deg,#ff3e5f,#c41635)">
+      <div class="flex-1 text-white">
+        <div class="font-extrabold text-[15px]">마음에 드는 카피가 나왔나요?</div>
+        <div class="text-[12.5px] mt-1" style="color:rgba(255,255,255,.85)">
+          가입하면 <b>하루 20회</b>로 늘어나고, 커뮤니티에서 카피 피드백도 받을 수 있어요.
+        </div>
+      </div>
+      <a href="/login.html#register" class="flex-shrink-0 inline-flex items-center justify-center gap-1.5 bg-white text-brand-600 rounded-lg px-5 h-10 text-[13px] font-extrabold">
+        3초 만에 가입하기 →
+      </a>
+    </div>
   </div>
 
   <!-- 로딩 -->
@@ -178,10 +192,12 @@
   const escapeHtml = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
   // ── 사용량 ──
+  let isLoggedIn = false;
   async function loadUsage() {
     try {
       const r = await fetch('/api/copy/usage', { credentials:'same-origin' });
       const u = await r.json();
+      isLoggedIn = !!u.is_logged_in;
       $('#usage-remaining').textContent = u.remaining;
       $('#usage-limit').textContent = u.limit;
       $('#usage-hint').textContent = u.is_logged_in
@@ -314,6 +330,7 @@
     showTab(platforms[0]);
     $$('.copy-tab').forEach(t => t.addEventListener('click', () => showTab(t.dataset.tab)));
 
+    $('#signup-nudge').classList.toggle('hidden', isLoggedIn);
     $('#result-card').classList.remove('hidden');
     $('#result-card').scrollIntoView({ behavior:'smooth', block:'start' });
   }

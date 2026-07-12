@@ -188,6 +188,16 @@ const SEEDS = {
   ],
 };
 
+// 게시판 6개 체제 반영: 옛 키를 현행 보드로 흡수
+// (seo·sns·tool → ad / event → free / job은 실제 구인글이 아니므로 폐기)
+SEEDS.ad   = [...SEEDS.ad, ...(SEEDS.seo || []), ...(SEEDS.sns || []), ...(SEEDS.tool || [])];
+SEEDS.free = [...SEEDS.free, ...(SEEDS.event || [])];
+delete SEEDS.seo;
+delete SEEDS.sns;
+delete SEEDS.tool;
+delete SEEDS.event;
+delete SEEDS.job;
+
 // 단일 배열로 평탄화 (DB 시드용)
 function flatten() {
   const out = [];

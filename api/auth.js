@@ -21,6 +21,7 @@ const {
   invalidateUserCache,
 } = require('../middleware/auth');
 const { notifyNewUser, notifyError } = require('../worker/discord');
+const { sendEmail, renderEmail, isEmailEnabled, verifyUnsubToken, BASE_URL } = require('../worker/mailer');
 
 const router = express.Router();
 
@@ -148,7 +149,8 @@ router.post('/register', registerLimiter, async (req, res) => {
   }
 });
 
-// ── 이메일 인증 토큰 발급 + Discord 안내 ──
+// ── 이메일 인증 토큰 발급 + 인증 메일 발송 ──
+// 메일 미설정 시 기존처럼 Discord 관리자 채널로 링크 전달 (수동 폴백)
 async function sendEmailVerification(userId, email, nickname) {
   const token = crypto.randomBytes(32).toString('hex');
   const expiresAt = new Date(Date.now() + 7 * 24 * 3600 * 1000); // 7일
@@ -160,7 +162,31 @@ async function sendEmailVerification(userId, email, nickname) {
     `INSERT INTO email_verifications (user_id, token, expires_at) VALUES ($1, $2, $3)`,
     [userId, token, expiresAt]
   );
-  const verifyUrl = `https://www.grovel.kr/api/auth/verify-email?token=${token}`;
+  const verifyUrl = `${BASE_URL}/api/auth/verify-email?token=${token}`;
+
+  if (isEmailEnabled()) {
+    try {
+      const result = await sendEmail({
+        to: email,
+        subject: '마케톡에 오신 걸 환영해요 — 이메일 인증만 완료해 주세요 ✉️',
+        html: renderEmail({
+          preheader: '버튼 한 번이면 인증이 끝나요 (7일 유효)',
+          title: `${nickname}님, 환영합니다!`,
+          bodyHtml: `<p style="margin:0 0 12px;">마케터들의 익명 커뮤니티 <b>마케톡</b>에 가입해 주셔서 감사해요.</p>
+            <p style="margin:0;">아래 버튼을 눌러 이메일 인증을 완료하면 댓글 알림 등 모든 기능을 쓸 수 있어요. (링크는 7일간 유효)</p>`,
+          ctaText: '이메일 인증 완료하기',
+          ctaUrl: verifyUrl,
+        }),
+      });
+      if (result && !result.skipped) {
+        await query(`INSERT INTO email_log (user_id, kind) VALUES ($1, 'verify')`, [userId]).catch(() => {});
+        return;
+      }
+    } catch (err) {
+      console.error('[auth] verification email failed, falling back to Discord:', err.message);
+    }
+  }
+
   notifyError({
     title: '📧 이메일 인증 요청',
     message: `닉네임: ${nickname}\n이메일: ${email}\n\n인증 링크 (7일 유효):\n${verifyUrl}\n\n이 링크를 해당 회원에게 전달하세요.`,
@@ -200,6 +226,45 @@ router.post('/resend-verification', requireAuth, async (req, res) => {
     await sendEmailVerification(req.user.id, rows[0].email, rows[0].nickname);
     res.json({ ok: true, message: '인증 안내가 발송되었습니다.' });
   } catch (err) {
+    res.status(500).json({ error: 'server_error' });
+  }
+});
+
+// ─────────────────────────────────────────────
+// GET /api/auth/email-unsubscribe?uid=..&sig=..
+// 메일 하단 수신 거부 링크 — 로그인 없이 HMAC 서명으로 본인 확인
+// ─────────────────────────────────────────────
+router.get('/email-unsubscribe', async (req, res) => {
+  const uid = parseInt(req.query.uid);
+  const { sig } = req.query;
+  const page = (title, body) => `<!doctype html><html lang="ko"><head><meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1"><title>${title} — 마케톡</title></head>
+    <body style="font-family:'Apple SD Gothic Neo','Malgun Gothic',sans-serif;background:#f4f5f7;margin:0;
+      display:flex;align-items:center;justify-content:center;min-height:100vh;">
+    <div style="background:#fff;border-radius:12px;padding:40px;max-width:400px;text-align:center;">
+      <h1 style="font-size:18px;margin:0 0 12px;">${title}</h1>
+      <p style="font-size:14px;color:#6b7280;margin:0 0 20px;line-height:1.6;">${body}</p>
+      <a href="/" style="color:#ff3e5f;font-weight:700;text-decoration:none;">마케톡 홈으로 →</a>
+    </div></body></html>`;
+
+  if (!uid || !verifyUnsubToken(uid, sig)) {
+    return res.status(400).send(page('링크가 유효하지 않아요', '만료되었거나 잘못된 수신 거부 링크입니다.'));
+  }
+  try {
+    await query('UPDATE users SET email_notify = FALSE WHERE id = $1', [uid]);
+    res.send(page('수신 거부 완료', '앞으로 알림·다이제스트 메일을 보내지 않을게요.<br>마이페이지에서 언제든 다시 켤 수 있습니다.'));
+  } catch {
+    res.status(500).send(page('오류가 발생했어요', '잠시 후 다시 시도해 주세요.'));
+  }
+});
+
+// PUT /api/auth/email-notify — 알림 메일 수신 on/off (로그인 필요)
+router.put('/email-notify', requireAuth, async (req, res) => {
+  const enabled = !!(req.body && req.body.enabled);
+  try {
+    await query('UPDATE users SET email_notify = $2 WHERE id = $1', [req.user.id, enabled]);
+    res.json({ ok: true, email_notify: enabled });
+  } catch {
     res.status(500).json({ error: 'server_error' });
   }
 });
@@ -335,6 +400,7 @@ router.get('/kakao/callback', async (req, res) => {
       [email.toLowerCase()]
     );
 
+    const isNewUser = rows.length === 0;
     if (rows.length === 0) {
       // 신규 가입
       const { rows: countRows } = await query('SELECT COUNT(*)::int AS c FROM users');
@@ -366,7 +432,8 @@ router.get('/kakao/callback', async (req, res) => {
     const token = signToken(user);
     setSessionCookie(res, token);
 
-    res.redirect('/');
+    // 신규 가입자는 온보딩으로
+    res.redirect(isNewUser ? '/welcome.html' : '/');
   } catch (err) {
     console.error('[kakao] callback error:', err);
     res.redirect('/login.html?error=kakao_error');
@@ -434,17 +501,47 @@ router.post('/forgot-password', forgotLimiter, async (req, res) => {
       [user.id, token, expiresAt]
     );
 
-    const resetUrl = `https://www.grovel.kr/reset-password.html?token=${token}`;
+    const resetUrl = `${BASE_URL}/reset-password.html?token=${token}`;
 
-    // Discord 관리자 알림으로 전송 (이메일 대체)
-    notifyError({
-      title: '🔑 비밀번호 재설정 요청',
-      message: `닉네임: ${user.nickname}\n이메일: ${email}\n\n재설정 링크 (30분 유효):\n${resetUrl}\n\n이 링크를 해당 회원에게 전달하세요.`,
-    }).catch(() => {});
+    // 이메일 발송 (미설정 시 Discord 관리자 채널로 폴백)
+    let mailed = false;
+    if (isEmailEnabled()) {
+      try {
+        const result = await sendEmail({
+          to: email,
+          subject: '마케톡 비밀번호 재설정 안내 🔑',
+          html: renderEmail({
+            preheader: '30분 안에 아래 버튼으로 재설정해 주세요',
+            title: '비밀번호 재설정',
+            bodyHtml: `<p style="margin:0 0 12px;">${user.nickname}님, 비밀번호 재설정 요청이 접수됐어요.</p>
+              <p style="margin:0;">아래 버튼을 눌러 새 비밀번호를 설정해 주세요. 링크는 <b>30분간</b> 유효합니다.<br>
+              본인이 요청하지 않았다면 이 메일은 무시하셔도 됩니다.</p>`,
+            ctaText: '비밀번호 재설정하기',
+            ctaUrl: resetUrl,
+          }),
+        });
+        mailed = !!result && !result.skipped;
+        if (mailed) {
+          await query(`INSERT INTO email_log (user_id, kind) VALUES ($1, 'reset')`, [user.id]).catch(() => {});
+        }
+      } catch (err) {
+        console.error('[auth] reset email failed, falling back to Discord:', err.message);
+      }
+    }
+    if (!mailed) {
+      notifyError({
+        title: '🔑 비밀번호 재설정 요청',
+        message: `닉네임: ${user.nickname}\n이메일: ${email}\n\n재설정 링크 (30분 유효):\n${resetUrl}\n\n이 링크를 해당 회원에게 전달하세요.`,
+      }).catch(() => {});
+      console.log('[auth] password reset requested for:', email, '→', resetUrl);
+    }
 
-    console.log('[auth] password reset requested for:', email, '→', resetUrl);
-
-    res.json({ ok: true, message: '재설정 안내가 발송되었습니다. 관리자가 확인 후 안내드립니다.' });
+    res.json({
+      ok: true,
+      message: mailed
+        ? '재설정 안내 메일이 발송되었습니다. 메일함을 확인해 주세요.'
+        : '재설정 안내가 발송되었습니다. 관리자가 확인 후 안내드립니다.',
+    });
   } catch (err) {
     console.error('[auth/forgot-password]', err);
     res.status(500).json({ error: 'server_error' });

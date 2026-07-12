@@ -28,6 +28,7 @@ const {
 } = require('../ai/protocols');
 const { completeJson, complete } = require('./llm');
 const { recall, formatMemoriesForPrompt, extractAndSave } = require('./memory');
+const { createNotification } = require('../api/notifications');
 
 function parseArgs() {
   const args = process.argv.slice(2);
@@ -42,7 +43,7 @@ function parseArgs() {
 
 // ─────────────────────────────────────────────
 // 댓글이 부족한 게시글 선택
-// 우선순위: 댓글 0~3개인 최근 글 > 일반 최근 글
+// 우선순위: 회원 글 > 댓글 0~3개인 최근 글 > 일반 최근 글
 // ─────────────────────────────────────────────
 async function pickTargetPost(forcedId) {
   if (forcedId) {
@@ -59,6 +60,7 @@ async function pickTargetPost(forcedId) {
     WHERE p.published_at > NOW() - INTERVAL '48 hours'
       AND p.is_pinned = FALSE
     ORDER BY
+      (CASE WHEN p.user_id IS NOT NULL AND p.comment_count < 3 THEN 0 ELSE 1 END),
       (CASE WHEN p.comment_count < 3 THEN 0 ELSE 1 END),
       p.published_at DESC
     LIMIT 30
@@ -236,6 +238,20 @@ async function saveComment(c) {
     `UPDATE posts SET comment_count = comment_count + 1 WHERE id = $1`,
     [c.post.id]
   );
+  // 회원 글이면 원글 작성자에게 알림 (인앱 + 이메일, 실패해도 저장에 영향 없음)
+  if (c.post.user_id) {
+    const title = c.post.title || '';
+    const excerpt = c.body.slice(0, 80);
+    await createNotification({
+      userId: c.post.user_id,
+      type: 'comment',
+      actorNickname: c.nickname,
+      actorUserId: null,
+      postId: c.post.id,
+      commentId: rows[0].id,
+      message: `${c.nickname}님이 회원님 글 "${title.slice(0, 40)}${title.length > 40 ? '…' : ''}"에 댓글을 달았어요: ${excerpt}`,
+    });
+  }
   return rows[0];
 }
 

@@ -232,7 +232,7 @@
         showErr('err-register', json.message || `오류: ${json.error}`);
         return;
       }
-      location.href = '/';
+      location.href = '/welcome.html';
     } catch (err) {
       showErr('err-register', '네트워크 오류');
     }

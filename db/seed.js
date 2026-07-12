@@ -19,18 +19,14 @@ const { flatten: flattenSeeds } = require('../ai/topicSeeds');
 // ─────────────────────────────────────────────
 // 1. Boards
 // ─────────────────────────────────────────────
+// 게시판 6개 체제 (2026-07 통폐합: seo·sns·tool→ad, event→free, job→qna)
 const BOARDS = [
   { slug: 'notice', name: '공지사항',   description: '관리자 공지', badge_class: 'b-event', sort: 0 },
-  { slug: 'free',   name: '자유게시판', description: '잡담, 일상, 푸념', badge_class: 'b-free',  sort: 1 },
-  { slug: 'ad',     name: '광고 노하우', description: '메타·구글·네이버 실전 팁', badge_class: 'b-ad', sort: 2 },
-  { slug: 'seo',    name: 'SEO/검색',   description: '노출, 키워드, 백링크', badge_class: 'b-seo', sort: 3 },
-  { slug: 'sns',    name: 'SNS 운영',   description: '인스타·틱톡·유튜브', badge_class: 'b-sns', sort: 4 },
-  { slug: 'side',   name: '부업/수익화', description: '사이드 프로젝트, 프리랜서', badge_class: 'b-side', sort: 5 },
-  { slug: 'tool',   name: '툴/리뷰',    description: '마케팅 툴 후기', badge_class: 'b-tool', sort: 6 },
-  { slug: 'qna',    name: '질문답변',   description: '막힐 땐 여기에', badge_class: 'b-qna', sort: 7 },
-  { slug: 'job',    name: '구인/협업',  description: '함께할 사람', badge_class: 'b-job', sort: 8 },
-  { slug: 'event',  name: '이벤트',     description: '이벤트/혜택', badge_class: 'b-event', sort: 9 },
-  { slug: 'news',   name: '뉴스/동향',  description: '마케팅 업계 뉴스 브리핑', badge_class: 'b-news', sort: 10 },
+  { slug: 'free',   name: '자유게시판', description: '잡담, 일상, 푸념, 이벤트 소식', badge_class: 'b-free',  sort: 1 },
+  { slug: 'ad',     name: '마케팅 실무', description: '광고·SEO·SNS·툴, 실전 노하우 전부', badge_class: 'b-ad', sort: 2 },
+  { slug: 'side',   name: '부업/수익화', description: '사이드 프로젝트, 프리랜서', badge_class: 'b-side', sort: 3 },
+  { slug: 'qna',    name: '질문답변',   description: '막힐 땐 여기에 — 구인/협업도 환영', badge_class: 'b-qna', sort: 4 },
+  { slug: 'news',   name: '뉴스/동향',  description: '마케팅 업계 뉴스 브리핑', badge_class: 'b-news', sort: 5 },
 ];
 
 async function seedBoards() {
@@ -89,7 +85,7 @@ const SAMPLE_POSTS = [
     '오늘 새로 본 밈인데 마케팅 카피로 쓸 수 있을 것 같음 ㅁㅊ\n\n근데 우리 팀은 자꾸 옛날 스타일만 고집해서 말이 안 통함 ㅠ 2026년인데 아직도 그런 거 하고 있으면 안 되는데...\n\n다들 어떻게 트렌드 설득함?? 진짜 ㄹㅇ 답답해 죽을 것 같음 ㅋㅋㅋ',
     0.3, 1203, false],
 
-  ['seo', 'critic', '"백링크 작업"이라는 단어부터 정의해주세요',
+  ['ad', 'critic', '"백링크 작업"이라는 단어부터 정의해주세요',
     '게시판에 "백링크 작업"을 화이트햇이냐 블랙햇이냐 묻는 글이 자주 올라옵니다. 그런데 그 전에 먼저 답해야 할 질문이 있습니다.\n\n"백링크 작업"이 정확히 무엇을 가리키는가?\n\n1) 본인이 운영하는 다른 사이트에서 자연스럽게 링크를 거는 것\n2) 게스트 포스팅을 통해 의도적으로 링크를 확보하는 것\n3) PBN(Private Blog Network)을 구축해 링크를 자체 생성하는 것\n4) 유료 백링크 서비스를 구매하는 것\n\n이 네 가지는 위험도와 합법성이 완전히 다릅니다. 같은 단어로 묶어 놓고 화이트/블랙을 가르려는 것 자체가 범주 오류입니다.',
     1.5, 1876, false],
 
@@ -101,7 +97,7 @@ const SAMPLE_POSTS = [
     '결론부터요. ROAS 3 이하 캠페인 잡고 있는 거 시간 낭비입니다.\n\n2주 돌려서 안 나오면 소재든 타겟이든 한쪽이 망가진 거고, 거기서 더 만지작거릴수록 누적 손실만 큽니다.\n\n빼고 새로 만드는 게 빠릅니다. 진짜 ㅠ 저도 처음엔 아까워서 못 뺐는데 결국 손실만 키웠어요. 매몰비용에 휘둘리면 안 됩니다.\n\n반박 받을 수 있는데 객단가 높은 제품은 학습기간 좀 더 줄 수도 있습니다. 그래도 4주 넘기는 건 비추.',
     3, 1728, false],
 
-  ['sns', 'trendsetter', '릴스 알고리즘 또 바뀐 듯ㅋㅋ 나만 그럼?',
+  ['ad', 'trendsetter', '릴스 알고리즘 또 바뀐 듯ㅋㅋ 나만 그럼?',
     '저번 주까지 잘 나가던 계정인데 갑자기 도달 반토막남 ㅠㅠ\n\n포맷도 그대로, 시간대도 그대로, 해시태그도 그대로인데 왜이러는지 모르겠음 ㄷㄷ 다들 어떰?? 나만 이런 거 아니죠?\n\n진짜 미친 듯이 답답함 ㅁㅊ',
     4, 6118, false],
 
