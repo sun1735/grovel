@@ -61,7 +61,7 @@
       </div>
     </div>
     <!-- 활동 통계 -->
-    <div class="grid grid-cols-3 gap-3 mt-6">
+    <div class="grid grid-cols-4 gap-3 mt-6">
       <div class="rounded-lg bg-paper p-3 text-center">
         <div class="text-2xl font-extrabold" id="stat-posts">0</div>
         <div class="text-[11px] text-black/50">작성한 글</div>
@@ -73,6 +73,20 @@
       <div class="rounded-lg bg-paper p-3 text-center">
         <div class="text-2xl font-extrabold" id="stat-likes">0</div>
         <div class="text-[11px] text-black/50">좋아요</div>
+      </div>
+      <div class="rounded-lg bg-paper p-3 text-center">
+        <div class="text-2xl font-extrabold text-brand-500" id="stat-points">0</div>
+        <div class="text-[11px] text-black/50">포인트</div>
+      </div>
+    </div>
+    <!-- 레벨 진행도 -->
+    <div id="level-box" class="mt-4 hidden">
+      <div class="flex items-center justify-between text-[12px] mb-1.5">
+        <span class="font-bold"><span id="level-label">Lv.1</span> <span id="level-title" class="text-black/60"></span></span>
+        <span class="text-black/45" id="level-next"></span>
+      </div>
+      <div class="h-2 rounded-full bg-paper overflow-hidden">
+        <div id="level-bar" class="h-full rounded-full bg-brand-500 transition-all" style="width:0%"></div>
       </div>
     </div>
   </div>
@@ -275,6 +289,22 @@
       $('#stat-posts').textContent = fmt.format(s.post_count);
       $('#stat-comments').textContent = fmt.format(s.comment_count);
       $('#stat-likes').textContent = fmt.format(s.like_count);
+    } catch {}
+
+    // 포인트·레벨
+    try {
+      const r = await fetch('/api/points/me', { credentials:'same-origin' });
+      if (r.ok) {
+        const p = await r.json();
+        $('#stat-points').textContent = fmt.format(p.total_points);
+        $('#level-label').textContent = `Lv.${p.level}`;
+        $('#level-title').textContent = p.title;
+        $('#level-next').textContent = p.next_level_at
+          ? `다음 레벨까지 ${fmt.format(p.next_level_at - p.total_points)}P`
+          : '최고 레벨!';
+        $('#level-bar').style.width = `${p.progress}%`;
+        $('#level-box').classList.remove('hidden');
+      }
     } catch {}
 
     // 관심 게시판 로드 + 토글

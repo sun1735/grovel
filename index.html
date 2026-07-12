@@ -438,6 +438,16 @@ fetch('/api/seo-verify').then(r=>r.json()).then(d=>{
       </ol>
     </div>
 
+    <!-- 이번 주 활동 랭킹 (참여자 3명 미만이면 숨김) -->
+    <div id="ranking-card" class="card p-5 hidden">
+      <div class="text-sm font-bold mb-4 flex items-center gap-2">
+        <i data-lucide="trophy" class="w-4 h-4 text-amber-500"></i>
+        이번 주 활동 랭킹
+      </div>
+      <ol id="ranking-list" class="space-y-2.5 text-sm"></ol>
+      <p class="text-[11px] text-black/40 mt-3.5">글·댓글·출석으로 포인트가 쌓여요</p>
+    </div>
+
     <div id="coupang-ad">
       <script src="https://ads-partners.coupang.com/g.js"></script>
       <script>new PartnersCoupang.G({"id":980736,"template":"carousel","trackingCode":"AF8531424","width":"300","height":"250","tsource":""});</script>
@@ -758,6 +768,12 @@ fetch('/api/seo-verify').then(r=>r.json()).then(d=>{
     userBox.classList.add('flex');
     $('#strip-nickname').textContent = user.nickname;
     $('#strip-role').textContent = user.role === 'admin' ? '관리자' : '멤버';
+    // 레벨·포인트 표시
+    fetch('/api/points/me', { credentials:'same-origin' }).then(r => r.ok ? r.json() : null).then(p => {
+      if (!p) return;
+      $('#strip-role').textContent =
+        `Lv.${p.level} ${p.title} · ${new Intl.NumberFormat('ko-KR').format(p.total_points)}P`;
+    }).catch(() => {});
     const av = $('#strip-avatar');
     av.className = 'av ' + avatarClass(user.nickname);
     av.style.width = '48px'; av.style.height = '48px'; av.style.borderRadius = '14px'; av.style.fontSize = '18px';
@@ -1106,6 +1122,24 @@ fetch('/api/seo-verify').then(r=>r.json()).then(d=>{
   loadWeeklyBest();
   loadRecentComments();
   loadBanners();
+  loadRanking();
+
+  // 이번 주 활동 랭킹 — 참여자 3명 미만이면 카드 숨김 유지
+  async function loadRanking() {
+    try {
+      const r = await fetch('/api/points/ranking');
+      const { ranking } = await r.json();
+      if (!ranking || ranking.length < 3) return;
+      const medals = ['🥇', '🥈', '🥉'];
+      $('#ranking-list').innerHTML = ranking.map((u, i) => `
+        <li class="flex items-center gap-2.5">
+          <span class="w-6 text-center flex-shrink-0">${medals[i] || `<span class="text-[11px] text-black/40 font-bold">${i + 1}</span>`}</span>
+          <a href="/u/${encodeURIComponent(u.nickname)}" class="flex-1 truncate font-semibold hover:underline">${escapeHtml(u.nickname)}</a>
+          <span class="text-[11px] text-black/45 flex-shrink-0">Lv.${u.level} · ${u.weekly_points}P</span>
+        </li>`).join('');
+      $('#ranking-card').classList.remove('hidden');
+    } catch {}
+  }
 
   // 30초마다 통계 갱신 (살아있는 느낌)
   setInterval(loadStats, 30000);

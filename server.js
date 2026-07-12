@@ -18,6 +18,7 @@ const { router: agenciesApi } = require('./api/agencies');
 const { router: resourcesApi } = require('./api/resources');
 const copyApi = require('./api/copy');
 const { router: notificationsApi } = require('./api/notifications');
+const { router: pointsApi } = require('./api/points');
 const { attachUser } = require('./middleware/auth');
 
 const app = express();
@@ -182,6 +183,7 @@ app.use('/api/agencies',  agenciesApi);
 app.use('/api/resources', resourcesApi);
 app.use('/api/copy',      copyApi);
 app.use('/api/notifications', notificationsApi);
+app.use('/api/points',  pointsApi);
 
 // 헬스체크
 app.get('/healthz', (_req, res) => {

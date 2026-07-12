@@ -6,6 +6,7 @@ const { query } = require('../db');
 const { requireAuth } = require('../middleware/auth');
 const { notifyNewPost } = require('../worker/discord');
 const { createNotification } = require('./notifications');
+const { awardPoints } = require('./points');
 
 // ── 본문 HTML sanitize (리치 에디터 출력 검증) ──
 // 클라이언트(editor.js의 DOMPurify)와 동일 화이트리스트. 이미지 src는 우리 업로드
@@ -635,6 +636,13 @@ router.post('/', requireAuth, upload.array('images', 5), async (req, res) => {
       excerpt: bodyText.slice(0, 150),
     }).catch(() => {});
 
+    // 포인트 적립 (글 +10, 첫 글 +30 보너스)
+    (async () => {
+      await awardPoints(req.user.id, 'post', 10, postId);
+      const { rows: cnt } = await query('SELECT COUNT(*)::int AS c FROM posts WHERE user_id = $1', [req.user.id]);
+      if (cnt[0].c === 1) await awardPoints(req.user.id, 'bonus_first_post', 30, postId);
+    })().catch(err => console.error('[points/post]', err.message));
+
     // 본문/제목 멘션 알림 (HTML 태그 제거한 텍스트에서 추출)
     try {
       const mentioned = await resolveMentions(`${title} ${bodyText}`, req.user.id);
@@ -696,6 +704,10 @@ router.post('/:id/comments', requireAuth, async (req, res) => {
     const newCommentId = rows[0].id;
 
     await query('UPDATE posts SET comment_count = comment_count + 1 WHERE id = $1', [postId]);
+
+    // 포인트 적립 (댓글 +3)
+    awardPoints(req.user.id, 'comment', 3, newCommentId)
+      .catch(err => console.error('[points/comment]', err.message));
 
     // 원글 정보 (title·user_id) + 답글이면 부모 댓글 작성자 정보 동시에
     const { rows: postInfo } = await query(
@@ -941,6 +953,14 @@ router.post('/:id/like', requireAuth, async (req, res) => {
         `UPDATE posts SET like_count = like_count + 1 WHERE id = $1 RETURNING like_count`,
         [id]
       );
+      // 작성자 포인트 적립 (+2, 같은 사람 재좋아요는 미적립)
+      (async () => {
+        const { rows: p } = await query('SELECT user_id FROM posts WHERE id = $1', [id]);
+        const authorId = p[0]?.user_id;
+        if (authorId && authorId !== req.user.id) {
+          await awardPoints(authorId, 'like_received', 2, id, req.user.id);
+        }
+      })().catch(err => console.error('[points/like]', err.message));
       return res.json({ liked: true, like_count: rows[0]?.like_count });
     }
     // 이미 있었음 → 취소 + 카운트 -1
@@ -977,6 +997,14 @@ router.post('/:postId/comments/:commentId/like', requireAuth, async (req, res) =
         `UPDATE comments SET like_count = like_count + 1 WHERE id = $1 RETURNING like_count`,
         [commentId]
       );
+      // 작성자 포인트 적립 (+2) — ref_id는 글 id와 안 겹치게 음수로 저장
+      (async () => {
+        const { rows: c } = await query('SELECT user_id FROM comments WHERE id = $1', [commentId]);
+        const authorId = c[0]?.user_id;
+        if (authorId && authorId !== req.user.id) {
+          await awardPoints(authorId, 'like_received', 2, -commentId, req.user.id);
+        }
+      })().catch(err => console.error('[points/like-c]', err.message));
       return res.json({ liked: true, like_count: rows[0]?.like_count });
     }
     await query(

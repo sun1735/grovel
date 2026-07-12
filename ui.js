@@ -360,6 +360,27 @@
     document.body.appendChild(fab);
   }
 
+  // ── 자동 출석 체크 ──
+  // 로그인 유저가 하루 첫 방문 시 자동 체크인 + 토스트. KST 날짜 기준 localStorage 가드.
+  (function initCheckin() {
+    const kstDate = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
+    if (localStorage.getItem('mt-checkin') === kstDate) return;
+    fetch('/api/points/checkin', { method: 'POST', credentials: 'same-origin' })
+      .then(r => {
+        if (r.status === 401) return null;      // 미로그인 — 가드 저장 안 함 (로그인 후 재시도)
+        return r.ok ? r.json() : null;
+      })
+      .then(j => {
+        if (!j) return;
+        localStorage.setItem('mt-checkin', kstDate);
+        if (j.checked_now && typeof mtToast === 'function') {
+          const streakMsg = j.streak > 1 ? ` · 연속 ${j.streak}일째 🔥` : '';
+          mtToast(`출석 체크! +${j.earned}P${streakMsg}`, 'success', 4000);
+        }
+      })
+      .catch(() => {});
+  })();
+
   // ── 알림 벨 (헤더 placeholder 기반) ──
   // 각 페이지의 <button id="mt-notif-bell">에 바인딩. 미로그인 시 숨김.
   (function initNotifBell() {

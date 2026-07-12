@@ -335,6 +335,23 @@ CREATE TABLE IF NOT EXISTS email_log (
 );
 CREATE INDEX IF NOT EXISTS idx_email_log_user ON email_log(user_id, kind, sent_at DESC);
 
+-- ── 포인트/레벨 (출석·활동 적립) ────────────────
+ALTER TABLE users ADD COLUMN IF NOT EXISTS points INTEGER DEFAULT 0;
+
+-- point_log: 적립 이력. liker_id는 '받은 좋아요' 재적립 방지용 (누른 사람)
+CREATE TABLE IF NOT EXISTS point_log (
+  id         BIGSERIAL PRIMARY KEY,
+  user_id    BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  kind       VARCHAR(32) NOT NULL,     -- 'attendance' | 'post' | 'comment' | 'like_received' | 'bonus_first_post'
+  points     INTEGER NOT NULL,
+  ref_id     BIGINT,                   -- 관련 글/댓글 id
+  liker_id   BIGINT REFERENCES users(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_point_log_user      ON point_log(user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_point_log_user_kind ON point_log(user_id, kind, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_point_log_like_dedup ON point_log(ref_id, liker_id) WHERE kind = 'like_received';
+
 -- ── resources: 다운로드 가능한 마케팅 자료 ─────
 CREATE TABLE IF NOT EXISTS resources (
   id             BIGSERIAL PRIMARY KEY,
